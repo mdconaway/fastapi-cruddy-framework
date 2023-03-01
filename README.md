@@ -2,11 +2,11 @@
 
 <!-- PROJECT LOGO -->
 <div align="center">
+  <h2 align="center">FastAPI - Cruddy Framework</h2>
   <a href="https://github.com/mdconaway/fastapi-cruddy-framework">
     <img src="https://raw.githubusercontent.com/mdconaway/fastapi-cruddy-framework/master/logo.png" alt="Logo" width="768" height="406">
   </a>
-
-  <h3 align="center">FastAPI - Cruddy Framework</h3>
+  <br/>
 </div>
 
 <!-- ABOUT THE PROJECT -->
