@@ -1,0 +1,40 @@
+[tool.poetry]
+name = "fastapi-cruddy-framework"
+version = "0.0.1"
+description = "A holistic CRUD/MVC framework for FastAPI, with endpoint policies and relationships"
+authors = ["mdconaway <mdconaway@users.noreply.github.com>"]
+readme = "README.md"
+requires-python = ">=3.10"
+packages = [{include = "fastapi_cruddy_framework"}]
+homepage = "https://github.com/mdconaway/fastapi-cruddy-framework"
+repository = "https://github.com/mdconaway/fastapi-cruddy-framework"
+keywords = ["fastapi", "crud", "mvc", "orm", "ember", "sails", "json"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Web Environment",
+    "Framework :: FastAPI",
+    "Operating System :: OS Independent",
+    "Topic :: Software Development",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+include = [
+    "LICENSE",
+]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+fastapi = {extras = ["all"], version = "^0.92.0"}
+uvicorn = "^0.20.0"
+SQLAlchemy-Utils = "^0.38.3"
+SQLAlchemy = "^1.4.40"
+sqlmodel = "^0.0.8"
+inflect = "^6.0.2"
+
+
+[tool.poetry.group.dev.dependencies]
+black = "^23.1.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
