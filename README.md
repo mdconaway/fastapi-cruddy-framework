@@ -3,7 +3,7 @@
 <!-- PROJECT LOGO -->
 <div align="center">
   <a href="https://github.com/mdconaway/fastapi-cruddy-framework">
-    <img src="logo.png" alt="Logo" width="80" height="80">
+    <img src="https://raw.githubusercontent.com/mdconaway/fastapi-cruddy-framework/master/logo.png" alt="Logo" width="768" height="406">
   </a>
 
   <h3 align="center">FastAPI - Cruddy Framework</h3>
@@ -46,4 +46,4 @@ Distributed under the MIT License. See `LICENSE` for more information.
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- MARKDOWN LINKS & IMAGES -->
-[product-screenshot]: screenshot.png
+[product-screenshot]: https://raw.githubusercontent.com/mdconaway/fastapi-cruddy-framework/master/screenshot.png
