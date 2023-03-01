@@ -1,10 +1,12 @@
 from sqlalchemy.orm import declared_attr, RelationshipProperty
-from typing import TypeVar, Optional, Generic, List
+from typing import TypeVar, Optional, Generic, List, TYPE_CHECKING
 from pydantic.generics import GenericModel
 from sqlmodel import Field, SQLModel
 from datetime import datetime
 from .uuid import UUID, uuid7
-from .resource import Resource
+
+if TYPE_CHECKING:
+    from .resource import Resource
 
 
 # -------------------------------------------------------------------------------------------
@@ -16,7 +18,7 @@ T = TypeVar("T")
 
 class RelationshipConfig:
     orm_relationship: RelationshipProperty = None
-    foreign_resource: Resource = None
+    foreign_resource: "Resource" = None
 
     def __init__(self, orm_relationship=None, foreign_resource=None):
         self.orm_relationship = orm_relationship

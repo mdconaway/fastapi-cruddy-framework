@@ -5,7 +5,7 @@ from sqlalchemy.orm import (
     MANYTOMANY,
     MANYTOONE,
 )
-from typing import Union, List, Dict
+from typing import Union, List, Dict, TYPE_CHECKING
 from pydantic.types import Json
 from .uuid import UUID
 from .schemas import (
@@ -18,7 +18,9 @@ from .schemas import (
     ExampleUpdate,
     ExampleCreate,
 )
-from .repository import AbstractRepository
+
+if TYPE_CHECKING:
+    from .repository import AbstractRepository
 
 
 # -------------------------------------------------------------------------------------------
@@ -36,7 +38,7 @@ def assemblePolicies(*args: (List)):
 
 def _ControllerConfigManyToOne(
     controller: APIRouter = ...,
-    repository: AbstractRepository = ...,
+    repository: "AbstractRepository" = ...,
     id_type: Union[UUID, int] = ...,
     relationship_prop: str = ...,
     config: RelationshipConfig = ...,
@@ -92,7 +94,7 @@ def _ControllerConfigManyToOne(
 
 def _ControllerConfigOneToMany(
     controller: APIRouter = ...,
-    repository: AbstractRepository = ...,
+    repository: "AbstractRepository" = ...,
     id_type: Union[UUID, int] = ...,
     relationship_prop: str = ...,
     config: RelationshipConfig = ...,
@@ -161,7 +163,7 @@ def _ControllerConfigOneToMany(
 
 def _ControllerConfigManyToMany(
     controller: APIRouter = ...,
-    repository: AbstractRepository = ...,
+    repository: "AbstractRepository" = ...,
     id_type: Union[UUID, int] = ...,
     relationship_prop: str = ...,
     config: RelationshipConfig = ...,
@@ -235,7 +237,7 @@ async def SaveRelationships(
     id: Union[UUID, int] = ...,
     record: CruddyModel = ...,
     relation_config_map: Dict[str, RelationshipConfig] = ...,
-    repository: AbstractRepository = ...,
+    repository: "AbstractRepository" = ...,
 ):
     relationship_lists = GetRelationships(record, relation_config_map)
     modified_records = 0
@@ -256,7 +258,7 @@ async def SaveRelationships(
 
 def ControllerCongifurator(
     controller: APIRouter = ...,
-    repository: AbstractRepository = ...,
+    repository: "AbstractRepository" = ...,
     id_type: Union[UUID, int] = int,
     single_name: str = ...,
     plural_name: str = ...,
