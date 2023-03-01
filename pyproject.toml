@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fastapi-cruddy-framework"
-version = "0.0.1"
+version = "0.0.2"
 description = "A holistic CRUD/MVC framework for FastAPI, with endpoint policies and relationships"
 authors = ["mdconaway <mdconaway@users.noreply.github.com>"]
 readme = "README.md"

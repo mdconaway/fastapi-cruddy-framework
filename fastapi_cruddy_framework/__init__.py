@@ -1,18 +1,17 @@
-from .main import (
-    # Special Types
-    UUID,
-    uuid7,
+# This is a rails-like library. You're welcome Python community.
+# Love,
+# A Sails / Ember lover.
+# -----------------------------------------------------------------
+from .inflector import pluralizer
+from .uuid import UUID, uuid7
+from .schemas import (
     T,
-    # Inflector
-    pluralizer,
-    # Library Schemas
     RelationshipConfig,
     CruddyGenericModel,
     BulkDTO,
     MetaObject,
     PageResponse,
     ResponseSchema,
-    # You should extend most of your models from CruddyModel, CruddyIntIDModel, and CruddyUUIDModel
     CruddyModel,
     CruddyIntIDModel,
     CruddyUUIDModel,
@@ -20,14 +19,10 @@ from .main import (
     ExampleCreate,
     ExampleView,
     Example,
-    # The core framework classes / functions
-    ResourceRegistry,
-    CruddyResourceRegistry,
-    Resource,
-    ControllerCongifurator,
-    AbstractRepository,
-    PostgresqlAdapter,
-    CreateRouterFromResources,
-    getModuleDir,
-    getDirectoryModules,
 )
+from .controller import ControllerCongifurator
+from .repository import AbstractRepository
+from .adapters import PostgresqlAdapter
+from .resource import Resource, ResourceRegistry, CruddyResourceRegistry
+from .router import getModuleDir, getDirectoryModules, CreateRouterFromResources
+# -----------------------------------------------------------------

@@ -1,4 +1,4 @@
-# For UUID...
+# pyright: reportShadowedImports=false
 import secrets
 import time
 import uuid
