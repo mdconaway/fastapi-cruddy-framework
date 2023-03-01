@@ -36,6 +36,8 @@ Or pip.
 pip install fastapi-cruddy-framework
 ```
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 <!-- LICENSE -->
 ## License
 
