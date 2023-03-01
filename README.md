@@ -21,6 +21,21 @@ TODO: All the documentation. See the examples folder for a quick reference of hi
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
+<!-- ABOUT THE PROJECT -->
+## Installation
+
+The fastapi-cruddy-framework module can be install using poetry...
+
+```
+poetry add fastapi-cruddy-framework
+```
+
+Or pip.
+
+```
+pip install fastapi-cruddy-framework
+```
+
 <!-- LICENSE -->
 ## License
 
