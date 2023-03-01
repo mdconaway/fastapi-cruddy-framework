@@ -27,3 +27,6 @@ TODO: All the documentation. See the examples folder for a quick reference of hi
 Distributed under the MIT License. See `LICENSE.txt` for more information.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+<!-- MARKDOWN LINKS & IMAGES -->
+[product-screenshot]: screenshot.png
