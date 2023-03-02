@@ -22,7 +22,7 @@ from .schemas import (
 )
 from .controller import ControllerCongifurator
 from .repository import AbstractRepository
-from .adapters import PostgresqlAdapter
+from .adapters import BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter
 from .resource import Resource, ResourceRegistry, CruddyResourceRegistry
 from .router import getModuleDir, getDirectoryModules, CreateRouterFromResources
 

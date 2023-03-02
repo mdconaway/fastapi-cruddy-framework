@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fastapi-cruddy-framework"
-version = "0.0.2"
+version = "0.0.3"
 description = "A holistic CRUD/MVC framework for FastAPI, with endpoint policies and relationships"
 authors = ["mdconaway <mdconaway@users.noreply.github.com>"]
 readme = "README.md"
@@ -47,6 +47,13 @@ inflect = "^6.0.2"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.1.0"
+starlette-session = "^0.4.3"
+aiosqlite = "^0.18.0"
+greenlet = "^2.0.2"
+bcrypt = "^4.0.1"
+
+[tool.poetry.scripts]
+start_sqlite = "examples.fastapi_cruddy_sqlite.main:local_start"
 
 [build-system]
 requires = ["poetry-core"]

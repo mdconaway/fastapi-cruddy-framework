@@ -20,14 +20,14 @@ from .schemas import (
     BulkDTO,
     CruddyModel,
 )
-from .adapters import PostgresqlAdapter
+from .adapters import BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter
 
 
 # -------------------------------------------------------------------------------------------
 # REPOSITORY MANAGER
 # -------------------------------------------------------------------------------------------
 class AbstractRepository:
-    adapter: "PostgresqlAdapter"
+    adapter: Union[BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter]
     update_model: CruddyModel
     create_model: CruddyModel
     model: CruddyModel
@@ -36,7 +36,9 @@ class AbstractRepository:
 
     def __init__(
         self,
-        adapter: "PostgresqlAdapter" = ...,
+        adapter: Union[
+            BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter
+        ] = ...,
         update_model: CruddyModel = ...,
         create_model: CruddyModel = ...,
         model: CruddyModel = ...,

@@ -8,7 +8,7 @@ from sqlalchemy.orm import (
     MANYTOMANY,
 )
 from sqlmodel import inspect
-from typing import Union, Optional, List, Dict, Callable
+from typing import Union, Optional, List, Dict, Callable, Literal
 from pydantic import create_model
 from pydantic.generics import GenericModel
 from .inflector import pluralizer
@@ -25,7 +25,7 @@ from .schemas import (
 )
 from .controller import ControllerCongifurator
 from .repository import AbstractRepository
-from .adapters import PostgresqlAdapter
+from .adapters import BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter
 
 
 # -------------------------------------------------------------------------------------------
@@ -53,7 +53,12 @@ class Resource:
 
     def __init__(
         self,
-        adapter=None,
+        adapter: Union[
+            BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter, None
+        ] = None,
+        adapter_type: Literal["mysql", "postgresql"] = "postgresql",
+        db_mode: Literal["memory", "file"] = "memory",
+        db_path: Union[str, None] = None,
         connection_uri="",
         pool_size=4,
         max_overflow=64,
@@ -97,10 +102,14 @@ class Resource:
             "get_many": policies_get_many,
         }
 
-        if None == adapter:
-            self.adapter = PostgresqlAdapter(connection_uri, pool_size, max_overflow)
-        else:
+        if None != adapter:
             self.adapter = adapter
+        elif None != db_path:
+            self.adapter = SqliteAdapter(db_path=db_path, mode=db_mode)
+        elif adapter_type == "postgresql":
+            self.adapter = PostgresqlAdapter(connection_uri, pool_size, max_overflow)
+        elif adapter_type == "mysql":
+            self.adapter = MysqlAdapter(connection_uri, pool_size, max_overflow)
 
         self.repository = AbstractRepository(
             adapter=self.adapter,
