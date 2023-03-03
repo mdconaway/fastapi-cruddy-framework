@@ -290,9 +290,9 @@ The `CruddyResourceRegistry` is a library-internal instance of the `ResourceRegi
 
 The `ControllerCongifurator` is a configuration function invoked by the `Resource` class after SQL Alchemy has resolved all model relationships. You shouldn't need to interact with this function, but if you're a super advanced user, or wunderkind, maybe you will find a reason to need this. In essence, this function builds out all of the basic CRUD logic for a resource, after the resource has constructed a repository and generated the shadow schemas for your models. This is where your CRUD routes and sub-routes are auto-magically configured.
 
-The controller/router configured by each of your `Resource` objects will allow the base resource or its relationships to be queried from the client via an arbitrarily complex `where` object (JSON encoded query parameter). Here are some example query parameters that a client could send to a controller's GET MANY route, or a nested One-to-Many or Many-to-Many GET route:
+The controller/router configured by each of your `Resource` objects will allow the base resource or its relationships to be queried from the client via an arbitrarily complex `where` object (JSON encoded query parameter). 
 
-Invalid attrs or ops are just dropped. (May change in the future)
+Invalid attributes or ops are just dropped. (May change in the future)
 
 Improvements that will be made in the near future:
 1. Conditional table joins for relationships to...
