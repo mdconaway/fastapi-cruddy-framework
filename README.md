@@ -17,7 +17,7 @@
 `fastapi-cruddy-framework` is a companion library to FastAPI designed to bring the development productivity of Ruby on Rails, Ember.js or Sails.js to the FastAPI ecosystem. Many of the design patterns base themselves on Sails.js "policies," sails-ember-rest automatic CRUD routing, and Ember.js REST-Adapter feature sets. By default, data sent to and from the auto-magic CRUD routes are expected to conform to the Ember.js Rest Envelope / Linked-data specification. This specification is highly readable for front-end developers, allows for an expressive over-the-wire query syntax, and embeds self-describing relationship URL links in each over-the-wire record to help data stores automatically generate requests to fetch or update related records. This library is still in an alpha/beta phase, so use at your own risk. All CRUD actions and relationship types are currently supported, though there may be unexpected bugs. Please report any bugs under "issues."
 
 
-TODO: All the documentation. See the examples folder for a quick reference of high level setup. It currently contains a fully functional fastapi server which uses fastapi-cruddy-framework and the sqlite adapter. It even shows how to override incoming post data to do things like hash a user's password during initial registration using a simple drop-in policy function.
+TODO: All the documentation and E2E tests. See the examples folder for a quick reference of high level setup. It currently contains a fully functional fastapi server which uses fastapi-cruddy-framework and the sqlite adapter. It even shows how to override incoming post data to do things like hash a user's password during initial registration using a simple drop-in policy function.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -88,6 +88,7 @@ uuid7
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
+<!-- CreateRouterFromResources -->
 ### CreateRouterFromResources
 
 This instance factory creates and returns a fully-wired fastapi `APIRouter` which sub-routes all `Resource` instances created in your project. Theoretically, you can create and mount multiple routers this way, but each router needs to be provided all of the `Resource` instances required to fully resolve the relationships it may care about. The recommended way to structure your project is to keep all resources required for a route set contained within a single folder. This factory is then provided the relative path to a resource set folder, starting with your application's `main` module, and will return the fully interconnected route set while also instantiating all of your resource modules. Typically, it is a good idea to import all of your router instances in your main module, as they will need to be "connected" to your fastapi server <i>WITHIN</i> the `startup` hook. This is critical, as the resource registry (discussed below) cannot fully resolve relationships until after SQLAlchemy is aware of all models. This occurs in-between launching your main module and the `startup` hook.
@@ -123,6 +124,7 @@ async def bootstrap():
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
+<!-- Resource -->
 ### Resource
 
 The `Resource` class is the fundamental building block of fastapi-cruddy-framework. Your resource instances define the union of your models, resource "controller" (which is a fastapi router with baked-in CRUD logic), business policies, repository abstraction layer, and database adapter. Fortunately for you, the user, everything is essentially ready-to-go out of the box. Like sails-ember-rest or Ruby on Rails, you can now focus all of your development time on creating reusable policies (which contain your business logic that lies just above your CRUD endpoints), defining your models, and extending your resource controllers to add one-off actions like "login" or "change password". All of your resources should be loaded by the router factory (above) to ensure that relationships and routes are resolved in the correct order. Don't forget, <b>only plug the master router into your application in the fastapi `startup` hook!</b>
@@ -258,6 +260,18 @@ resource = Resource(
 ```
 
 Easy, right?
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+<!-- ResourceRegistry -->
+## ResourceRegistry
+
+The `ResourceRegistry` class should be invisible to the average user. There are no input parameters when creating a registry, and by default Cruddy defines its own library internal registry. The registry exists to perform the following functions:
+
+* Maintain a map of all resources available to `fastapi-cruddy-framework`
+* Trigger `resolve` for all resources after SQL Alchemy finishes computing the relationship properties on each SQLModel.
+* Plugin to the `Resource` class, so that each `Resource` you define can automatically call `ResourceRegistry.register()` when you define it. This is all "under the hood".
+
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
