@@ -138,6 +138,7 @@ The `Resource` class is the fundamental building block of fastapi-cruddy-framewo
 * `policies_universal` apply to ALL CRUD routes, and always run <i>BEFORE</i> action specific policy chains.
 * Action specific policies run <i>AFTER</i> all `policies_universal` have resolved successfully.
 * Each endpoint is protected by `policies_universal` + `policies_<action>`.
+* One-to-Many and Many-to-Many sub-routes (like /users/{id}/posts) will be protected by the policy chain: `user.policies_universal` + `user.policies_get_one` + `posts.policies_get_many`. Security, security, security!
 * Blocking user REST modification of certain relationships via the default CRUD controller is also done at definition time!
 * `protected_relationships` is a `List[str]` with each string indicating a one-to-many or many-to-many relationship that should not be allowed to update via the default CRUD actions.
 * You should define your application-wide adapter elsewhere and pass it into the resource instance.
@@ -281,6 +282,11 @@ The `ResourceRegistry` class should be invisible to the average user. There are 
 ## CruddyResourceRegistry
 
 The `CruddyResourceRegistry` is a library-internal instance of the `ResourceRegistry` class. It manages all of the resources Cruddy is a ware of. Maybe don't touch this. Or do, if you like to live dangerously.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+<!-- ControllerCongifurator -->
+The `ControllerCongifurator` is a configuration function invoked by the `Resource` class after SQL Alchemy has resolved all model relationships. You shouldn't need to interact with this function, but if you're a super advanced user, or wunderkind, maybe you will find a reason to need this. In essence, this function builds out all of the basic CRUD logic for a resource, after the resource has constructed a repository and generated the shadow schemas for your models. This is where your CRUD routes and sub-routes are auto-magically configured.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
