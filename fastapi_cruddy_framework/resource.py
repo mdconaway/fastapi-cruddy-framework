@@ -8,7 +8,7 @@ from sqlalchemy.orm import (
     MANYTOMANY,
 )
 from sqlmodel import inspect
-from typing import Union, Optional, List, Dict, Callable, Literal
+from typing import Union, Optional, List, Dict, Callable, Literal, Type
 from pydantic import create_model
 from pydantic.generics import GenericModel
 from .inflector import pluralizer
@@ -53,6 +53,7 @@ class Resource:
 
     def __init__(
         self,
+        id_type: Union[Type[int], Type[UUID]] = int,
         adapter: Union[
             BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter, None
         ] = None,
@@ -65,13 +66,12 @@ class Resource:
         link_prefix="",
         path: str = None,
         tags: List[str] = None,
-        response_schema=ExampleView,
-        response_meta_schema=MetaObject,
-        resource_update_model=ExampleUpdate,
-        resource_create_model=ExampleCreate,
+        resource_create_model: CruddyModel = ExampleCreate,
+        resource_update_model: CruddyModel = ExampleUpdate,
         resource_model: CruddyModel = Example,
+        response_schema: CruddyModel = ExampleView,
+        response_meta_schema: CruddyGenericModel = MetaObject,
         protected_relationships: List[str] = [],
-        id_type=int,
         policies_universal: List[Callable] = [],
         policies_create: List[Callable] = [],
         policies_update: List[Callable] = [],
