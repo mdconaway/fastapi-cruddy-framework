@@ -281,7 +281,7 @@ The `ResourceRegistry` class should be invisible to the average user. There are 
 <!-- CruddyResourceRegistry -->
 ### CruddyResourceRegistry
 
-The `CruddyResourceRegistry` is a library-internal instance of the `ResourceRegistry` class. It manages all of the resources Cruddy is a ware of. Maybe don't touch this. Or do, if you like to live dangerously.
+The `CruddyResourceRegistry` is a library-internal instance of the `ResourceRegistry` class. It manages all of the resources Cruddy is aware of. Maybe don't touch this. Or do, if you like to live dangerously.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
