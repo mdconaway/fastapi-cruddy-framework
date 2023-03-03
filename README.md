@@ -267,7 +267,7 @@ Easy, right?
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- ResourceRegistry -->
-## ResourceRegistry
+### ResourceRegistry
 
 The `ResourceRegistry` class should be invisible to the average user. There are no input parameters when creating a registry, and by default Cruddy defines its own library-internal registry. The registry exists to perform the following functions:
 
@@ -279,14 +279,76 @@ The `ResourceRegistry` class should be invisible to the average user. There are 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- CruddyResourceRegistry -->
-## CruddyResourceRegistry
+### CruddyResourceRegistry
 
 The `CruddyResourceRegistry` is a library-internal instance of the `ResourceRegistry` class. It manages all of the resources Cruddy is a ware of. Maybe don't touch this. Or do, if you like to live dangerously.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- ControllerCongifurator -->
+### ControllerCongifurator
+
 The `ControllerCongifurator` is a configuration function invoked by the `Resource` class after SQL Alchemy has resolved all model relationships. You shouldn't need to interact with this function, but if you're a super advanced user, or wunderkind, maybe you will find a reason to need this. In essence, this function builds out all of the basic CRUD logic for a resource, after the resource has constructed a repository and generated the shadow schemas for your models. This is where your CRUD routes and sub-routes are auto-magically configured.
+
+The controller/router configured by each of your `Resource` objects will allow the base resource or its relationships to be queried from the client via an arbitrarily complex `where` object (JSON encoded query parameter). Here are some example query parameters that a client could send to a controller's GET MANY route, or a nested One-to-Many or Many-to-Many GET route:
+
+Invalid attrs or ops are just dropped. (May change in the future)
+
+Improvements that will be made in the near future:
+1. Conditional table joins for relationships to...
+2. Make resources searchable with joined relationships via dot notation!
+3. Maybe throw an error if a bad search field is sent? (Will help UI devs)
+
+Clients can build an arbitrarily deep query with a JSON dictionary, sent via a query parameter in a JSON object that generally contains all possible filter operators along with "and," "or," and "not" conditions. 
+
+Field level and boolean operators begin with a * character. This will nearly always translate down to the sqlalchemy level, where it is up to the model class to determine what operations are possible on each model attribute. The top level query of a `where` object is an implicit AND. To do an OR, the base key of the search must be `*or`, as in the below examples:
+`/resource?where={"*or":{"first_name":"bilbo","last_name":"baggins"}}`
+`/resource/{id}/relationship?where={"*or":{"first_name":{"*contains":"bilbo"},"last_name":"baggins"}}`
+`/resource?where={"*or":{"first_name":{"*endswith":"bilbo"},"last_name":"baggins","*and":{"email":{"*contains":"@"},"first_name":{"*contains":"helga"}}}}`
+`/resource?where={"*or":{"first_name":{"*endswith":"bilbo"},"last_name":"baggins","*and":[{"email":{"*contains":"@"}},{"email":{"*contains":"helga"}}]}}`
+
+
+The following query would be an implicit *and:
+`/resource?where=[{"first_name":{"*endswith":"bilbo"}},{"last_name":"baggins"}]`
+
+
+As would the following query:
+`/resource/{id}/relationship?where={"first_name":{"*endswith":"bilbo"},"last_name":"baggins"}`
+
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+<!-- AbstractRepository -->
+## AbstractRepository
+
+The `AbstractRepository` is a helpful way to interact with the data layer of your models. It contains all of the underlying functions that the `Resource` and `Controller` objects use to query, create, update, and delete your database information. Each `Resource` you define will automatically create an `AbstractRepository` instance that manages it. This can be accessed in your application at `your_resource_instance.repository`. The methods available to you via this repository instance are:
+
+```python
+# User functions accessible from any resource's 'AbstractRepository'
+async def create(data: CruddyModel)
+
+async def get_by_id(id: Union[UUID, int])
+
+async def update(id: Union[UUID, int], data: CruddyModel)
+
+async def delete(id: Union[UUID, int])
+
+async def get_all(page: int = 1, limit: int = 10, columns: List[str] = None, sort: List[str] = None, where: Json = None)
+
+async def get_all_relations(id: Union[UUID, int] = ..., relation: str = ..., relation_model: CruddyModel = ..., page: int = 1, limit: int = 10, columns: List[str] = None, sort: List[str] = None, where: Json = None)
+
+async def set_many_many_relations(id: Union[UUID, int], relation: str = ..., relations: List[Union[UUID, int]] = ...)
+
+async def set_one_many_relations(id: Union[UUID, int], relation: str = ..., relations: List[Union[UUID, int]] = ...)
+```
+
+Generally, these functions do about what you would expect them to do. More documentation will be added to describe their function soon. Please read nuances below, however, as it applies to how x-to-Many relationships are managed via the automatic CRUD routes.
+
+
+<b>Important AbstractRepository Nuances</b>
+
+* `set_many_many_relations` and `set_one_many_relations` both destroy and then re-create the x-to-Many relationships they target. If a `user` with the id of 1 was a member of `groups` 1, 2, and 3, then calling `await user_repository.set_many_many_relations(1, 'groups', [4,5,6])` would result in `user` 1 being a member of only groups 4,5, and 6 after execution. Client applications should be aware of this functionality, and always send ALL relationships that should still exist during any relational updates.
+
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

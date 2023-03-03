@@ -55,7 +55,7 @@ class AbstractRepository:
             "*not": not_,
         }
 
-    async def create(self, data: CruddyModel):
+    async def create(self, data: CruddyModel) -> CruddyModel:
         # create user data
         async with self.adapter.getSession() as session:
             record = self.model(**data.dict())
@@ -111,7 +111,7 @@ class AbstractRepository:
         columns: List[str] = None,
         sort: List[str] = None,
         where: Json = None,
-    ):
+    ) -> BulkDTO:
         select_columns = (
             list(map(lambda x: column(x), columns))
             if columns is not None and columns != []
@@ -163,7 +163,7 @@ class AbstractRepository:
         columns: List[str] = None,
         sort: List[str] = None,
         where: Json = None,
-    ):
+    ) -> BulkDTO:
         # The related id column is mandatory or the join will explode
         if columns is None or len(columns) == 0:
             select_columns = list(
@@ -300,12 +300,15 @@ class AbstractRepository:
     async def set_one_many_relations(
         self,
         id: Union[UUID, int],
-        relation: RelationshipConfig = ...,
+        relation: str = ...,
         relations: List[Union[UUID, int]] = ...,
     ):
-        related_model = relation.foreign_resource.repository.model
+        model_relation: RelationshipProperty = getattr(
+            inspect(self.model).relationships, relation
+        )
+        related_model = model_relation.foreign_resource.repository.model
         related_model_id: Column = getattr(related_model, "id")
-        far_col: Column = next(iter(relation.orm_relationship.remote_side))
+        far_col: Column = next(iter(model_relation.orm_relationship.remote_side))
         far_col_name = far_col.name
 
         clear_query = (

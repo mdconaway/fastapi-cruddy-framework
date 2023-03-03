@@ -251,7 +251,7 @@ async def SaveRelationships(
             )
         elif config.orm_relationship.direction == ONETOMANY:
             modified_records += await repository.set_one_many_relations(
-                id=id, relation=config, relations=new_relations
+                id=id, relation=name, relations=new_relations
             )
     return modified_records
 
