@@ -20,7 +20,7 @@ from .schemas import (
     ExampleView,
     Example,
 )
-from .controller import ControllerCongifurator
+from .controller import CruddyController, ControllerCongifurator
 from .repository import AbstractRepository
 from .adapters import BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter
 from .resource import Resource, ResourceRegistry, CruddyResourceRegistry

@@ -7,6 +7,7 @@ from examples.fastapi_cruddy_sqlite.models.user import (
     UserView,
 )
 from examples.fastapi_cruddy_sqlite.schemas.response import MetaObject
+from examples.fastapi_cruddy_sqlite.controllers.user import UserController
 from examples.fastapi_cruddy_sqlite.policies.verify_session import verify_session
 from examples.fastapi_cruddy_sqlite.policies.hash_user_password import (
     hash_user_password,
@@ -24,4 +25,5 @@ resource = Resource(
     id_type=UUID,
     policies_universal=[verify_session],
     policies_create=[hash_user_password],
+    controller_extension=UserController,
 )

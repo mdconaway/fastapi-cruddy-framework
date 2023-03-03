@@ -21,11 +21,43 @@ from .schemas import (
 
 if TYPE_CHECKING:
     from .repository import AbstractRepository
+    from .resource import Resource
+    from .adapters import BaseAdapter, MysqlAdapter, PostgresqlAdapter, SqliteAdapter
 
 
 # -------------------------------------------------------------------------------------------
 # CONTROLLER / ROUTER
 # -------------------------------------------------------------------------------------------
+
+
+class CruddyController:
+    controller: APIRouter = None
+    repository: "AbstractRepository" = None
+    resource: "Resource" = None
+    adapter: Union[
+        "BaseAdapter", "MysqlAdapter", "PostgresqlAdapter", "SqliteAdapter"
+    ] = None
+
+    def __init__(
+        self,
+        controller: APIRouter = ...,
+        repository: "AbstractRepository" = ...,
+        resource: "Resource" = ...,
+        adapter: Union[
+            "BaseAdapter", "MysqlAdapter", "PostgresqlAdapter", "SqliteAdapter"
+        ] = ...,
+    ):
+        self.controller = controller
+        self.repository = repository
+        self.resource = resource
+        self.adapter = adapter
+        self.setup()
+
+    def setup(self):
+        # Override this method in your code!
+        # This is the best place to add more methods to the resource controller!
+        # By defining your controllers as classes, you can even share methods between resources, like a mixin!
+        pass
 
 
 def assemblePolicies(*args: (List)):

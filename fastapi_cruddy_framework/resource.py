@@ -23,7 +23,7 @@ from .schemas import (
     ExampleView,
     Example,
 )
-from .controller import ControllerCongifurator
+from .controller import CruddyController, ControllerCongifurator
 from .repository import AbstractRepository
 from .adapters import BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter
 
@@ -48,6 +48,7 @@ class Resource:
     adapter: PostgresqlAdapter = None
     repository: AbstractRepository = None
     controller: APIRouter = None
+    controller_extension: CruddyController = None
     policies: Dict[str, List[Callable]] = None
     schemas: Dict[str, GenericModel] = None
 
@@ -78,6 +79,7 @@ class Resource:
         policies_delete: List[Callable] = [],
         policies_get_one: List[Callable] = [],
         policies_get_many: List[Callable] = [],
+        controller_extension: Union[CruddyController, None] = None,
     ):
         possible_tag = f"{resource_model.__name__}".lower()
         possible_path = f"/{pluralizer.plural(possible_tag)}"
@@ -120,6 +122,11 @@ class Resource:
         )
 
         self.controller = APIRouter(prefix=self._resource_path, tags=self._tags)
+
+        if controller_extension != None and issubclass(
+            controller_extension, CruddyController
+        ):
+            self.controller_extension = controller_extension
 
         self._registry.register(res=self)
 
@@ -328,6 +335,16 @@ class Resource:
         return handle_data_or_none
 
     def resolve(self):
+        if self.controller_extension != None and issubclass(
+            self.controller_extension, CruddyController
+        ):
+            self.controller_extension(
+                controller=self.controller,
+                repository=self.repository,
+                resource=self,
+                adapter=self.adapter,
+            )
+
         self.controller = ControllerCongifurator(
             controller=self.controller,
             repository=self.repository,
