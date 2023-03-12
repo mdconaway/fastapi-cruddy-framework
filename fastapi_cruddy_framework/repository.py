@@ -21,6 +21,7 @@ from .schemas import (
     CruddyModel,
 )
 from .adapters import BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter
+from .util import get_pk, possible_id_types
 
 
 # -------------------------------------------------------------------------------------------
@@ -31,7 +32,8 @@ class AbstractRepository:
     update_model: CruddyModel
     create_model: CruddyModel
     model: CruddyModel
-    id_type: Union[UUID, int]
+    id_type: possible_id_types
+    primary_key: str = None
     op_map: Dict
 
     def __init__(
@@ -42,7 +44,7 @@ class AbstractRepository:
         update_model: CruddyModel = ...,
         create_model: CruddyModel = ...,
         model: CruddyModel = ...,
-        id_type: Union[UUID, int] = int,
+        id_type: possible_id_types = int,
     ):
         self.adapter = adapter
         self.update_model = update_model
@@ -55,6 +57,10 @@ class AbstractRepository:
             "*not": not_,
         }
 
+    def resolve(self):
+        # Can't do this until all models are defined, otherwise mappers break
+        self.primary_key = get_pk(self.model)
+
     async def create(self, data: CruddyModel) -> CruddyModel:
         # create user data
         async with self.adapter.getSession() as session:
@@ -63,18 +69,18 @@ class AbstractRepository:
         return record
         # return a value?
 
-    async def get_by_id(self, id: Union[UUID, int]):
+    async def get_by_id(self, id: possible_id_types):
         # retrieve user data by id
-        query = select(self.model).where(self.model.id == id)
+        query = select(self.model).where(getattr(self.model, self.primary_key) == id)
         async with self.adapter.getSession() as session:
             result = (await session.execute(query)).scalar_one_or_none()
         return result
 
-    async def update(self, id: Union[UUID, int], data: CruddyModel):
+    async def update(self, id: possible_id_types, data: CruddyModel):
         # update user data
         query = (
             _update(self.model)
-            .where(self.model.id == id)
+            .where(getattr(self.model, self.primary_key) == id)
             .values(**data.dict())
             .execution_options(synchronize_session="fetch")
         )
@@ -87,12 +93,12 @@ class AbstractRepository:
         return None
         # return a value?
 
-    async def delete(self, id: Union[UUID, int]):
+    async def delete(self, id: possible_id_types):
         # delete user data by id
         record = await self.get_by_id(id=id)
         query = (
             _delete(self.model)
-            .where(self.model.id == id)
+            .where(getattr(self.model, self.primary_key) == id)
             .execution_options(synchronize_session="fetch")
         )
         async with self.adapter.getSession() as session:
@@ -155,7 +161,7 @@ class AbstractRepository:
 
     async def get_all_relations(
         self,
-        id: Union[UUID, int] = ...,
+        id: possible_id_types = ...,
         relation: str = ...,
         relation_model: CruddyModel = ...,
         page: int = 1,
@@ -165,6 +171,7 @@ class AbstractRepository:
         where: Json = None,
     ) -> BulkDTO:
         # The related id column is mandatory or the join will explode
+        relation_pk = get_pk(relation_model)
         if columns is None or len(columns) == 0:
             select_columns = list(
                 map(
@@ -174,8 +181,8 @@ class AbstractRepository:
             )
         else:
             # Add logic for non "id" primary key??
-            if "id" not in columns:
-                columns.append("id")
+            if relation_pk not in columns:
+                columns.append(relation_pk)
             select_columns = list(map(lambda x: getattr(relation_model, x), columns))
 
         query = select(from_obj=self.model, columns=select_columns)
@@ -183,7 +190,7 @@ class AbstractRepository:
         query = query.join(getattr(self.model, relation))
 
         # Add logic for non "id" primary key??
-        joinable = [self.model.id == id]
+        joinable = [getattr(self.model, self.primary_key) == id]
 
         if isinstance(where, dict) or isinstance(where, list):
             joinable.append(*self.query_forge(model=relation_model, where=where))
@@ -223,9 +230,9 @@ class AbstractRepository:
     # This one is rather "alchemy" because join tables aren't resources
     async def set_many_many_relations(
         self,
-        id: Union[UUID, int],
+        id: possible_id_types,
         relation: str = ...,
-        relations: List[Union[UUID, int]] = ...,
+        relations: List[possible_id_types] = ...,
     ):
         model_relation: RelationshipProperty = getattr(
             inspect(self.model).relationships, relation
@@ -299,15 +306,16 @@ class AbstractRepository:
     # There should probably be a configuration flag to disable this form of unsafe relationship update
     async def set_one_many_relations(
         self,
-        id: Union[UUID, int],
+        id: possible_id_types,
         relation: str = ...,
-        relations: List[Union[UUID, int]] = ...,
+        relations: List[possible_id_types] = ...,
     ):
         model_relation: RelationshipProperty = getattr(
             inspect(self.model).relationships, relation
         )
         related_model = model_relation.foreign_resource.repository.model
-        related_model_id: Column = getattr(related_model, "id")
+        related_model_pk = get_pk(related_model)
+        related_model_id: Column = getattr(related_model, related_model_pk)
         far_col: Column = next(iter(model_relation.orm_relationship.remote_side))
         far_col_name = far_col.name
 
@@ -355,6 +363,7 @@ class AbstractRepository:
     # [{"first_name":{"*endswith":"bilbo"}},{"last_name":"baggins"}]
     # As would the following query:
     # {"first_name":{"*endswith":"bilbo"},"last_name":"baggins"}
+    # This function needs to be extended to support "dot" notation in left hand keys to imply joined relation searchers
     def query_forge(
         self,
         model: Union[CruddyModel, RelationshipProperty],

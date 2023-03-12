@@ -18,6 +18,7 @@ from .schemas import (
     ExampleUpdate,
     ExampleCreate,
 )
+from .util import possible_id_types
 
 if TYPE_CHECKING:
     from .repository import AbstractRepository
@@ -71,7 +72,7 @@ def assemblePolicies(*args: (List)):
 def _ControllerConfigManyToOne(
     controller: APIRouter = ...,
     repository: "AbstractRepository" = ...,
-    id_type: Union[UUID, int] = ...,
+    id_type: possible_id_types = ...,
     relationship_prop: str = ...,
     config: RelationshipConfig = ...,
     policies_universal: List = ...,
@@ -127,7 +128,7 @@ def _ControllerConfigManyToOne(
 def _ControllerConfigOneToMany(
     controller: APIRouter = ...,
     repository: "AbstractRepository" = ...,
-    id_type: Union[UUID, int] = ...,
+    id_type: possible_id_types = ...,
     relationship_prop: str = ...,
     config: RelationshipConfig = ...,
     meta_schema=MetaObject,
@@ -196,7 +197,7 @@ def _ControllerConfigOneToMany(
 def _ControllerConfigManyToMany(
     controller: APIRouter = ...,
     repository: "AbstractRepository" = ...,
-    id_type: Union[UUID, int] = ...,
+    id_type: possible_id_types = ...,
     relationship_prop: str = ...,
     config: RelationshipConfig = ...,
     meta_schema=MetaObject,
@@ -266,7 +267,7 @@ def GetRelationships(
 
 
 async def SaveRelationships(
-    id: Union[UUID, int] = ...,
+    id: possible_id_types = ...,
     record: CruddyModel = ...,
     relation_config_map: Dict[str, RelationshipConfig] = ...,
     repository: "AbstractRepository" = ...,
@@ -275,7 +276,7 @@ async def SaveRelationships(
     modified_records = 0
     for k, v in relationship_lists.items():
         name: str = k
-        new_relations: List[Union[UUID, int]] = v
+        new_relations: List[possible_id_types] = v
         config: RelationshipConfig = relation_config_map[name]
         if config.orm_relationship.direction == MANYTOMANY:
             modified_records += await repository.set_many_many_relations(
@@ -291,7 +292,7 @@ async def SaveRelationships(
 def ControllerCongifurator(
     controller: APIRouter = ...,
     repository: "AbstractRepository" = ...,
-    id_type: Union[UUID, int] = int,
+    id_type: possible_id_types = int,
     single_name: str = ...,
     plural_name: str = ...,
     single_schema=ResponseSchema,
@@ -320,7 +321,7 @@ def ControllerCongifurator(
         the_thing = create_model_proxy(**the_thing_with_rels.dict())
         result = await repository.create(data=the_thing)
         relations_modified = await SaveRelationships(
-            id=result.id,
+            id=getattr(result, repository.primary_key),
             record=the_thing_with_rels,
             relation_config_map=relations,
             repository=repository,
@@ -340,7 +341,7 @@ def ControllerCongifurator(
         the_thing = update_model_proxy(**the_thing_with_rels.dict())
         result = await repository.update(id=id, data=the_thing)
         relations_modified = await SaveRelationships(
-            id=result.id,
+            id=getattr(result, repository.primary_key),
             record=the_thing_with_rels,
             relation_config_map=relations,
             repository=repository,

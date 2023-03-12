@@ -25,5 +25,6 @@ from .repository import AbstractRepository
 from .adapters import BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter
 from .resource import Resource, ResourceRegistry, CruddyResourceRegistry
 from .router import getModuleDir, getDirectoryModules, CreateRouterFromResources
+from .util import get_pk, possible_id_types
 
 # -----------------------------------------------------------------

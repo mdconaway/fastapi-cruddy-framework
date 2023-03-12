@@ -87,6 +87,8 @@ getDirectoryModules
 pluralizer
 uuid6
 uuid7
+get_pk
+possible_id_types
 ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -355,7 +357,7 @@ resource = Resource(
 Notice that you don't need to instantiate your controller!
 
 
-`CruddyController` extension classes passed to the `Resource` definition will be `setup()` <i>BEFORE</i> the auto-generated CRUD routes but <i>AFTER</i> SQL Alchemy has resolved model relationships. This ensures that your user-defined routes receive priorty for incoming HTTP requests. If extension classes were not loaded first, then the CRUD handlers would almost always intercept the incoming request first.
+`CruddyController` extension classes passed to the `Resource` definition will be `setup()` <i>BEFORE</i> the auto-generated CRUD routes but <i>AFTER</i> SQL Alchemy has resolved model relationships. This ensures that your user-defined routes receive priority for incoming HTTP requests. If extension classes were not loaded first, then the CRUD handlers would almost always intercept the incoming request first.
 
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -408,19 +410,19 @@ The `AbstractRepository` is a helpful way to interact with the data layer of you
 # User functions accessible from any resource's 'AbstractRepository'
 async def create(data: CruddyModel)
 
-async def get_by_id(id: Union[UUID, int])
+async def get_by_id(id: Union[UUID, int, str])
 
-async def update(id: Union[UUID, int], data: CruddyModel)
+async def update(id: Union[UUID, int, str], data: CruddyModel)
 
-async def delete(id: Union[UUID, int])
+async def delete(id: Union[UUID, int, str])
 
 async def get_all(page: int = 1, limit: int = 10, columns: List[str] = None, sort: List[str] = None, where: Json = None)
 
-async def get_all_relations(id: Union[UUID, int] = ..., relation: str = ..., relation_model: CruddyModel = ..., page: int = 1, limit: int = 10, columns: List[str] = None, sort: List[str] = None, where: Json = None)
+async def get_all_relations(id: Union[UUID, int, str] = ..., relation: str = ..., relation_model: CruddyModel = ..., page: int = 1, limit: int = 10, columns: List[str] = None, sort: List[str] = None, where: Json = None)
 
-async def set_many_many_relations(id: Union[UUID, int], relation: str = ..., relations: List[Union[UUID, int]] = ...)
+async def set_many_many_relations(id: Union[UUID, int, str], relation: str = ..., relations: List[Union[UUID, int, str]] = ...)
 
-async def set_one_many_relations(id: Union[UUID, int], relation: str = ..., relations: List[Union[UUID, int]] = ...)
+async def set_one_many_relations(id: Union[UUID, int, str], relation: str = ..., relations: List[Union[UUID, int, str]] = ...)
 ```
 
 Generally, these functions do about what you would expect them to do. More documentation will be added to describe their function soon. Please read nuances below, however, as it applies to how x-to-Many relationships are managed via the automatic CRUD routes.

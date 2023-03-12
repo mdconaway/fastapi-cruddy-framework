@@ -1,5 +1,6 @@
 # pyright: reportShadowedImports=false
 import asyncio
+import re
 from fastapi import APIRouter
 from sqlalchemy.orm import (
     RelationshipProperty,
@@ -26,7 +27,7 @@ from .schemas import (
 from .controller import CruddyController, ControllerCongifurator
 from .repository import AbstractRepository
 from .adapters import BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter
-
+from .util import possible_id_types
 
 # -------------------------------------------------------------------------------------------
 # APPLICATION RESOURCE
@@ -41,7 +42,7 @@ class Resource:
     _update_schema: CruddyModel = None
     _response_schema: CruddyModel = None
     _meta_schema: CruddyGenericModel = None
-    _id_type: Union[UUID, int] = int
+    _id_type: possible_id_types = int
     _model_name_single: str = None
     _model_name_plural: str = None
     _on_resolution: Union[Callable, None] = None
@@ -262,7 +263,9 @@ class Resource:
                         map(
                             lambda x: SingleSchemaLinked(
                                 **x._mapping,
-                                links=local_resource._link_builder(id=x._mapping["id"]),
+                                links=local_resource._link_builder(
+                                    id=x._mapping[local_resource.repository.primary_key]
+                                ),
                             ),
                             kwargs["data"],
                         )
@@ -288,13 +291,16 @@ class Resource:
             "update_relations": SingleUpdateSchema,
         }
 
-    def _link_builder(self, id: Union[UUID, int] = None):
-        str_id = f"{id}"
+    def _link_builder(self, id: possible_id_types = None):
+        # During "many" lookups, the id value return is a mapping from the DB, so the id
+        # value is not properly "dasherized" into UUID format. This REGEX fixes the issue
+        # without adding the CPU overhead of transforming each row into a record instance
+        if self.repository.id_type == UUID and type(id) == str:
+            id = re.sub(r"(\S{8})(\S{4})(\S{4})(\S{4})(.*)", r"\1-\2-\3-\4-\5", id)
+
         new_link_object = {}
         for k, v in self._relations.items():
-            new_link_object[
-                k
-            ] = f"{self._link_prefix}{self._resource_path}/{str_id}/{k}"
+            new_link_object[k] = f"{self._link_prefix}{self._resource_path}/{id}/{k}"
         return new_link_object
 
     def _create_schema_arg_handler(self, single_schema_linked, resource_model_name):
@@ -323,7 +329,7 @@ class Resource:
                 return {"data": None}
 
             thing_to_convert = data_destructure(args["data"])
-            id = thing_to_convert["id"]
+            id = thing_to_convert[self.repository.primary_key]
             return {
                 resource_model_name: single_schema_linked(
                     **thing_to_convert,
@@ -335,6 +341,8 @@ class Resource:
         return handle_data_or_none
 
     def resolve(self):
+        self.repository.resolve()
+
         if self.controller_extension != None and issubclass(
             self.controller_extension, CruddyController
         ):
