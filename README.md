@@ -161,18 +161,18 @@ The `Resource` class is the fundamental building block of fastapi-cruddy-framewo
 
 
 <b>Available ASYNC Lifecycle Hooks:</b>
-* lifecycle_before_create
-* lifecycle_after_create
-* lifecycle_before_update
-* lifecycle_after_update
-* lifecycle_before_delete
-* lifecycle_after_delete
-* lifecycle_before_get_one
-* lifecycle_after_get_one
-* lifecycle_before_get_all
-* lifecycle_after_get_all
-* lifecycle_before_set_relations
-* lifecycle_after_set_relations
+* `lifecycle_before_create`
+* `lifecycle_after_create`
+* `lifecycle_before_update`
+* `lifecycle_after_update`
+* `lifecycle_before_delete`
+* `lifecycle_after_delete`
+* `lifecycle_before_get_one`
+* `lifecycle_after_get_one`
+* `lifecycle_before_get_all`
+* `lifecycle_after_get_all`
+* `lifecycle_before_set_relations`
+* `lifecycle_after_set_relations`
 
 
 <b>Available Relationship Blocks:</b>
