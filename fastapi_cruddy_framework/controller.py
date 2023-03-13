@@ -7,7 +7,6 @@ from sqlalchemy.orm import (
 )
 from typing import Union, List, Dict, TYPE_CHECKING
 from pydantic.types import Json
-from .uuid import UUID
 from .schemas import (
     RelationshipConfig,
     BulkDTO,
@@ -109,17 +108,47 @@ def _ControllerConfigManyToOne(
             return config.foreign_resource.schemas["single"](data=None)
 
         # Build a query to use foreign resource to find related objects
-        where = {far_col_name: {"*eq": origin_record.dict()[near_col_name]}}
+
+        tgt_id = origin_record.dict()[near_col_name]
+        where = {far_col_name: {"*eq": tgt_id}}
+
+        _lifecycle_before = None
+        foreign_lifecycle_before = config.foreign_resource.repository.lifecycle[
+            "before_get_one"
+        ]
+        foreign_lifecycle_after = config.foreign_resource.repository.lifecycle[
+            "after_get_one"
+        ]
+        if foreign_lifecycle_before != None:
+
+            async def _shimmed_lifecycle_before():
+                await foreign_lifecycle_before(tgt_id)
+                return
+
+            _lifecycle_before = _shimmed_lifecycle_before
 
         # Collect the bulk data transfer object from the query
         result: BulkDTO = await config.foreign_resource.repository.get_all(
-            page=1, limit=1, columns=columns, sort=None, where=where
+            page=1,
+            limit=1,
+            columns=columns,
+            sort=None,
+            where=where,
+            _use_own_hooks=False,
+            _lifecycle_before=_lifecycle_before,
         )
 
         # If we get a result, grab the first value. There should only be one in many to one.
         data = None
         if len(result.data) != 0:
             data = result.data[0]
+            table_record = config.foreign_resource.repository.model(**data)
+            if foreign_lifecycle_after != None:
+                await foreign_lifecycle_after(table_record)
+            data = table_record.dict()
+        else:
+            if foreign_lifecycle_after != None:
+                await foreign_lifecycle_after(None)
 
         # Invoke the dynamically built model
         return config.foreign_resource.schemas["single"](data=data)
@@ -167,24 +196,52 @@ def _ControllerConfigOneToMany(
         # Consider raising 404 here and in get by ID
         if origin_record == None:
             return config.foreign_resource.schemas["many"](
-                data=None,
+                data=[],
                 meta=meta_schema(**{"page": 0, "limit": 0, "pages": 0, "records": 0}),
             )
 
         # Build a query to use foreign resource to find related objects
         additional_where = {far_col_name: {"*eq": origin_record.dict()[near_col_name]}}
         if where != None:
-            where = {"*and": [additional_where, where]}
+            repo_where = {"*and": [additional_where, where]}
         else:
-            where = additional_where
+            repo_where = additional_where
+
+        _lifecycle_before = None
+        foreign_lifecycle_before = config.foreign_resource.repository.lifecycle[
+            "before_get_all"
+        ]
+
+        # This will shim the lifecycle hook so it does not see the relational portion of the query
+        # but can still alter the general search object as if its a single resource query.
+        # This is good because a lifecycle hook should only be concerned about its own resource.
+        if foreign_lifecycle_before != None:
+
+            async def _shimmed_lifecycle_before(query_conf):
+                local_where = query_conf["where"]
+                query_conf["where"] = where
+                await foreign_lifecycle_before(query_conf)
+                query_conf["where"] = local_where
+                return
+
+            _lifecycle_before = _shimmed_lifecycle_before
 
         # Collect the bulk data transfer object from the query
         result: BulkDTO = await config.foreign_resource.repository.get_all(
-            page=page, limit=limit, columns=columns, sort=sort, where=where
+            page=page,
+            limit=limit,
+            columns=columns,
+            sort=sort,
+            where=repo_where,
+            _lifecycle_before=_lifecycle_before,
+            _lifecycle_after=config.foreign_resource.repository.lifecycle[
+                "after_get_all"
+            ],
+            _use_own_hooks=False,
         )
         meta = {
-            "page": page,
-            "limit": limit,
+            "page": result.page,
+            "limit": result.limit,
             "pages": result.total_pages,
             "records": result.total_records,
         }
@@ -238,10 +295,17 @@ def _ControllerConfigManyToMany(
             columns=columns,
             sort=sort,
             where=where,
+            # the foreign resource must interact with its own lifecycle
+            _lifecycle_before=config.foreign_resource.repository.lifecycle[
+                "before_get_all"
+            ],
+            _lifecycle_after=config.foreign_resource.repository.lifecycle[
+                "after_get_all"
+            ],
         )
         meta = {
-            "page": page,
-            "limit": limit,
+            "page": result.page,
+            "limit": result.limit,
             "pages": result.total_pages,
             "records": result.total_records,
         }
@@ -390,8 +454,8 @@ def ControllerCongifurator(
             page=page, limit=limit, columns=columns, sort=sort, where=where
         )
         meta = {
-            "page": page,
-            "limit": limit,
+            "page": result.page,
+            "limit": result.limit,
             "pages": result.total_pages,
             "records": result.total_records,
         }

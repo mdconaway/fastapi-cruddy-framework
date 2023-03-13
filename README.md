@@ -14,7 +14,7 @@
 
 [![Product Name Screen Shot][product-screenshot]](https://github.com/mdconaway/fastapi-cruddy-framework)
 
-`fastapi-cruddy-framework` is a companion library to FastAPI designed to bring the development productivity of Ruby on Rails, Ember.js or Sails.js to the FastAPI ecosystem. Many of the design patterns base themselves on Sails.js "policies," sails-ember-rest automatic CRUD routing, and Ember.js REST-Adapter feature sets. By default, data sent to and from the auto-magic CRUD routes are expected to conform to the Ember.js Rest Envelope / Linked-data specification. This specification is highly readable for front-end developers, allows for an expressive over-the-wire query syntax, and embeds self-describing relationship URL links in each over-the-wire record to help data stores automatically generate requests to fetch or update related records. This library is still in an alpha/beta phase, so use at your own risk. All CRUD actions and relationship types are currently supported, though there may be unexpected bugs. Please report any bugs under "issues."
+`fastapi-cruddy-framework` is a companion library to [FastAPI](https://fastapi.tiangolo.com/) designed to bring the development productivity of [Ruby on Rails](https://rubyonrails.org/), [Ember.js](https://emberjs.com/) or [Sails.js](https://sailsjs.com/) to the [FastAPI](https://fastapi.tiangolo.com/) ecosystem. Many of the design patterns base themselves on [Sails.js](https://sailsjs.com/) "policies," [Sails.js](https://sailsjs.com/) model lifecycle events, [sails-ember-rest](https://github.com/mdconaway/sails-ember-rest) automatic CRUD routing, and [Ember.js](https://emberjs.com/) [REST-Adapter](https://api.emberjs.com/ember-data/release/classes/RESTAdapter) feature sets. By default, data sent to and from the auto-magic CRUD routes are expected to conform to the [Ember.js](https://emberjs.com/) Rest Envelope and Linked-data relationship specification. This specification is highly readable for front-end developers, allows for an expressive over-the-wire query syntax, and embeds self-describing relationship URL links in each over-the-wire record to help data stores automatically generate requests to fetch or update related records. This library is still in an alpha/beta phase, so use at your own risk. All CRUD actions and relationship types are currently supported, though there may be unexpected bugs. Please report any bugs under "issues."
 
 
 TODO: All the documentation and E2E tests. Maybe more comments. Maybe more features.
@@ -89,6 +89,7 @@ uuid6
 uuid7
 get_pk
 possible_id_types
+lifecycle_types
 ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -132,11 +133,13 @@ async def bootstrap():
 <!-- Resource -->
 ### Resource
 
-The `Resource` class is the fundamental building block of fastapi-cruddy-framework. Your resource instances define the union of your models, resource "controller" (which is a fastapi router with baked-in CRUD logic), business policies, repository abstraction layer, and database adapter. Fortunately for you, the user, everything is essentially ready-to-go out of the box. Like sails-ember-rest or Ruby on Rails, you can now focus all of your development time on creating reusable policies (which contain your business logic that lies just above your CRUD endpoints), defining your models, and extending your resource controllers to add one-off actions like "login" or "change password". All of your resources should be loaded by the router factory (above) to ensure that relationships and routes are resolved in the correct order. Don't forget, <b>only plug the master router into your application in the fastapi `startup` hook!</b>
+The `Resource` class is the fundamental building block of fastapi-cruddy-framework. Your resource instances define the union of your models, resource "controller" (which is a fastapi router with baked-in CRUD logic), business policies, repository abstraction layer, any resource lifecycle hook, and database adapter. Fortunately for you, the user, everything is essentially ready-to-go out of the box. Like [sails-ember-rest](https://github.com/mdconaway/sails-ember-rest) or [Ruby on Rails](https://rubyonrails.org/), you can now focus all of your development time on creating reusable policies (which contain your business logic that lies just above your CRUD endpoints), defining your models, and extending your resource controllers to add one-off actions like "login" or "change password". Lifecycle actions allow you to alter query configurations or record data before or after it is persisted to a database, or perform some other task before replying to the user. All of your resources should be loaded by the router factory (above) to ensure that relationships and routes are resolved in the correct order. Don't forget, <b>only plug the master router into your application in the fastapi `startup` hook!</b>
 
 
 <b>Resource Nuances:</b>
 * Defining your policies is done at definition time!
+* Lifecycle actions occur immediately before and after any database interaction your CRUD controllers make
+* Lifecycle actions passed into the Resource constructor to interact with your queries or data <b>MUST</b> be `async` functions.
 * Policies are run in the exact order in which they are included in the `List` sent to the resource definition.
 * `policies_universal` apply to ALL CRUD routes, and always run <i>BEFORE</i> action specific policy chains.
 * Action specific policies run <i>AFTER</i> all `policies_universal` have resolved successfully.
@@ -157,12 +160,28 @@ The `Resource` class is the fundamental building block of fastapi-cruddy-framewo
 * `policies_get_many`
 
 
+<b>Available ASYNC Lifecycle Hooks:</b>
+* lifecycle_before_create
+* lifecycle_after_create
+* lifecycle_before_update
+* lifecycle_after_update
+* lifecycle_before_delete
+* lifecycle_after_delete
+* lifecycle_before_get_one
+* lifecycle_after_get_one
+* lifecycle_before_get_all
+* lifecycle_after_get_all
+* lifecycle_before_set_relations
+* lifecycle_after_set_relations
+
+
 <b>Available Relationship Blocks:</b>
 * `protected_relationships`
 
 
-<b>Updating Relationships</b>
+<b>Updating Relationships:</b>
 * You can update relationships via either CREATE or UPDATE actions against each base resource! 
+
 
 As you will discover, your resource's create and update models will automatically gain "shadow" properties where one-to-many and many-to-many relationships exist. These properties expect a client to send a list of IDs that specify the foreign records that relate to the target record. So - if a user is a member of many groups, and a group can have many users, you could update the users in a group by sending a property `"users": [1,2,3,4,5]` within the `group` payload object you send to the `POST /groups` or `PATCH /groups` routes/actions. It will all be clear when you look at the SWAGGER docs generated for your API.
 
@@ -173,6 +192,8 @@ id_type: Union[Type[int], Type[UUID]] = int,
 # You SHOULD pass in 'adapter'
 adapter: Union[BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter, None] = None,
 # The following adapter specific options will probably get removed. You don't need to pass them in.
+# They exist solely in the event you are defining disparate resources and want the resources to 
+# automatically build their own adapters. This is probably not a great idea.
 adapter_type: Literal["mysql", "postgresql"] = "postgresql",
 db_mode: Literal["memory", "file"] = "memory",
 db_path: Union[str, None] = None,
@@ -230,7 +251,26 @@ policies_get_many: List[Callable] = [],
 # 'controller_extension' is the mount point for user-defined actions to-be-added to this resource's
 # controller/router. Pass in your class definition and it will be instantiated at the appropriate
 # time! See "CruddyController" example below!
-controller_extension: CruddyController = None
+controller_extension: CruddyController = None,
+# The following lifecycle hooks can each recieve an async function which will be invoked before or 
+# after the target lifecycle event. Generally, whatever values are passed to the lifecycle hook are
+# alterable WITHIN the hook so that userspace code can alter the behavior of the lifecycle based on
+# app level concerns. This allows apps to do things like: hash a user password, force certain 
+# relationships to always exist, force "many" queries to obey sensible limits, commit log entries,
+# send messages to queues for processing based on CRUD events, or generally handle unforseen 
+# circumstances.
+lifecycle_before_create: Optional[Callable[..., Coroutine[Any, Any, Any]]] = None,
+lifecycle_after_create: Optional[Callable[..., Coroutine[Any, Any, Any]]] = None,
+lifecycle_before_update: Optional[Callable[..., Coroutine[Any, Any, Any]]] = None,
+lifecycle_after_update: Optional[Callable[..., Coroutine[Any, Any, Any]]] = None,
+lifecycle_before_delete: Optional[Callable[..., Coroutine[Any, Any, Any]]] = None,
+lifecycle_after_delete: Optional[Callable[..., Coroutine[Any, Any, Any]]] = None,
+lifecycle_before_get_one: Optional[Callable[..., Coroutine[Any, Any, Any]]] = None,
+lifecycle_after_get_one: Optional[Callable[..., Coroutine[Any, Any, Any]]] = None,
+lifecycle_before_get_all: Optional[Callable[..., Coroutine[Any, Any, Any]]] = None,
+lifecycle_after_get_all: Optional[Callable[..., Coroutine[Any, Any, Any]]] = None,
+lifecycle_before_set_relations: Optional[Callable[..., Coroutine[Any, Any, Any]]] = None,
+lifecycle_after_set_relations: Optional[Callable[..., Coroutine[Any, Any, Any]]] = None,
 ```
 
 
@@ -373,7 +413,7 @@ Invalid attributes or ops are just dropped. (May change in the future)
 
 Improvements that will be made in the near future:
 1. Conditional table joins for relationships to...
-2. Make resources searchable with joined relationships via dot notation!
+2. Make resources searchable with joined relationships via dot notation in the `where` object!
 3. Maybe throw an error if a bad search field is sent? (Will help UI devs)
 
 Clients can build an arbitrarily deep query with a JSON dictionary, sent via a query parameter in a JSON object that generally contains all possible filter operators along with "and," "or," and "not" conditions. 

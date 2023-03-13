@@ -27,7 +27,8 @@ from .schemas import (
 from .controller import CruddyController, ControllerCongifurator
 from .repository import AbstractRepository
 from .adapters import BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter
-from .util import possible_id_types
+from .util import possible_id_types, lifecycle_types
+
 
 # -------------------------------------------------------------------------------------------
 # APPLICATION RESOURCE
@@ -55,10 +56,18 @@ class Resource:
 
     def __init__(
         self,
-        id_type: Union[Type[int], Type[UUID]] = int,
+        # Only id_type, adapter, resource_create_model, resource_update_model, resource_model, and response_schema are required
+        id_type: Union[Type[int], Type[UUID], Type[str]] = int,
         adapter: Union[
             BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter, None
         ] = None,
+        resource_create_model: CruddyModel = ExampleCreate,
+        resource_update_model: CruddyModel = ExampleUpdate,
+        resource_model: CruddyModel = Example,
+        response_schema: CruddyModel = ExampleView,
+        # None of the following arguments are required. But they allow you to do powerful things!
+        response_meta_schema: CruddyGenericModel = MetaObject,
+        # the adapter type only has two options because sqlite will take priority if its options are set
         adapter_type: Literal["mysql", "postgresql"] = "postgresql",
         db_mode: Literal["memory", "file"] = "memory",
         db_path: Union[str, None] = None,
@@ -68,11 +77,6 @@ class Resource:
         link_prefix="",
         path: str = None,
         tags: List[str] = None,
-        resource_create_model: CruddyModel = ExampleCreate,
-        resource_update_model: CruddyModel = ExampleUpdate,
-        resource_model: CruddyModel = Example,
-        response_schema: CruddyModel = ExampleView,
-        response_meta_schema: CruddyGenericModel = MetaObject,
         protected_relationships: List[str] = [],
         policies_universal: List[Callable] = [],
         policies_create: List[Callable] = [],
@@ -80,6 +84,18 @@ class Resource:
         policies_delete: List[Callable] = [],
         policies_get_one: List[Callable] = [],
         policies_get_many: List[Callable] = [],
+        lifecycle_before_create: lifecycle_types = None,
+        lifecycle_after_create: lifecycle_types = None,
+        lifecycle_before_update: lifecycle_types = None,
+        lifecycle_after_update: lifecycle_types = None,
+        lifecycle_before_delete: lifecycle_types = None,
+        lifecycle_after_delete: lifecycle_types = None,
+        lifecycle_before_get_one: lifecycle_types = None,
+        lifecycle_after_get_one: lifecycle_types = None,
+        lifecycle_before_get_all: lifecycle_types = None,
+        lifecycle_after_get_all: lifecycle_types = None,
+        lifecycle_before_set_relations: lifecycle_types = None,
+        lifecycle_after_set_relations: lifecycle_types = None,
         controller_extension: Union[CruddyController, None] = None,
     ):
         possible_tag = f"{resource_model.__name__}".lower()
@@ -120,6 +136,18 @@ class Resource:
             create_model=resource_create_model,
             model=resource_model,
             id_type=id_type,
+            lifecycle_before_create=lifecycle_before_create,
+            lifecycle_after_create=lifecycle_after_create,
+            lifecycle_before_update=lifecycle_before_update,
+            lifecycle_after_update=lifecycle_after_update,
+            lifecycle_before_delete=lifecycle_before_delete,
+            lifecycle_after_delete=lifecycle_after_delete,
+            lifecycle_before_get_one=lifecycle_before_get_one,
+            lifecycle_after_get_one=lifecycle_after_get_one,
+            lifecycle_before_get_all=lifecycle_before_get_all,
+            lifecycle_after_get_all=lifecycle_after_get_all,
+            lifecycle_before_set_relations=lifecycle_before_set_relations,
+            lifecycle_after_set_relations=lifecycle_after_set_relations,
         )
 
         self.controller = APIRouter(prefix=self._resource_path, tags=self._tags)
@@ -292,10 +320,11 @@ class Resource:
         }
 
     def _link_builder(self, id: possible_id_types = None):
-        # During "many" lookups, the id value return is a mapping from the DB, so the id
-        # value is not properly "dasherized" into UUID format. This REGEX fixes the issue
-        # without adding the CPU overhead of transforming each row into a record instance
-        if self.repository.id_type == UUID and type(id) == str:
+        # During "many" lookups, and depending on DB type, the id value return is a mapping
+        # from the DB, so the id value is not properly "dasherized" into UUID format. This
+        # REGEX fixes the issue without adding the CPU overhead of transforming each row
+        # into a record instance.
+        if (self.repository.id_type == UUID and type(id) == str) and not "-" in id:
             id = re.sub(r"(\S{8})(\S{4})(\S{4})(\S{4})(.*)", r"\1-\2-\3-\4-\5", id)
 
         new_link_object = {}

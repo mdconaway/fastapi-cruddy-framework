@@ -14,14 +14,16 @@ from sqlalchemy.orm import RelationshipProperty
 from sqlmodel import inspect
 from typing import Union, List, Dict
 from pydantic.types import Json
-from .uuid import UUID
 from .schemas import (
-    RelationshipConfig,
     BulkDTO,
     CruddyModel,
 )
 from .adapters import BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter
-from .util import get_pk, possible_id_types
+from .util import get_pk, possible_id_types, lifecycle_types
+
+
+def exists(something):
+    return something != None
 
 
 # -------------------------------------------------------------------------------------------
@@ -34,6 +36,21 @@ class AbstractRepository:
     model: CruddyModel
     id_type: possible_id_types
     primary_key: str = None
+    lifecycle: Dict[str, lifecycle_types] = {
+        "before_create": None,
+        "after_create": None,
+        "before_update": None,
+        "after_update": None,
+        "before_delete": None,
+        "after_delete": None,
+        "before_get_one": None,
+        "after_get_one": None,
+        "before_get_all": None,
+        "after_get_all": None,
+        "before_set_relations": None,
+        "after_set_relations": None,
+    }
+
     op_map: Dict
 
     def __init__(
@@ -45,6 +62,18 @@ class AbstractRepository:
         create_model: CruddyModel = ...,
         model: CruddyModel = ...,
         id_type: possible_id_types = int,
+        lifecycle_before_create: lifecycle_types = None,
+        lifecycle_after_create: lifecycle_types = None,
+        lifecycle_before_update: lifecycle_types = None,
+        lifecycle_after_update: lifecycle_types = None,
+        lifecycle_before_delete: lifecycle_types = None,
+        lifecycle_after_delete: lifecycle_types = None,
+        lifecycle_before_get_one: lifecycle_types = None,
+        lifecycle_after_get_one: lifecycle_types = None,
+        lifecycle_before_get_all: lifecycle_types = None,
+        lifecycle_after_get_all: lifecycle_types = None,
+        lifecycle_before_set_relations: lifecycle_types = None,
+        lifecycle_after_set_relations: lifecycle_types = None,
     ):
         self.adapter = adapter
         self.update_model = update_model
@@ -56,6 +85,20 @@ class AbstractRepository:
             "*or": or_,
             "*not": not_,
         }
+        self.lifecycle = {
+            "before_create": lifecycle_before_create,
+            "after_create": lifecycle_after_create,
+            "before_update": lifecycle_before_update,
+            "after_update": lifecycle_after_update,
+            "before_delete": lifecycle_before_delete,
+            "after_delete": lifecycle_after_delete,
+            "before_get_one": lifecycle_before_get_one,
+            "after_get_one": lifecycle_after_get_one,
+            "before_get_all": lifecycle_before_get_all,
+            "after_get_all": lifecycle_after_get_all,
+            "before_set_relations": lifecycle_before_set_relations,
+            "after_set_relations": lifecycle_after_set_relations,
+        }
 
     def resolve(self):
         # Can't do this until all models are defined, otherwise mappers break
@@ -65,7 +108,11 @@ class AbstractRepository:
         # create user data
         async with self.adapter.getSession() as session:
             record = self.model(**data.dict())
+            if exists(self.lifecycle["before_create"]):
+                await self.lifecycle["before_create"](record)
             session.add(record)
+        if exists(self.lifecycle["after_create"]):
+            await self.lifecycle["after_create"](record)
         return record
         # return a value?
 
@@ -73,29 +120,39 @@ class AbstractRepository:
         # retrieve user data by id
         query = select(self.model).where(getattr(self.model, self.primary_key) == id)
         async with self.adapter.getSession() as session:
+            if exists(self.lifecycle["before_get_one"]):
+                await self.lifecycle["before_get_one"](id)
             result = (await session.execute(query)).scalar_one_or_none()
+        if exists(self.lifecycle["after_get_one"]):
+            await self.lifecycle["after_get_one"](result)
         return result
 
     async def update(self, id: possible_id_types, data: CruddyModel):
         # update user data
+        values = data.dict()
+        if exists(self.lifecycle["before_update"]):
+            await self.lifecycle["before_update"](values, id)
         query = (
             _update(self.model)
             .where(getattr(self.model, self.primary_key) == id)
-            .values(**data.dict())
+            .values(**values)
             .execution_options(synchronize_session="fetch")
         )
         async with self.adapter.getSession() as session:
             result = await session.execute(query)
-
         if result.rowcount == 1:
-            return await self.get_by_id(id=id)
-
+            updated_record = await self.get_by_id(id=id)
+            if exists(self.lifecycle["after_update"]):
+                await self.lifecycle["after_update"](updated_record)
+            return updated_record
         return None
         # return a value?
 
     async def delete(self, id: possible_id_types):
         # delete user data by id
         record = await self.get_by_id(id=id)
+        if exists(self.lifecycle["before_delete"]):
+            await self.lifecycle["before_delete"](record)
         query = (
             _delete(self.model)
             .where(getattr(self.model, self.primary_key) == id)
@@ -105,8 +162,9 @@ class AbstractRepository:
             result = await session.execute(query)
 
         if result.rowcount == 1:
+            if exists(self.lifecycle["after_delete"]):
+                await self.lifecycle["after_delete"](record)
             return record
-
         return None
         # return a value?
 
@@ -117,19 +175,49 @@ class AbstractRepository:
         columns: List[str] = None,
         sort: List[str] = None,
         where: Json = None,
+        # possible lifecycle hooks from foreign resource
+        _lifecycle_before: lifecycle_types = None,
+        _lifecycle_after: lifecycle_types = None,
+        _use_own_hooks: bool = True,
     ) -> BulkDTO:
+        query_conf = {
+            "page": page,
+            "limit": limit,
+            "columns": columns,
+            "sort": sort,
+            "where": where,
+        }
+
+        if _use_own_hooks:
+            lifecycle_before = self.lifecycle["before_get_all"]
+            lifecycle_after = self.lifecycle["after_get_all"]
+        else:
+            lifecycle_before = _lifecycle_before
+            lifecycle_after = _lifecycle_after
+
+        if exists(lifecycle_before):
+            # apps can alter user queries in this hook!!
+            # use this hook to force things to be in a range, like limits!
+            # setting conf.limit = 20 in user app code would alter the limit for
+            # this query
+            await lifecycle_before(query_conf)
+
         select_columns = (
-            list(map(lambda x: column(x), columns))
-            if columns is not None and columns != []
+            list(map(lambda x: column(x), query_conf["columns"]))
+            if query_conf["columns"] is not None and query_conf["columns"] != []
             else "*"
         )
         query = select(from_obj=self.model, columns=select_columns)
 
-        if isinstance(where, dict) or isinstance(where, list):
-            query = query.filter(and_(*self.query_forge(model=self.model, where=where)))
+        if isinstance(query_conf["where"], dict) or isinstance(
+            query_conf["where"], list
+        ):
+            query = query.filter(
+                and_(*self.query_forge(model=self.model, where=query_conf["where"]))
+            )
 
         # select sort dynamically
-        if sort is not None and sort != []:
+        if query_conf["sort"] is not None and query_conf["sort"] != []:
             # we need sort format data like this --> ['id asc','name desc', 'email']
             def splitter(sort_string: str):
                 parts = sort_string.split(" ")
@@ -138,15 +226,17 @@ class AbstractRepository:
                     getter = parts[1]
                 return getattr(getattr(self.model, parts[0]), getter)
 
-            sorts = list(map(splitter, sort))
+            sorts = list(map(splitter, query_conf["sort"]))
             for field in sorts:
                 query = query.order_by(field())
 
         # count query
         count_query = select(func.count(1)).select_from(query)
-        offset_page = page - 1
+        offset_page = query_conf["page"] - 1
         # pagination
-        query = query.offset(offset_page * limit).limit(limit)
+        query = query.offset(offset_page * query_conf["limit"]).limit(
+            query_conf["limit"]
+        )
         # total record
 
         async with self.adapter.getSession() as session:
@@ -156,8 +246,19 @@ class AbstractRepository:
 
         # possible pass in outside functions to map/alter data?
         # total page
-        total_page = math.ceil(total_record / limit)
-        return BulkDTO(total_pages=total_page, total_records=total_record, data=result)
+        total_page = math.ceil(total_record / query_conf["limit"])
+        result = BulkDTO(
+            total_pages=total_page,
+            total_records=total_record,
+            page=query_conf["page"],
+            limit=query_conf["limit"],
+            data=result,
+        )
+
+        if exists(lifecycle_after):
+            await lifecycle_after(result)
+
+        return result
 
     async def get_all_relations(
         self,
@@ -169,10 +270,25 @@ class AbstractRepository:
         columns: List[str] = None,
         sort: List[str] = None,
         where: Json = None,
+        # the foreign repository's lifecycle hooks must be injected
+        _lifecycle_before: lifecycle_types = None,
+        _lifecycle_after: lifecycle_types = None,
     ) -> BulkDTO:
         # The related id column is mandatory or the join will explode
         relation_pk = get_pk(relation_model)
-        if columns is None or len(columns) == 0:
+
+        query_conf = {
+            "page": page,
+            "limit": limit,
+            "columns": columns,
+            "sort": sort,
+            "where": where,
+        }
+
+        if exists(_lifecycle_before):
+            await _lifecycle_before(query_conf)
+
+        if query_conf["columns"] is None or len(query_conf["columns"]) == 0:
             select_columns = list(
                 map(
                     lambda x: getattr(relation_model, x),
@@ -180,24 +296,28 @@ class AbstractRepository:
                 )
             )
         else:
-            # Add logic for non "id" primary key??
-            if relation_pk not in columns:
-                columns.append(relation_pk)
-            select_columns = list(map(lambda x: getattr(relation_model, x), columns))
+            if relation_pk not in query_conf["columns"]:
+                query_conf["columns"].append(relation_pk)
+            select_columns = list(
+                map(lambda x: getattr(relation_model, x), query_conf["columns"])
+            )
 
         query = select(from_obj=self.model, columns=select_columns)
 
         query = query.join(getattr(self.model, relation))
 
-        # Add logic for non "id" primary key??
         joinable = [getattr(self.model, self.primary_key) == id]
 
-        if isinstance(where, dict) or isinstance(where, list):
-            joinable.append(*self.query_forge(model=relation_model, where=where))
+        if isinstance(query_conf["where"], dict) or isinstance(
+            query_conf["where"], list
+        ):
+            joinable.append(
+                *self.query_forge(model=relation_model, where=query_conf["where"])
+            )
         query = query.filter(and_(*joinable))
 
         # select sort dynamically
-        if sort is not None and sort != []:
+        if query_conf["sort"] is not None and query_conf["sort"] != []:
             # we need sort format data like this --> ['id asc','name desc', 'email']
             def splitter(sort_string: str):
                 parts = sort_string.split(" ")
@@ -206,15 +326,17 @@ class AbstractRepository:
                     getter = parts[1]
                 return getattr(getattr(relation_model, parts[0]), getter)
 
-            sorts = list(map(splitter, sort))
+            sorts = list(map(splitter, query_conf["sort"]))
             for field in sorts:
                 query = query.order_by(field())
 
         # count query
         count_query = select(func.count(1)).select_from(query)
-        offset_page = page - 1
+        offset_page = query_conf["page"] - 1
         # pagination
-        query = query.offset(offset_page * limit).limit(limit)
+        query = query.offset(offset_page * query_conf["limit"]).limit(
+            query_conf["limit"]
+        )
         # total record
 
         async with self.adapter.getSession() as session:
@@ -224,8 +346,19 @@ class AbstractRepository:
 
         # possible pass in outside functions to map/alter data?
         # total page
-        total_page = math.ceil(total_record / limit)
-        return BulkDTO(total_pages=total_page, total_records=total_record, data=result)
+        total_page = math.ceil(total_record / query_conf["limit"])
+        result = BulkDTO(
+            total_pages=total_page,
+            total_records=total_record,
+            page=query_conf["page"],
+            limit=query_conf["limit"],
+            data=result,
+        )
+
+        if exists(_lifecycle_after):
+            await _lifecycle_after(result)
+
+        return result
 
     # This one is rather "alchemy" because join tables aren't resources
     async def set_many_many_relations(
@@ -234,8 +367,13 @@ class AbstractRepository:
         relation: str = ...,
         relations: List[possible_id_types] = ...,
     ):
+        relation_conf = {"id": id, "relation": relation, "relations": relations}
+
+        if exists(self.lifecycle["before_set_relations"]):
+            await self.lifecycle["before_set_relations"](relation_conf)
+
         model_relation: RelationshipProperty = getattr(
-            inspect(self.model).relationships, relation
+            inspect(self.model).relationships, relation_conf["relation"]
         )
         pairs = list(model_relation.local_remote_pairs)
         # origin_table: Table = None
@@ -273,10 +411,10 @@ class AbstractRepository:
         # validate_origin_id = select(from_obj=origin_table, columns=[origin_id_col]).where(origin_id_col == id)
         validate_relation_ids = select(
             from_obj=foreign_table, columns=[validation_target_col]
-        ).where(validation_target_col.in_(relations))
+        ).where(validation_target_col.in_(relation_conf["relations"]))
         clear_relations_query = (
             join_table.delete()
-            .where(join_origin_col == id)
+            .where(join_origin_col == relation_conf["id"])
             .execution_options(synchronize_session="fetch")
         )
 
@@ -286,20 +424,33 @@ class AbstractRepository:
             insertable = list(
                 map(
                     lambda x: {
-                        join_table_origin_attr: id,
+                        join_table_origin_attr: relation_conf["id"],
                         join_table_foreign_attr: f"{x._mapping[foreign_key]}",
                     },
                     db_ids,
                 )
             )
-            create_relations_query = (
-                join_table.insert().values(insertable).returning(join_foreign_col)
-            )
+            create_relations_query = join_table.insert().values(
+                insertable
+            )  # .returning(join_foreign_col) # RETURNING DOESNT WORK ON ALL ADAPTERS
             await session.execute(clear_relations_query)
+
+            check_ids = list(map(lambda x: f"{x._mapping[foreign_key]}", db_ids))
             if len(insertable) > 0:
-                result = (await session.execute(create_relations_query)).rowcount
+                await session.execute(create_relations_query)
+                find_tgt_query = select(join_table).where(
+                    and_(
+                        join_origin_col == relation_conf["id"],
+                        join_foreign_col.in_(check_ids),
+                    )
+                )
+                count_query = select(func.count(1)).select_from(find_tgt_query)
+                result = (await session.execute(count_query)).scalar() or 0
             else:
                 result = 0
+
+        if exists(self.lifecycle["after_set_relations"]):
+            await self.lifecycle["after_set_relations"](result)
 
         return result
 
@@ -310,8 +461,13 @@ class AbstractRepository:
         relation: str = ...,
         relations: List[possible_id_types] = ...,
     ):
+        relation_conf = {"id": id, "relation": relation, "relations": relations}
+
+        if exists(self.lifecycle["before_set_relations"]):
+            await self.lifecycle["before_set_relations"](relation_conf)
+
         model_relation: RelationshipProperty = getattr(
-            inspect(self.model).relationships, relation
+            inspect(self.model).relationships, relation_conf["relation"]
         )
         related_model = model_relation.foreign_resource.repository.model
         related_model_pk = get_pk(related_model)
@@ -322,14 +478,21 @@ class AbstractRepository:
         clear_query = (
             update(table=related_model)
             .values({far_col_name: None})
-            .where(far_col.in_([id]))
+            .where(far_col.in_([relation_conf["id"]]))
         )
         alter_query = (
             update(table=related_model)
-            .values({far_col_name: id})
-            .where(related_model_id.in_(relations))
-            .returning(related_model_id)
+            .values({far_col_name: relation_conf["id"]})
+            .where(related_model_id.in_(relation_conf["relations"]))
+            # .returning(related_model_id) # RETURNING DOESNT WORK ON ALL ADAPTERS
         )
+        find_tgt_query = select(related_model).where(
+            and_(
+                far_col == relation_conf["id"],
+                related_model_id.in_(relation_conf["relations"]),
+            )
+        )
+        count_query = select(func.count(1)).select_from(find_tgt_query)
 
         async with self.adapter.getSession() as session:
             if far_col.nullable:
@@ -338,7 +501,14 @@ class AbstractRepository:
                 print(
                     f"Unable to clear relations for {related_model.__name__}.{far_col_name}. Column does not allow null values"
                 )
-            alter_result = (await session.execute(alter_query)).rowcount
+
+            await session.execute(
+                alter_query
+            )  # .rowcount # also affected by removing returning
+            alter_result = (await session.execute(count_query)).scalar() or 0
+
+        if exists(self.lifecycle["after_set_relations"]):
+            await self.lifecycle["after_set_relations"](alter_result)
 
         return alter_result
 

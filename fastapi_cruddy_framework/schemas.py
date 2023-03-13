@@ -33,6 +33,8 @@ class CruddyGenericModel(GenericModel, Generic[T]):
 class BulkDTO(CruddyGenericModel):
     total_pages: int
     total_records: int
+    limit: int
+    page: int
     data: List
 
 
