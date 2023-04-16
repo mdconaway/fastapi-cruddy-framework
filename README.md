@@ -185,6 +185,51 @@ The `Resource` class is the fundamental building block of fastapi-cruddy-framewo
 
 As you will discover, your resource's create and update models will automatically gain "shadow" properties where one-to-many and many-to-many relationships exist. These properties expect a client to send a list of IDs that specify the foreign records that relate to the target record. So - if a user is a member of many groups, and a group can have many users, you could update the users in a group by sending a property `"users": [1,2,3,4,5]` within the `group` payload object you send to the `POST /groups` or `PATCH /groups` routes/actions. It will all be clear when you look at the SWAGGER docs generated for your API.
 
+<b>Lifecycle hooks</b>
+
+The following lifecycle hook methods, which can be defined in user-space code, receive the following information from fastapi-cruddy-framework:
+
+`lifecycle_before_create` - Record without an ID. Values altered on this record in the lifecycle hook will be persisted to the DB.
+
+`lifecycle_after_create` - Record with an ID, as returned from the database.
+
+`lifecycle_before_update` - A key-values dictionary to be applied to the database, and the primary key id of the record which will be updated. Values altered in the dictionary will be applied to the DB update.
+
+`lifecycle_after_update` - Record with an ID, as returned from the database
+
+`lifecycle_before_delete` - Record with an ID, as returned from the database.
+
+`lifecycle_after_delete` - Record with an ID, as returned from the database. This record no longer exists in the database.
+
+`lifecycle_before_get_one` - A primary key value that will be used to fetch the record from the database.
+
+`lifecycle_after_get_one` - Record with an ID, as returned from the database.
+
+`lifecycle_before_get_all` - Recieves a query configuration object. Any user-space modifications to this object will impact the query made by fastapi-cruddy-framework. This method is also invoked when a foreign Resource queries a relationship that affects the Resource where you plug in this hook.
+
+`lifecycle_after_get_all` - Receives a BulkDTO object, containing the database objects retrieved by a get_all query, as well as the query metadata. This method is also invoked when a foreign Resource queries a relationship that affects the Resource where you plug in this hook.
+
+`lifecycle_before_set_relations` - Receives a relationship configuration object which containts information about the record id affected, the relationship being altered, and the new list of relations for this relationship type.
+```
+{
+    "id": id, # The database id whos relationship are about to be altered (of your defined PK type)
+    "relation": relation, # The relationship that is about to change (string)
+    "relations": relations # An array of foreign ids that will now define this relationship (Framework will attempt to discard old relations)
+}
+```
+
+`lifecycle_after_set_relations` - Receives a completed mapping of the affected relational change, which can be used to echo changes to other databases or services.
+
+```
+{
+    "model": model, # The CruddyModel affected by this relationship change
+    "relation_conf": relation_conf, # The configuration object from lifecycle_before_set_relations
+    "relation_type": MANYTOMANY, # An SQL Alchemy relationship-type identifier (MANYTOMANY or ONETOMANY)
+    "related_table": foreign_table, # The table that ultimately represents the far-side of this relationship (not the join table!)
+    "related_field": field_name, # The field on the related_table that represents the far side of the relationship
+    "updated_db_count": result # The number of records now in the database associated with this relationship. If the number is different than the length of relation_conf.relations, you probably have a non-nullable field on the far-side of this relationship.
+}
+```
 
 Resource Definition Options (And Defaults!):
 ```python

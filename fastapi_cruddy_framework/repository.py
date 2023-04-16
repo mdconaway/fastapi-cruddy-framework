@@ -1,4 +1,5 @@
 import math
+from logging import getLogger
 from sqlalchemy import (
     update as _update,
     delete as _delete,
@@ -10,7 +11,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.sql import select, update
 from sqlalchemy.sql.schema import Table, Column
-from sqlalchemy.orm import RelationshipProperty
+from sqlalchemy.orm import RelationshipProperty, ONETOMANY, MANYTOMANY
 from sqlmodel import inspect
 from typing import Union, List, Dict
 from pydantic.types import Json
@@ -24,6 +25,9 @@ from .util import get_pk, possible_id_types, lifecycle_types
 
 def exists(something):
     return something != None
+
+
+LOGGER = getLogger(__file__)
 
 
 # -------------------------------------------------------------------------------------------
@@ -450,7 +454,16 @@ class AbstractRepository:
                 result = 0
 
         if exists(self.lifecycle["after_set_relations"]):
-            await self.lifecycle["after_set_relations"](result)
+            await self.lifecycle["after_set_relations"](
+                {
+                    "model": self.model,
+                    "relation_conf": relation_conf,
+                    "relation_type": MANYTOMANY,
+                    "related_table": foreign_table,
+                    "related_field": validation_target_col.name,
+                    "updated_db_count": result,
+                }
+            )
 
         return result
 
@@ -469,11 +482,25 @@ class AbstractRepository:
         model_relation: RelationshipProperty = getattr(
             inspect(self.model).relationships, relation_conf["relation"]
         )
-        related_model = model_relation.foreign_resource.repository.model
-        related_model_pk = get_pk(related_model)
-        related_model_id: Column = getattr(related_model, related_model_pk)
-        far_col: Column = next(iter(model_relation.orm_relationship.remote_side))
-        far_col_name = far_col.name
+        pairs = list(model_relation.local_remote_pairs)
+        found = False
+        for v in pairs:
+            local: Column = v[0]
+            remote: Column = v[1]
+            if local.table.name == self.model.__tablename__:
+                related_model: Table = remote.table
+                far_col_name: str = remote.key
+                far_col = remote
+                found = True
+                # origin_table = local.table
+                # origin_key = local.key
+                # This is the link from our origin model to the join table
+        if not found:
+            raise RuntimeError(
+                "This should be impossible, but there was not a valid one-to-many relationship"
+            )
+
+        rel_pk, related_model_id = related_model.primary_key.columns.items()[0]
 
         clear_query = (
             update(table=related_model)
@@ -493,13 +520,12 @@ class AbstractRepository:
             )
         )
         count_query = select(func.count(1)).select_from(find_tgt_query)
-
         async with self.adapter.getSession() as session:
             if far_col.nullable:
                 await session.execute(clear_query)
             else:
-                print(
-                    f"Unable to clear relations for {related_model.__name__}.{far_col_name}. Column does not allow null values"
+                LOGGER.warn(
+                    f"Unable to clear relations for {related_model.name}.{far_col_name}. Column does not allow null values"
                 )
 
             await session.execute(
@@ -508,7 +534,16 @@ class AbstractRepository:
             alter_result = (await session.execute(count_query)).scalar() or 0
 
         if exists(self.lifecycle["after_set_relations"]):
-            await self.lifecycle["after_set_relations"](alter_result)
+            await self.lifecycle["after_set_relations"](
+                {
+                    "model": self.model,
+                    "relation_conf": relation_conf,
+                    "relation_type": ONETOMANY,
+                    "related_table": related_model,
+                    "related_field": far_col_name,
+                    "updated_db_count": alter_result,
+                }
+            )
 
         return alter_result
 

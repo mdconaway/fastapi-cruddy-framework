@@ -390,7 +390,6 @@ def ControllerCongifurator(
             relation_config_map=relations,
             repository=repository,
         )
-        # print(f"modified {relations_modified} relationships")
         # Add error logic?
         return single_schema(data=result)
 
@@ -410,7 +409,6 @@ def ControllerCongifurator(
             relation_config_map=relations,
             repository=repository,
         )
-        # print(f"modified {relations_modified} relationships")
         # Add error logic?
         return single_schema(data=result)
 
