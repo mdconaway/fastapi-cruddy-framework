@@ -1,3 +1,4 @@
+from asyncio import gather
 from fastapi import APIRouter, Path, Query, Depends
 from sqlalchemy.sql.schema import Column, ForeignKey
 from sqlalchemy.orm import (
@@ -338,18 +339,27 @@ async def SaveRelationships(
 ):
     relationship_lists = GetRelationships(record, relation_config_map)
     modified_records = 0
+    awaitables = []
     for k, v in relationship_lists.items():
         name: str = k
         new_relations: List[possible_id_types] = v
         config: RelationshipConfig = relation_config_map[name]
         if config.orm_relationship.direction == MANYTOMANY:
-            modified_records += await repository.set_many_many_relations(
-                id=id, relation=name, relations=new_relations
+            awaitables.append(
+                repository.set_many_many_relations(
+                    id=id, relation=name, relations=new_relations
+                )
             )
         elif config.orm_relationship.direction == ONETOMANY:
-            modified_records += await repository.set_one_many_relations(
-                id=id, relation=name, relations=new_relations
+            awaitables.append(
+                repository.set_one_many_relations(
+                    id=id, relation=name, relations=new_relations
+                )
             )
+    results = await gather(*awaitables, return_exceptions=True)
+    for result_or_exc in results:
+        if not isinstance(result_or_exc, Exception):
+            modified_records += result_or_exc
     return modified_records
 
 
