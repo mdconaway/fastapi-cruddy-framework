@@ -1,4 +1,5 @@
 import math
+from asyncio import gather
 from logging import getLogger
 from sqlalchemy import (
     update as _update,
@@ -9,6 +10,7 @@ from sqlalchemy import (
     func,
     column,
 )
+from sqlalchemy.engine import Result
 from sqlalchemy.sql import select, update
 from sqlalchemy.sql.schema import Table, Column
 from sqlalchemy.orm import RelationshipProperty, ONETOMANY, MANYTOMANY
@@ -244,9 +246,14 @@ class AbstractRepository:
         # total record
 
         async with self.adapter.getSession() as session:
-            total_record = (await session.execute(count_query)).scalar() or 0
-            # result
-            result = (await session.execute(query)).fetchall()
+            results = await gather(
+                *[session.execute(count_query), session.execute(query)],
+                return_exceptions=False,
+            )
+            count: Result = results[0]
+            records: Result = results[1]
+            total_record = count.scalar() or 0
+            result = records.fetchall()
 
         # possible pass in outside functions to map/alter data?
         # total page
@@ -344,9 +351,14 @@ class AbstractRepository:
         # total record
 
         async with self.adapter.getSession() as session:
-            total_record = (await session.execute(count_query)).scalar() or 0
-            # result
-            result = (await session.execute(query)).fetchall()
+            results = await gather(
+                *[session.execute(count_query), session.execute(query)],
+                return_exceptions=False,
+            )
+            count: Result = results[0]
+            records: Result = results[1]
+            total_record = count.scalar() or 0
+            result = records.fetchall()
 
         # possible pass in outside functions to map/alter data?
         # total page
