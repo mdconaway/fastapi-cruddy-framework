@@ -1,4 +1,6 @@
 import math
+from dateutil.parser import parse
+from dateutil.tz import UTC
 from asyncio import gather
 from logging import getLogger
 from sqlalchemy import (
@@ -615,6 +617,8 @@ class AbstractRepository:
                 k2 = list(v.keys())[0]
                 v2 = v[k2]
                 mattr = getattr(model, k)
+                if isinstance(v2, dict) and "*datetime" in v2:
+                    v2 = parse(v2["*datetime"], tzinfos=[UTC])
                 if isinstance(k2, str) and not isinstance(v2, dict) and k2[0] == "*":
                     if k2 == "*eq":
                         level_criteria.append(mattr == v2)

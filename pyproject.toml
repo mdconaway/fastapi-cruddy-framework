@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fastapi-cruddy-framework"
-version = "0.0.9"
+version = "0.0.10"
 description = "A holistic CRUD/MVC framework for FastAPI, with endpoint policies and relationships"
 authors = ["mdconaway <mdconaway@users.noreply.github.com>"]
 readme = "README.md"
@@ -43,6 +43,7 @@ SQLAlchemy-Utils = "^0.38.3"
 SQLAlchemy = "^1.4.40"
 sqlmodel = "^0.0.8"
 inflect = "^6.0.2"
+python-dateutil = "^2.8.2"
 
 
 [tool.poetry.group.dev.dependencies]
