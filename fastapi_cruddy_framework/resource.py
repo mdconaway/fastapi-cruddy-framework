@@ -431,6 +431,43 @@ class ResourceRegistry:
         self._rels_via_models = {}
         self._resources_via_models = {}
 
+    # Returns a CruddyModel tracked by Class name by the registry
+    def get_model_by_name(self, model_name: str) -> Union[CruddyModel, None]:
+        return self._base_models.get(model_name, None)
+
+    # Returns a dictionary configuration of all relationships identified for a model's Class name
+    def get_relationships_by_name(self, model_name: str) -> Union[Dict, None]:
+        return self._rels_via_models.get(model_name, None)
+
+    # Returns a fully-wired resource instance tracked by its core model's Class name
+    def get_resource_by_name(self, model_name: str) -> Union[Resource, None]:
+        return self._resources_via_models.get(model_name, None)
+
+    # Returns a fully-configured repository instance tracked by its core model's Class name
+    def get_repository_by_name(
+        self, model_name: str
+    ) -> Union[AbstractRepository, None]:
+        resource = self.get_resource_by_name(model_name=model_name)
+        if not resource:
+            return None
+        return resource.repository
+
+    # Returns a FastAPI APIRouter instance tracked by its core model's Class name
+    def get_controller_by_name(self, model_name: str) -> Union[APIRouter, None]:
+        resource = self.get_resource_by_name(model_name=model_name)
+        if not resource:
+            return None
+        return resource.controller
+
+    # Returns a CruddyController class tracked by its core model's Class name
+    def get_controller_extension_by_name(
+        self, model_name: str
+    ) -> Union[CruddyController, None]:
+        resource = self.get_resource_by_name(model_name=model_name)
+        if not resource:
+            return None
+        return resource.controller_extension
+
     # This method needs to build all the lists and dictionaries
     # needed to efficiently search between models to conduct relational
     # joins and controller expansion. Is invoked by each resource as it
