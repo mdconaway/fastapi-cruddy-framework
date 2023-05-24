@@ -399,7 +399,7 @@ The available registry lookup function signatures are:
 * `get_controller_extension_by_name(model_name: str) -> Union[CruddyController, None]`
 
 
-Make sure that the `model_name` string you pass to the registry EXACTLY mirrors the class name for your base table CruddyModel. So for a model with a class of `User` you would pass in `model_name="User"`. Pay attention to the capitalization!
+Make sure that the `model_name` string you pass to the registry EXACTLY mirrors the class name for your base table `CruddyModel`. So for a model with a class of `User` you would pass in `model_name="User"`. Pay attention to the capitalization!
 
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
