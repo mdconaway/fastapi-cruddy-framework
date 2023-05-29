@@ -49,16 +49,20 @@ class BaseAdapter:
     # the adapter. If the database explodes, the rollback happens.
     @asynccontextmanager
     async def getSession(self):
-        try:
-            asyncSession = self.asyncSessionGenerator()
-            async with asyncSession() as session:
+        asyncSession = self.asyncSessionGenerator()
+        async with asyncSession() as session:
+            try:
                 yield session
                 await session.commit()
-        except:
-            await session.rollback()
-            raise
-        finally:
-            await session.close()
+            except:
+                try:
+                    await session.rollback()
+                except:
+                    pass
+                await session.close()
+                raise
+            else:
+                await session.close()
 
     # Don't call this until the app "startup" hook is invoked. Or ever.
     async def destroy_then_create_all_tables_unsafe(self):
