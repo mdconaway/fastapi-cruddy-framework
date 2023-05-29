@@ -611,7 +611,10 @@ class AbstractRepository:
             elif isinstance(v, list) and isOp != False:
                 level_criteria.append(isOp(*self.query_forge(model=model, where=v)))
             elif not isinstance(v, dict) and not isOp and hasattr(model, k):
-                level_criteria.append(getattr(model, k).like(v))
+                base_attr = getattr(model, k)
+                level_criteria.append(
+                    base_attr.like(v) if hasattr(base_attr, "like") else base_attr == v
+                )
             elif (
                 isinstance(v, dict)
                 and not isOp
