@@ -26,6 +26,23 @@ from .schemas import (
 from .adapters import BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter
 from .util import get_pk, possible_id_types, lifecycle_types
 
+UNSUPPORTED_LIKE_COLUMNS = [
+    "UUID",
+    "INTEGER",
+    "SMALLINT",
+    "BIGINT",
+    "REAL",
+    "DOUBLE PRECISION",
+    "SMALLSERIAL",
+    "SERIAL",
+    "BIGSERIAL",
+    "DATE",
+    "DATETIME",
+    "TIMESTAMP",
+    "TIME",
+    "INTERVAL",
+]
+
 
 def exists(something):
     return something != None
@@ -611,9 +628,15 @@ class AbstractRepository:
             elif isinstance(v, list) and isOp != False:
                 level_criteria.append(isOp(*self.query_forge(model=model, where=v)))
             elif not isinstance(v, dict) and not isOp and hasattr(model, k):
+                # Add type coerce fn?
                 base_attr = getattr(model, k)
+                has_like_attr = hasattr(base_attr, "like")
+                unsupported_likes = (
+                    str(base_attr.type).upper() in UNSUPPORTED_LIKE_COLUMNS
+                )
+                maybe_supports_like = (not unsupported_likes) and has_like_attr
                 level_criteria.append(
-                    base_attr.like(v) if hasattr(base_attr, "like") else base_attr == v
+                    base_attr.like(v) if maybe_supports_like else base_attr == v
                 )
             elif (
                 isinstance(v, dict)
