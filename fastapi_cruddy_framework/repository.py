@@ -250,7 +250,8 @@ class AbstractRepository:
         async with self.adapter.getSession() as session1:
             async with self.adapter.getSession() as session2:
                 results = await gather(
-                    *[session1.execute(count_query), session2.execute(query)],
+                    session1.execute(count_query),
+                    session2.execute(query),
                     return_exceptions=False,
                 )
                 count: Result = results[0]
@@ -356,7 +357,8 @@ class AbstractRepository:
         async with self.adapter.getSession() as session1:
             async with self.adapter.getSession() as session2:
                 results = await gather(
-                    *[session1.execute(count_query), session2.execute(query)],
+                    session1.execute(count_query),
+                    session2.execute(query),
                     return_exceptions=False,
                 )
                 count: Result = results[0]
