@@ -247,15 +247,16 @@ class AbstractRepository:
         )
         # total record
 
-        async with self.adapter.getSession() as session:
-            results = await gather(
-                *[session.execute(count_query), session.execute(query)],
-                return_exceptions=False,
-            )
-            count: Result = results[0]
-            records: Result = results[1]
-            total_record = count.scalar() or 0
-            result = records.fetchall()
+        async with self.adapter.getSession() as session1:
+            async with self.adapter.getSession() as session2:
+                results = await gather(
+                    *[session1.execute(count_query), session2.execute(query)],
+                    return_exceptions=False,
+                )
+                count: Result = results[0]
+                records: Result = results[1]
+                total_record = count.scalar() or 0
+                result = records.fetchall()
 
         # possible pass in outside functions to map/alter data?
         # total page
@@ -352,15 +353,16 @@ class AbstractRepository:
         )
         # total record
 
-        async with self.adapter.getSession() as session:
-            results = await gather(
-                *[session.execute(count_query), session.execute(query)],
-                return_exceptions=False,
-            )
-            count: Result = results[0]
-            records: Result = results[1]
-            total_record = count.scalar() or 0
-            result = records.fetchall()
+        async with self.adapter.getSession() as session1:
+            async with self.adapter.getSession() as session2:
+                results = await gather(
+                    *[session1.execute(count_query), session2.execute(query)],
+                    return_exceptions=False,
+                )
+                count: Result = results[0]
+                records: Result = results[1]
+                total_record = count.scalar() or 0
+                result = records.fetchall()
 
         # possible pass in outside functions to map/alter data?
         # total page
