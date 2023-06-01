@@ -383,97 +383,112 @@ def ControllerCongifurator(
     policies_delete=[],
     policies_get_one=[],
     policies_get_many=[],
+    disable_create=False,
+    disable_update=False,
+    disable_delete=False,
+    disable_get_one=False,
+    disable_get_many=False,
 ) -> APIRouter:
-    @controller.post(
-        "",
-        response_model=single_schema,
-        response_model_exclude_none=True,
-        dependencies=assemblePolicies(policies_universal, policies_create),
-    )
-    async def create(data: create_model):
-        the_thing_with_rels = getattr(data, single_name)
-        the_thing = create_model_proxy(**the_thing_with_rels.dict())
-        result = await repository.create(data=the_thing)
-        relations_modified = await SaveRelationships(
-            id=getattr(result, repository.primary_key),
-            record=the_thing_with_rels,
-            relation_config_map=relations,
-            repository=repository,
-        )
-        # Add error logic?
-        return single_schema(data=result)
+    if not disable_create:
 
-    @controller.patch(
-        "/{id}",
-        response_model=single_schema,
-        response_model_exclude_none=True,
-        dependencies=assemblePolicies(policies_universal, policies_update),
-    )
-    async def update(id: id_type = Path(..., alias="id"), *, data: update_model):
-        the_thing_with_rels = getattr(data, single_name)
-        the_thing = update_model_proxy(**the_thing_with_rels.dict())
-        result = await repository.update(id=id, data=the_thing)
-        relations_modified = await SaveRelationships(
-            id=getattr(result, repository.primary_key),
-            record=the_thing_with_rels,
-            relation_config_map=relations,
-            repository=repository,
+        @controller.post(
+            "",
+            response_model=single_schema,
+            response_model_exclude_none=True,
+            dependencies=assemblePolicies(policies_universal, policies_create),
         )
-        # Add error logic?
-        return single_schema(data=result)
+        async def create(data: create_model):
+            the_thing_with_rels = getattr(data, single_name)
+            the_thing = create_model_proxy(**the_thing_with_rels.dict())
+            result = await repository.create(data=the_thing)
+            relations_modified = await SaveRelationships(
+                id=getattr(result, repository.primary_key),
+                record=the_thing_with_rels,
+                relation_config_map=relations,
+                repository=repository,
+            )
+            # Add error logic?
+            return single_schema(data=result)
 
-    @controller.delete(
-        "/{id}",
-        response_model=single_schema,
-        response_model_exclude_none=True,
-        dependencies=assemblePolicies(policies_universal, policies_delete),
-    )
-    async def delete(
-        id: id_type = Path(..., alias="id"),
-    ):
-        data = await repository.delete(id=id)
-        # Add error logic?
-        return single_schema(data=data)
+    if not disable_update:
 
-    @controller.get(
-        "/{id}",
-        response_model=single_schema,
-        response_model_exclude_none=True,
-        dependencies=assemblePolicies(policies_universal, policies_get_one),
-    )
-    async def get_by_id(id: id_type = Path(..., alias="id")):
-        data = await repository.get_by_id(id=id)
-        return single_schema(data=data)
-
-    @controller.get(
-        "",
-        response_model=many_schema,
-        response_model_exclude_none=True,
-        dependencies=assemblePolicies(policies_universal, policies_get_many),
-    )
-    async def get_all(
-        page: int = 1,
-        limit: int = 10,
-        columns: List[str] = Query(None, alias="columns"),
-        sort: List[str] = Query(None, alias="sort"),
-        where: Json = Query(None, alias="where"),
-    ):
-        result: BulkDTO = await repository.get_all(
-            page=page, limit=limit, columns=columns, sort=sort, where=where
+        @controller.patch(
+            "/{id}",
+            response_model=single_schema,
+            response_model_exclude_none=True,
+            dependencies=assemblePolicies(policies_universal, policies_update),
         )
-        meta = {
-            "page": result.page,
-            "limit": result.limit,
-            "pages": result.total_pages,
-            "records": result.total_records,
-        }
-        return many_schema(
-            meta=meta_schema(**meta),
-            data=result.data,
+        async def update(id: id_type = Path(..., alias="id"), *, data: update_model):
+            the_thing_with_rels = getattr(data, single_name)
+            the_thing = update_model_proxy(**the_thing_with_rels.dict())
+            result = await repository.update(id=id, data=the_thing)
+            relations_modified = await SaveRelationships(
+                id=getattr(result, repository.primary_key),
+                record=the_thing_with_rels,
+                relation_config_map=relations,
+                repository=repository,
+            )
+            # Add error logic?
+            return single_schema(data=result)
+
+    if not disable_delete:
+
+        @controller.delete(
+            "/{id}",
+            response_model=single_schema,
+            response_model_exclude_none=True,
+            dependencies=assemblePolicies(policies_universal, policies_delete),
         )
+        async def delete(
+            id: id_type = Path(..., alias="id"),
+        ):
+            data = await repository.delete(id=id)
+            # Add error logic?
+            return single_schema(data=data)
+
+    if not disable_get_one:
+
+        @controller.get(
+            "/{id}",
+            response_model=single_schema,
+            response_model_exclude_none=True,
+            dependencies=assemblePolicies(policies_universal, policies_get_one),
+        )
+        async def get_by_id(id: id_type = Path(..., alias="id")):
+            data = await repository.get_by_id(id=id)
+            return single_schema(data=data)
+
+    if not disable_get_many:
+
+        @controller.get(
+            "",
+            response_model=many_schema,
+            response_model_exclude_none=True,
+            dependencies=assemblePolicies(policies_universal, policies_get_many),
+        )
+        async def get_all(
+            page: int = 1,
+            limit: int = 10,
+            columns: List[str] = Query(None, alias="columns"),
+            sort: List[str] = Query(None, alias="sort"),
+            where: Json = Query(None, alias="where"),
+        ):
+            result: BulkDTO = await repository.get_all(
+                page=page, limit=limit, columns=columns, sort=sort, where=where
+            )
+            meta = {
+                "page": result.page,
+                "limit": result.limit,
+                "pages": result.total_pages,
+                "records": result.total_records,
+            }
+            return many_schema(
+                meta=meta_schema(**meta),
+                data=result.data,
+            )
 
     # Add relationship link endpoints starting here...
-
+    # Maybe add way to disable these getters?
     for key, config in relations.items():
         if config.orm_relationship.direction == ONETOMANY:
             _ControllerConfigOneToMany(

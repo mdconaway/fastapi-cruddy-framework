@@ -12,11 +12,11 @@ from examples.fastapi_cruddy_sqlite.policies.verify_session import verify_sessio
 
 resource = Resource(
     adapter=sqlite,
+    id_type=UUID,
     response_schema=PostView,
     response_meta_schema=MetaObject,
     resource_update_model=PostUpdate,
     resource_create_model=PostCreate,
     resource_model=Post,
-    id_type=UUID,
     policies_universal=[verify_session],
 )

@@ -281,7 +281,7 @@ response_meta_schema: CruddyGenericModel = MetaObject,
 # to manage creating or changing protected relationships elsewhere in your application.
 # Protected relationships will still be viewable at their designated GET routes.
 protected_relationships: List[str] = [],
-# The remaining options allow you to pass in your Sails.js-like policy chains, which will
+# The following options allow you to pass in your Sails.js-like policy chains, which will
 # run before all of your endpoints (in the case of universal), or in front of only specific 
 # endpoints that match the action specified. These policies can be used for nearly any purpose,
 # from triggering other APIs and services, protecting endpoints to ensure only the correct
@@ -293,6 +293,15 @@ policies_update: List[Callable] = [],
 policies_delete: List[Callable] = [],
 policies_get_one: List[Callable] = [],
 policies_get_many: List[Callable] = [],
+# The disable_<endpoint> options allow app developers to simply abort automatic generation of select 
+# CRUD endpoints on the resource's controller. For instance, to make a write-once collection a 
+# developercould set disable_update to True, which would cause the resource to abort building a route 
+# for PATCH resource/{id}. Be aware of the overall impact of endpoints you totally disable!
+disable_create: bool = False,
+disable_update: bool = False,
+disable_delete: bool = False,
+disable_get_one: bool = False,
+disable_get_many: bool = False,
 # 'controller_extension' is the mount point for user-defined actions to-be-added to this resource's
 # controller/router. Pass in your class definition and it will be instantiated at the appropriate
 # time! See "CruddyController" example below!

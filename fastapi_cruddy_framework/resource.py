@@ -84,6 +84,11 @@ class Resource:
         policies_delete: List[Callable] = [],
         policies_get_one: List[Callable] = [],
         policies_get_many: List[Callable] = [],
+        disable_create: bool = False,
+        disable_update: bool = False,
+        disable_delete: bool = False,
+        disable_get_one: bool = False,
+        disable_get_many: bool = False,
         lifecycle_before_create: lifecycle_types = None,
         lifecycle_after_create: lifecycle_types = None,
         lifecycle_before_update: lifecycle_types = None,
@@ -119,6 +124,14 @@ class Resource:
             "delete": policies_delete,
             "get_one": policies_get_one,
             "get_many": policies_get_many,
+        }
+
+        self.disabled_endpoints = {
+            "create": disable_create,
+            "update": disable_update,
+            "delete": disable_delete,
+            "get_one": disable_get_one,
+            "get_many": disable_get_many,
         }
 
         if None != adapter:
@@ -402,6 +415,11 @@ class Resource:
             policies_delete=self.policies["delete"],
             policies_get_one=self.policies["get_one"],
             policies_get_many=self.policies["get_many"],
+            disable_create=self.disabled_endpoints["create"],
+            disable_update=self.disabled_endpoints["update"],
+            disable_delete=self.disabled_endpoints["delete"],
+            disable_get_one=self.disabled_endpoints["get_one"],
+            disable_get_many=self.disabled_endpoints["get_many"],
         )
 
         if callable(self._on_resolution):

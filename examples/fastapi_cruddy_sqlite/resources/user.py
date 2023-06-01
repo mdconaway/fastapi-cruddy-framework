@@ -16,14 +16,15 @@ from examples.fastapi_cruddy_sqlite.policies.hash_user_password import (
 
 resource = Resource(
     adapter=sqlite,
+    id_type=UUID,
     response_schema=UserView,
     response_meta_schema=MetaObject,
     resource_update_model=UserUpdate,
     resource_create_model=UserCreate,
     resource_model=User,
     protected_relationships=["posts"],
-    id_type=UUID,
     policies_universal=[verify_session],
     policies_create=[hash_user_password],
+    disable_delete=True,
     controller_extension=UserController,
 )
