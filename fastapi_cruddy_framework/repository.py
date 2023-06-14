@@ -10,7 +10,6 @@ from sqlalchemy import (
     and_,
     not_,
     func,
-    column,
 )
 from sqlalchemy.engine import Result
 from sqlalchemy.sql import select, update
