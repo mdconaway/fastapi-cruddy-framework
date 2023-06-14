@@ -227,12 +227,16 @@ class AbstractRepository:
             # this query
             await lifecycle_before(query_conf)
 
-        select_columns = (
-            list(map(lambda x: column(x), query_conf["columns"]))
+        get_columns: List[str] = (
+            query_conf["columns"]
             if query_conf["columns"] is not None and query_conf["columns"] != []
-            else "*"
+            else list(self.model.__fields__.keys())
         )
-        query = select(from_obj=self.model, columns=select_columns)
+        if self.primary_key not in get_columns:
+            get_columns.append(self.primary_key)
+
+        select_items = list(map(lambda x: getattr(self.model, x), get_columns))
+        query = select(*select_items)
 
         if isinstance(query_conf["where"], dict) or isinstance(
             query_conf["where"], list
@@ -320,21 +324,17 @@ class AbstractRepository:
         if exists(_lifecycle_before):
             await _lifecycle_before(query_conf)
 
-        if query_conf["columns"] is None or len(query_conf["columns"]) == 0:
-            select_columns = list(
-                map(
-                    lambda x: getattr(relation_model, x),
-                    relation_model.__fields__.keys(),
-                )
-            )
-        else:
-            if relation_pk not in query_conf["columns"]:
-                query_conf["columns"].append(relation_pk)
-            select_columns = list(
-                map(lambda x: getattr(relation_model, x), query_conf["columns"])
-            )
+        get_columns: List[str] = (
+            query_conf["columns"]
+            if query_conf["columns"] is not None and query_conf["columns"] != []
+            else list(relation_model.__fields__.keys())
+        )
+        if relation_pk not in get_columns:
+            get_columns.append(relation_pk)
 
-        query = select(from_obj=self.model, columns=select_columns)
+        select_items = list(map(lambda x: getattr(relation_model, x), get_columns))
+
+        query = select(*select_items)
 
         query = query.join(getattr(self.model, relation))
 
