@@ -11,12 +11,15 @@ from sqlalchemy import (
     not_,
     func,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.engine import Result
 from sqlalchemy.sql import select, update
 from sqlalchemy.sql.schema import Table, Column
+from sqlalchemy.types import JSON
 from sqlalchemy.orm import RelationshipProperty, ONETOMANY, MANYTOMANY
 from sqlmodel import inspect
 from typing import Union, List, Dict
+from pydantic.fields import Undefined
 from pydantic.types import Json
 from .schemas import (
     BulkDTO,
@@ -24,6 +27,8 @@ from .schemas import (
 )
 from .adapters import BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter
 from .util import get_pk, possible_id_types, lifecycle_types
+
+JSON_COLUMNS = (JSON, JSONB)
 
 UNSUPPORTED_LIKE_COLUMNS = [
     "UUID",
@@ -620,6 +625,8 @@ class AbstractRepository:
             return level_criteria
         for k, v in where.items():
             isOp = False
+            isDot = "." in k
+
             if k in self.op_map:
                 isOp = self.op_map[k]
             if isinstance(v, dict) and isOp != False:
@@ -664,4 +671,55 @@ class AbstractRepository:
                     elif hasattr(mattr, k2.replace("*", "")):
                         # Probably need to add an "accepted" list of query action keys
                         level_criteria.append(getattr(mattr, k2.replace("*", ""))(v2))
+            elif (
+                isinstance(v, dict)
+                and isDot
+                and hasattr(model, k.split(".")[0])
+                and len(v.items()) == 1
+                and isinstance(
+                    getattr(model, k.split(".")[0], Undefined).type, JSON_COLUMNS
+                )
+            ):
+                [k1, *json_path] = k.split(".")
+                json_path_parts = tuple(
+                    int(segment) if segment.isdigit() else segment
+                    for segment in filter(lambda val: val != "", json_path)
+                )
+                mattr = getattr(model, k1)
+
+                k2 = list(v.keys())[0]
+                v2 = v[k2]
+
+                # Cast the path based on comparator value
+                # by default the value is cast as JSON
+                casted_path = mattr[json_path_parts]
+                if isinstance(v2, int):
+                    casted_path = mattr[json_path_parts].as_integer()
+                elif isinstance(v2, bool):
+                    casted_path = mattr[json_path_parts].as_boolean()
+                elif isinstance(v2, float):
+                    casted_path = mattr[json_path_parts].as_float()
+                elif isinstance(v2, str):
+                    casted_path = mattr[json_path_parts].as_string()
+
+                if isinstance(k2, str) and k2[0] == "*":
+                    if k2 == "*eq":
+                        print(casted_path)
+                        level_criteria.append(casted_path == v2)
+                    elif k2 == "*neq":
+                        level_criteria.append(casted_path != v2)
+                    elif k2 == "*gt":
+                        level_criteria.append(casted_path > v2)
+                    elif k2 == "*lt":
+                        level_criteria.append(casted_path < v2)
+                    elif k2 == "*gte":
+                        level_criteria.append(casted_path >= v2)
+                    elif k2 == "*lte":
+                        level_criteria.append(casted_path <= v2)
+                    elif hasattr(mattr, k2.replace("*", "")):
+                        # Probably need to add an "accepted" list of query action keys
+                        level_criteria.append(getattr(mattr, k2.replace("*", ""))(v2))
+
+                print(level_criteria[0])
+
         return level_criteria
