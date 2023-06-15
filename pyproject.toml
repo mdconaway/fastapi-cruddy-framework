@@ -38,7 +38,6 @@ extend-exclude = '''
 [tool.poetry.dependencies]
 python = ">=3.8,<4.0"
 fastapi = {extras = ["all"], version = "^0.92.0"}
-uvicorn = "^0.20.0"
 SQLAlchemy-Utils = "^0.38.3"
 SQLAlchemy = "^1.4.40"
 sqlmodel = "^0.0.8"
@@ -48,6 +47,7 @@ python-dateutil = "^2.8.2"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.1.0"
+uvicorn = "^0.20.0"
 starlette-session = "^0.4.3"
 aiosqlite = "^0.18.0"
 greenlet = "^2.0.2"
