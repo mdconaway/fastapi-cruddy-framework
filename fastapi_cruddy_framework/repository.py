@@ -17,7 +17,7 @@ from sqlalchemy.sql import select, update
 from sqlalchemy.sql.schema import Table, Column
 from sqlalchemy.types import JSON
 from sqlalchemy.orm import RelationshipProperty, ONETOMANY, MANYTOMANY
-from sqlmodel import inspect
+from sqlmodel import cast, inspect
 from typing import Union, List, Dict
 from pydantic.fields import Undefined
 from pydantic.types import Json
@@ -693,9 +693,8 @@ class AbstractRepository:
                 # Cast the path based on comparator value
                 # by default the value is cast as JSON
                 casted_path = mattr[json_path_parts].as_json()
-                if k2 not in QUERY_FORGE_COMMON:
-                    # This will generally align to non-standard JSON actions
-                    casted_path = mattr[json_path_parts].astext()
+                if isinstance(v2, dict) or isinstance(v2, list):
+                    v2 = cast(v2, mattr.type)
                 elif isinstance(v2, int):
                     casted_path = mattr[json_path_parts].as_integer()
                 elif isinstance(v2, bool):
