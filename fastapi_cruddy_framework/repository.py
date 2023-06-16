@@ -704,7 +704,6 @@ class AbstractRepository:
 
                 if isinstance(k2, str) and k2[0] == "*":
                     if k2 == "*eq":
-                        print(casted_path)
                         level_criteria.append(casted_path == v2)
                     elif k2 == "*neq":
                         level_criteria.append(casted_path != v2)
@@ -719,7 +718,5 @@ class AbstractRepository:
                     elif hasattr(mattr, k2.replace("*", "")):
                         # Probably need to add an "accepted" list of query action keys
                         level_criteria.append(getattr(mattr, k2.replace("*", ""))(v2))
-
-                print(level_criteria[0])
 
         return level_criteria
