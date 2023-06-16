@@ -716,7 +716,8 @@ class AbstractRepository:
                     elif k2 == "*lte":
                         level_criteria.append(casted_path <= v2)
                     elif hasattr(mattr, k2.replace("*", "")):
-                        # Probably need to add an "accepted" list of query action keys
-                        level_criteria.append(getattr(mattr, k2.replace("*", ""))(v2))
+                        level_criteria.append(
+                            getattr(casted_path, k2.replace("*", ""))(v2)
+                        )
 
         return level_criteria
