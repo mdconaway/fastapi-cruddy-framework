@@ -437,6 +437,7 @@ class Resource:
 # This needs a lot of work...
 class ResourceRegistry:
     _resolver_invoked: bool = False
+    _resolver_completed: bool = False
     _resources: List[Resource] = []
     _base_models: Dict[str, CruddyModel] = {}
     _rels_via_models: Dict[str, Dict] = {}
@@ -444,6 +445,7 @@ class ResourceRegistry:
 
     def __init__(self):
         self._resolver_invoked = False
+        self._resolver_completed = False
         self._resources = []
         self._base_models = {}
         self._rels_via_models = {}
@@ -537,8 +539,12 @@ class ResourceRegistry:
         for resource in self._resources:
             resource.resolve()
 
+        self._resolver_completed = True
         # Clear this debouncer so any future dynamic resources can try to resolve
         self._resolver_invoked = False
+
+    def is_ready(self):
+        return self._resolver_completed
 
 
 CruddyResourceRegistry = ResourceRegistry()
