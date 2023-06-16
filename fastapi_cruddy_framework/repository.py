@@ -29,7 +29,7 @@ from .adapters import BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapte
 from .util import get_pk, possible_id_types, lifecycle_types
 
 JSON_COLUMNS = (JSON, JSONB)
-
+QUERY_FORGE_COMMON = ("*eq", "*neq", "*gt", "*gte", "*lt", "*lte")
 UNSUPPORTED_LIKE_COLUMNS = [
     "UUID",
     "INTEGER",
@@ -692,8 +692,11 @@ class AbstractRepository:
 
                 # Cast the path based on comparator value
                 # by default the value is cast as JSON
-                casted_path = mattr[json_path_parts]
-                if isinstance(v2, int):
+                casted_path = mattr[json_path_parts].as_json()
+                if k2 not in QUERY_FORGE_COMMON:
+                    # This will generally align to non-standard JSON actions
+                    casted_path = mattr[json_path_parts].astext()
+                elif isinstance(v2, int):
                     casted_path = mattr[json_path_parts].as_integer()
                 elif isinstance(v2, bool):
                     casted_path = mattr[json_path_parts].as_boolean()
@@ -719,5 +722,7 @@ class AbstractRepository:
                         level_criteria.append(
                             getattr(casted_path, k2.replace("*", ""))(v2)
                         )
+
+                        print(level_criteria)
 
         return level_criteria
