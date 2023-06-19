@@ -15,7 +15,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.engine import Result
 from sqlalchemy.sql import select, update
 from sqlalchemy.sql.schema import Table, Column
-from sqlalchemy.types import JSON
+from sqlalchemy.types import ARRAY, JSON
 from sqlalchemy.orm import RelationshipProperty, ONETOMANY, MANYTOMANY
 from sqlmodel import cast, inspect
 from typing import Union, List, Dict
@@ -689,19 +689,24 @@ class AbstractRepository:
 
                 k2 = list(v.keys())[0]
                 v2 = v[k2]
+                is_basic_comparison = k2 in QUERY_FORGE_COMMON
 
-                # Cast the path based on comparator value
+                # Cast values to support complex queries
+                if isinstance(v2, dict):
+                    v2 = cast(v2, mattr.type)
+                elif isinstance(v2, list):
+                    v2 = cast(v2, ARRAY)
+
+                # Cast the path based on comparator value when performing a direct comparison
                 # by default the value is cast as JSON
                 casted_path = mattr[json_path_parts].as_json()
-                if isinstance(v2, dict) or isinstance(v2, list):
-                    v2 = cast(v2, mattr.type)
-                elif isinstance(v2, int):
+                if isinstance(v2, int) and is_basic_comparison:
                     casted_path = mattr[json_path_parts].as_integer()
-                elif isinstance(v2, bool):
+                elif isinstance(v2, bool) and is_basic_comparison:
                     casted_path = mattr[json_path_parts].as_boolean()
-                elif isinstance(v2, float):
+                elif isinstance(v2, float) and is_basic_comparison:
                     casted_path = mattr[json_path_parts].as_float()
-                elif isinstance(v2, str):
+                elif isinstance(v2, str) and is_basic_comparison:
                     casted_path = mattr[json_path_parts].as_string()
 
                 if isinstance(k2, str) and k2[0] == "*":
@@ -721,7 +726,5 @@ class AbstractRepository:
                         level_criteria.append(
                             getattr(casted_path, k2.replace("*", ""))(v2)
                         )
-
-                        print(level_criteria)
 
         return level_criteria
