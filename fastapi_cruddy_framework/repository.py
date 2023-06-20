@@ -15,7 +15,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.engine import Result
 from sqlalchemy.sql import select, update
 from sqlalchemy.sql.schema import Table, Column
-from sqlalchemy.types import ARRAY, JSON
+from sqlalchemy.types import ARRAY, JSON, VARCHAR
 from sqlalchemy.orm import RelationshipProperty, ONETOMANY, MANYTOMANY
 from sqlmodel import cast, inspect
 from typing import Union, List, Dict
@@ -29,6 +29,19 @@ from .adapters import BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapte
 from .util import get_pk, possible_id_types, lifecycle_types
 
 JSON_COLUMNS = (JSON, JSONB)
+# The CAST MAP provides composite keys (lhs comparator|rhs value type) which map to a DB cast function
+# An empty rhs value type means "all explicitly untracked" types should be cast as this
+QUERY_FORGE_CAST_MAP = {
+    "*contains:dict": lambda v, model_attr: cast(v, model_attr.type),
+    "*contains:list": lambda v, model_attr: cast(v, model_attr.type),
+    "*contained_by:dict": lambda v, model_attr: cast(v, model_attr.type),
+    "*contained_by:list": lambda v, model_attr: cast(v, model_attr.type),
+    "*has_all:": lambda v, *args: cast([v], ARRAY),
+    "*has_all:list": lambda v, *args: cast(v, ARRAY),
+    "*has_any:": lambda v, *args: cast([v], ARRAY),
+    "*has_any:list": lambda v, *args: cast(v, ARRAY),
+    "*has_key:": lambda v, *args: cast(v, VARCHAR),
+}
 QUERY_FORGE_COMMON = ("*eq", "*neq", "*gt", "*gte", "*lt", "*lte")
 UNSUPPORTED_LIKE_COLUMNS = [
     "UUID",
@@ -607,6 +620,15 @@ class AbstractRepository:
     # [{"first_name":{"*endswith":"bilbo"}},{"last_name":"baggins"}]
     # As would the following query:
     # {"first_name":{"*endswith":"bilbo"},"last_name":"baggins"}
+    # Initial support for JSON and JSON-like columns via "dot" notation can be performed in two ways
+    # The first being as a lookup comparator. This approach supports standard equality checks and will cast the nested JSON value to that of
+    # the comparison value. This is shown in the following query
+    # [{"this.is.a.nested.json.value": { "*eq": 5 }}]
+    # The second approach is to leverage a platform specific DB function. The following is a POSTGRES only function for
+    # verifying that the lhs includes the rhs of the query
+    # [{"this.is.a.nested.dict": {"*contains": {"sixthLevel": {"seventhLevel": "FOO"}} } }]
+    # To perform "dot" notation on the top-level of a JSON-like column, simply place a period after the top-level keyname
+    # [{"topLevel.": {"*contained_by": {"topLevel": {"nested": "value"}, "siblingTopLevel": {"this": "does not matter"}}} }]
     # This function needs to be extended to support "dot" notation in left hand keys to imply joined relation searchers
     def query_forge(
         self,
@@ -691,13 +713,19 @@ class AbstractRepository:
                 v2 = v[k2]
                 is_basic_comparison = k2 in QUERY_FORGE_COMMON
 
-                # Cast values to support complex queries
-                if isinstance(v2, dict):
-                    v2 = cast(v2, mattr.type)
-                elif isinstance(v2, list):
-                    v2 = cast(v2, ARRAY)
+                # Cast the rhs to support complex queries if needed
+                cast_fn = QUERY_FORGE_CAST_MAP.get(f"{k2}:{type(v2).__name__}")
 
-                # Cast the path based on comparator value when performing a direct comparison
+                # If there isn't a cast_fn set, let's see if there's a mapped 'catch_all' cast fn
+                # for the lhs provided
+                if cast_fn is None:
+                    cast_fn = QUERY_FORGE_CAST_MAP.get(f"{k2}:")
+
+                # If there is a cast function for the value, let's run it
+                if cast_fn:
+                    v2 = cast_fn(v2, mattr)
+
+                # Cast the lhs path based on comparator value when performing a direct comparison
                 # by default the value is cast as JSON
                 casted_path = mattr[json_path_parts].as_json()
                 if isinstance(v2, int) and is_basic_comparison:
