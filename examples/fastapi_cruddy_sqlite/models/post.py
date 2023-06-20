@@ -1,6 +1,6 @@
-from typing import Optional, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING
 from datetime import datetime
-from sqlmodel import Field, Relationship
+from sqlmodel import Column, Field, JSON, Relationship
 from fastapi_cruddy_framework import UUID, CruddyModel, CruddyUUIDModel
 
 if TYPE_CHECKING:
@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 # number of available fields for a client to manipulate.
 class PostUpdate(CruddyModel):
     content: str
+    tags: dict = Field(sa_column=Column(JSON), default={})
 
 
 # The "Create" model variant expands on the update model, above, and adds
@@ -41,6 +42,7 @@ class PostView(CruddyUUIDModel):
     id: Optional[UUID]
     user_id: Optional[UUID]
     content: Optional[str]
+    tags: Optional[dict[str, Any]] = Field(sa_column=Column(JSON), default={})
     created_at: Optional[datetime]
     updated_at: Optional[datetime]
 

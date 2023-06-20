@@ -11,12 +11,15 @@ from sqlalchemy import (
     not_,
     func,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.engine import Result
 from sqlalchemy.sql import select, update
 from sqlalchemy.sql.schema import Table, Column
+from sqlalchemy.types import ARRAY, JSON, VARCHAR
 from sqlalchemy.orm import RelationshipProperty, ONETOMANY, MANYTOMANY
-from sqlmodel import inspect
+from sqlmodel import cast, inspect
 from typing import Union, List, Dict
+from pydantic.fields import Undefined
 from pydantic.types import Json
 from .schemas import (
     BulkDTO,
@@ -25,6 +28,23 @@ from .schemas import (
 from .adapters import BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter
 from .util import get_pk, possible_id_types, lifecycle_types
 
+JSON_COLUMNS = (JSON, JSONB)
+# The CAST MAP provides composite keys (lhs comparator|rhs value type) which map to a DB cast function
+# An empty rhs value type means "all explicitly untracked" types should be cast as this
+QUERY_FORGE_CAST_MAP = {
+    "*contains:dict": lambda v, model_attr: cast(v, model_attr.type),
+    "*contains:list": lambda v, model_attr: cast(v, model_attr.type),
+    "*contains:": lambda v, model_attr: cast([v], model_attr.type),
+    "*contained_by:dict": lambda v, model_attr: cast(v, model_attr.type),
+    "*contained_by:list": lambda v, model_attr: cast(v, model_attr.type),
+    "*contained_by:": lambda v, model_attr: cast([v], model_attr.type),
+    "*has_all:": lambda v, *args: cast([v], ARRAY),
+    "*has_all:list": lambda v, *args: cast(v, ARRAY),
+    "*has_any:": lambda v, *args: cast([v], ARRAY),
+    "*has_any:list": lambda v, *args: cast(v, ARRAY),
+    "*has_key:": lambda v, *args: cast(v, VARCHAR),
+}
+QUERY_FORGE_COMMON = ("*eq", "*neq", "*gt", "*gte", "*lt", "*lte")
 UNSUPPORTED_LIKE_COLUMNS = [
     "UUID",
     "INTEGER",
@@ -602,6 +622,15 @@ class AbstractRepository:
     # [{"first_name":{"*endswith":"bilbo"}},{"last_name":"baggins"}]
     # As would the following query:
     # {"first_name":{"*endswith":"bilbo"},"last_name":"baggins"}
+    # Initial support for JSON and JSON-like columns via "dot" notation can be performed in two ways
+    # The first being as a lookup comparator. This approach supports standard equality checks and will cast the nested JSON value to that of
+    # the comparison value. This is shown in the following query
+    # [{"this.is.a.nested.json.value": { "*eq": 5 }}]
+    # The second approach is to leverage a platform specific DB function. The following is a POSTGRES only function for
+    # verifying that the lhs includes the rhs of the query
+    # [{"this.is.a.nested.dict": {"*contains": {"sixthLevel": {"seventhLevel": "FOO"}} } }]
+    # To perform "dot" notation on the top-level of a JSON-like column, simply place a period after the top-level keyname
+    # [{"topLevel.": {"*contained_by": {"topLevel": {"nested": "value"}, "siblingTopLevel": {"this": "does not matter"}}} }]
     # This function needs to be extended to support "dot" notation in left hand keys to imply joined relation searchers
     def query_forge(
         self,
@@ -620,6 +649,8 @@ class AbstractRepository:
             return level_criteria
         for k, v in where.items():
             isOp = False
+            isDot = "." in k
+
             if k in self.op_map:
                 isOp = self.op_map[k]
             if isinstance(v, dict) and isOp != False:
@@ -664,4 +695,66 @@ class AbstractRepository:
                     elif hasattr(mattr, k2.replace("*", "")):
                         # Probably need to add an "accepted" list of query action keys
                         level_criteria.append(getattr(mattr, k2.replace("*", ""))(v2))
+            elif (
+                isinstance(v, dict)
+                and isDot
+                and hasattr(model, k.split(".")[0])
+                and len(v.items()) == 1
+                and isinstance(
+                    getattr(model, k.split(".")[0], Undefined).type, JSON_COLUMNS
+                )
+            ):
+                [k1, *json_path] = k.split(".")
+                json_path_parts = tuple(
+                    int(segment) if segment.isdigit() else segment
+                    for segment in filter(lambda val: val != "", json_path)
+                )
+                mattr = getattr(model, k1)
+
+                k2 = list(v.keys())[0]
+                v2 = v[k2]
+                is_basic_comparison = k2 in QUERY_FORGE_COMMON
+
+                # Cast the rhs to support complex queries if needed
+                cast_fn = QUERY_FORGE_CAST_MAP.get(f"{k2}:{type(v2).__name__}")
+
+                # If there isn't a cast_fn set, let's see if there's a mapped 'catch_all' cast fn
+                # for the lhs provided
+                if cast_fn is None:
+                    cast_fn = QUERY_FORGE_CAST_MAP.get(f"{k2}:")
+
+                # If there is a cast function for the value, let's run it
+                if cast_fn:
+                    v2 = cast_fn(v2, mattr)
+
+                # Cast the lhs path based on comparator value when performing a direct comparison
+                # by default the value is cast as JSON
+                casted_path = mattr[json_path_parts].as_json()
+                if isinstance(v2, int) and is_basic_comparison:
+                    casted_path = mattr[json_path_parts].as_integer()
+                elif isinstance(v2, bool) and is_basic_comparison:
+                    casted_path = mattr[json_path_parts].as_boolean()
+                elif isinstance(v2, float) and is_basic_comparison:
+                    casted_path = mattr[json_path_parts].as_float()
+                elif isinstance(v2, str) and is_basic_comparison:
+                    casted_path = mattr[json_path_parts].as_string()
+
+                if isinstance(k2, str) and k2[0] == "*":
+                    if k2 == "*eq":
+                        level_criteria.append(casted_path == v2)
+                    elif k2 == "*neq":
+                        level_criteria.append(casted_path != v2)
+                    elif k2 == "*gt":
+                        level_criteria.append(casted_path > v2)
+                    elif k2 == "*lt":
+                        level_criteria.append(casted_path < v2)
+                    elif k2 == "*gte":
+                        level_criteria.append(casted_path >= v2)
+                    elif k2 == "*lte":
+                        level_criteria.append(casted_path <= v2)
+                    elif hasattr(mattr, k2.replace("*", "")):
+                        level_criteria.append(
+                            getattr(casted_path, k2.replace("*", ""))(v2)
+                        )
+
         return level_criteria
