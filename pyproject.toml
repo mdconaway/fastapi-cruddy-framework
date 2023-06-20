@@ -43,7 +43,6 @@ SQLAlchemy = { extras = ["asyncio"], version = "^1.4.40" }
 sqlmodel = "^0.0.8"
 inflect = "^6.0.2"
 python-dateutil = "^2.8.2"
-greenlet = "2.0.1"
 
 
 [tool.poetry.group.dev.dependencies]
