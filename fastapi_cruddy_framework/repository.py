@@ -34,8 +34,10 @@ JSON_COLUMNS = (JSON, JSONB)
 QUERY_FORGE_CAST_MAP = {
     "*contains:dict": lambda v, model_attr: cast(v, model_attr.type),
     "*contains:list": lambda v, model_attr: cast(v, model_attr.type),
+    "*contains:": lambda v, model_attr: cast([v], model_attr.type),
     "*contained_by:dict": lambda v, model_attr: cast(v, model_attr.type),
     "*contained_by:list": lambda v, model_attr: cast(v, model_attr.type),
+    "*contained_by:": lambda v, model_attr: cast([v], model_attr.type),
     "*has_all:": lambda v, *args: cast([v], ARRAY),
     "*has_all:list": lambda v, *args: cast(v, ARRAY),
     "*has_any:": lambda v, *args: cast([v], ARRAY),
