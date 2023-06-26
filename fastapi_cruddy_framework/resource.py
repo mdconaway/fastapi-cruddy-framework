@@ -8,7 +8,7 @@ from sqlalchemy.orm import (
     ONETOMANY,
     MANYTOMANY,
 )
-from sqlmodel import inspect
+from sqlmodel import Field, inspect
 from typing import Union, Optional, List, Dict, Callable, Literal, Type
 from pydantic import create_model
 from pydantic.generics import GenericModel
@@ -28,6 +28,7 @@ from .controller import CruddyController, ControllerCongifurator
 from .repository import AbstractRepository
 from .adapters import BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter
 from .util import possible_id_types, lifecycle_types
+from .uuid import uuid7
 
 
 # -------------------------------------------------------------------------------------------
@@ -66,7 +67,7 @@ class Resource:
         resource_model: CruddyModel = Example,
         response_schema: CruddyModel = ExampleView,
         # None of the following arguments are required. But they allow you to do powerful things!
-        response_meta_schema: CruddyGenericModel = MetaObject,
+        response_meta_schema: CruddyModel = MetaObject,
         # the adapter type only has two options because sqlite will take priority if its options are set
         adapter_type: Literal["mysql", "postgresql"] = "postgresql",
         db_mode: Literal["memory", "file"] = "memory",
@@ -207,17 +208,35 @@ class Resource:
         self._model_name_single = resource_model_name
         self._model_name_plural = resource_model_plural
 
+        # Attempt to align swagger example uuids if possible (non-critical)
+        example_id = uuid7() if self.repository.id_type == UUID else 123
+        if self.repository.id_type == str:
+            example_id = str(example_id)
+        possible_id = response_schema.__fields__.get("id", None)
+        if possible_id is not None and possible_id.type_ == self.repository.id_type:
+            possible_id_example = possible_id.field_info.extra.get("example", None)
+            if possible_id_example is not None:
+                example_id = possible_id_example
+            possible_id.field_info.extra["example"] = example_id
+
         # Create shared link model
         link_object = {}
         false_attrs = {}
         for k, v in self._relations.items():
-            link_object[k] = (str, ...)
+            link_object[k] = (
+                str,
+                Field(
+                    schema_extra={
+                        "example": self._single_link(id=example_id, relationship=k)
+                    }
+                ),
+            )
             if (
                 v.orm_relationship.direction == MANYTOMANY
                 or v.orm_relationship.direction == ONETOMANY
             ) and k not in self._protected_relationships:
                 false_attrs[k] = (Optional[List[v.foreign_resource._id_type]], None)
-        link_object["__base__"] = CruddyGenericModel
+        link_object["__base__"] = CruddyModel
 
         LinkModel = create_model(f"{resource_model_name}Links", **link_object)
         # End shared link model
@@ -342,8 +361,11 @@ class Resource:
 
         new_link_object = {}
         for k, v in self._relations.items():
-            new_link_object[k] = f"{self._link_prefix}{self._resource_path}/{id}/{k}"
+            new_link_object[k] = self._single_link(id=id, relationship=k)
         return new_link_object
+
+    def _single_link(self, id: possible_id_types = None, relationship: str = ""):
+        return f"{self._link_prefix}{self._resource_path}/{id}/{relationship}"
 
     def _create_schema_arg_handler(self, single_schema_linked, resource_model_name):
         def data_destructure(data):

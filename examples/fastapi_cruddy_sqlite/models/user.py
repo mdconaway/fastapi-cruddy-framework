@@ -18,24 +18,38 @@ if TYPE_CHECKING:
 # client.
 
 
+EXAMPLE_USER = {
+    "first_name": "John",
+    "last_name": "Smith",
+    "email": "john.smith@cruddy-framework.com",
+    "phone": "888-555-5555",
+    "state": "FL",
+    "country": "USA",
+    "address": "101 Sunshine Way",
+}
+
+
 # The "Update" model variant describes all fields that can be affected by a
 # client's PATCH action. Generally, the update model should have the fewest
 # number of available fields for a client to manipulate.
 class UserUpdate(CruddyModel):
-    first_name: str
-    last_name: str
+    first_name: str = Field(schema_extra={"example": EXAMPLE_USER["first_name"]})
+    last_name: str = Field(schema_extra={"example": EXAMPLE_USER["last_name"]})
     email: EmailStr = Field(
-        nullable=True, index=True, sa_column_kwargs={"unique": True}
+        nullable=True,
+        index=True,
+        sa_column_kwargs={"unique": True},
+        schema_extra={"example": EXAMPLE_USER["email"]},
     )
     is_active: bool = Field(default=True)
     is_superuser: bool = Field(default=False)
     birthdate: Optional[datetime] = Field(
         sa_column=Column(DateTime(timezone=True), nullable=True)
     )  # birthday with timezone
-    phone: Optional[str]
-    state: Optional[str]
-    country: Optional[str]
-    address: Optional[str]
+    phone: Optional[str] = Field(schema_extra={"example": EXAMPLE_USER["phone"]})
+    state: Optional[str] = Field(schema_extra={"example": EXAMPLE_USER["state"]})
+    country: Optional[str] = Field(schema_extra={"example": EXAMPLE_USER["country"]})
+    address: Optional[str] = Field(schema_extra={"example": EXAMPLE_USER["address"]})
 
 
 # The "Create" model variant expands on the update model, above, and adds
@@ -55,16 +69,20 @@ class UserCreate(UserUpdate):
 # fields need to be optional.
 class UserView(CruddyUUIDModel):
     id: Optional[UUID]
-    first_name: Optional[str]
-    last_name: Optional[str]
-    email: Optional[EmailStr]
+    first_name: Optional[str] = Field(
+        schema_extra={"example": EXAMPLE_USER["first_name"]}
+    )
+    last_name: Optional[str] = Field(
+        schema_extra={"example": EXAMPLE_USER["last_name"]}
+    )
+    email: Optional[EmailStr] = Field(schema_extra={"example": EXAMPLE_USER["email"]})
     is_active: Optional[bool]
     is_superuser: Optional[bool]
     birthdate: Optional[datetime]
-    phone: Optional[str]
-    state: Optional[str]
-    country: Optional[str]
-    address: Optional[str]
+    phone: Optional[str] = Field(schema_extra={"example": EXAMPLE_USER["phone"]})
+    state: Optional[str] = Field(schema_extra={"example": EXAMPLE_USER["state"]})
+    country: Optional[str] = Field(schema_extra={"example": EXAMPLE_USER["country"]})
+    address: Optional[str] = Field(schema_extra={"example": EXAMPLE_USER["address"]})
     created_at: Optional[datetime]
     updated_at: Optional[datetime]
 

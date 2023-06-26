@@ -6,7 +6,6 @@ from examples.fastapi_cruddy_sqlite.models.user import (
     UserUpdate,
     UserView,
 )
-from examples.fastapi_cruddy_sqlite.schemas.response import MetaObject
 from examples.fastapi_cruddy_sqlite.controllers.user import UserController
 from examples.fastapi_cruddy_sqlite.policies.verify_session import verify_session
 from examples.fastapi_cruddy_sqlite.policies.hash_user_password import (
@@ -18,7 +17,6 @@ resource = Resource(
     adapter=sqlite,
     id_type=UUID,
     response_schema=UserView,
-    response_meta_schema=MetaObject,
     resource_update_model=UserUpdate,
     resource_create_model=UserCreate,
     resource_model=User,

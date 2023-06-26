@@ -38,19 +38,6 @@ class BulkDTO(CruddyGenericModel):
     data: List
 
 
-class MetaObject(CruddyGenericModel):
-    page: int
-    limit: int
-    pages: int
-    records: int
-
-
-class PageResponse(CruddyGenericModel):
-    # The response for a pagination query.
-    meta: MetaObject
-    data: List[T]
-
-
 class ResponseSchema(SQLModel):
     # The response for a single object return
     data: Optional[T] = None
@@ -60,6 +47,19 @@ class CruddyModel(SQLModel):
     @declared_attr  # type: ignore
     def __tablename__(cls) -> str:
         return cls.__name__
+
+
+class MetaObject(CruddyModel):
+    page: int = Field(schema_extra={"example": 1})
+    limit: int = Field(schema_extra={"example": 10})
+    pages: int = Field(schema_extra={"example": 1})
+    records: int = Field(schema_extra={"example": 1})
+
+
+class PageResponse(CruddyGenericModel):
+    # The response for a pagination query.
+    meta: MetaObject
+    data: List[T]
 
 
 class CruddyIntIDModel(CruddyModel):

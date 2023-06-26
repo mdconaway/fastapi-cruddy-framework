@@ -6,6 +6,12 @@ from fastapi_cruddy_framework import UUID, CruddyModel, CruddyUUIDModel
 if TYPE_CHECKING:
     from examples.fastapi_cruddy_sqlite.models.user import User
 
+
+EXAMPLE_POST = {
+    "content": "Today I felt like blogging. Fin.",
+    "tags": {"categories": ["blog"]},
+}
+
 # The way the CRUD Router works, it needs an update, create, and base model.
 # If you always structure model files in this order, you can extend from the
 # minimal number of attrs that can be updated, all the way up to the maximal
@@ -19,8 +25,12 @@ if TYPE_CHECKING:
 # client's PATCH action. Generally, the update model should have the fewest
 # number of available fields for a client to manipulate.
 class PostUpdate(CruddyModel):
-    content: str
-    tags: dict = Field(sa_column=Column(JSON), default={})
+    content: str = Field(schema_extra={"example": EXAMPLE_POST["content"]})
+    tags: dict = Field(
+        sa_column=Column(JSON),
+        default={},
+        schema_extra={"example": EXAMPLE_POST["tags"]},
+    )
 
 
 # The "Create" model variant expands on the update model, above, and adds
@@ -41,8 +51,12 @@ class PostCreate(PostUpdate):
 class PostView(CruddyUUIDModel):
     id: Optional[UUID]
     user_id: Optional[UUID]
-    content: Optional[str]
-    tags: Optional[dict[str, Any]] = Field(sa_column=Column(JSON), default={})
+    content: Optional[str] = Field(schema_extra={"example": EXAMPLE_POST["content"]})
+    tags: Optional[dict[str, Any]] = Field(
+        sa_column=Column(JSON),
+        default={},
+        schema_extra={"example": EXAMPLE_POST["tags"]},
+    )
     created_at: Optional[datetime]
     updated_at: Optional[datetime]
 

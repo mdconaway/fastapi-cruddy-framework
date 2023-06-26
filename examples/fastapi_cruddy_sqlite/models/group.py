@@ -1,11 +1,14 @@
 from typing import Optional, List, TYPE_CHECKING
 from datetime import datetime
-from sqlmodel import Relationship
+from sqlmodel import Field, Relationship
 from fastapi_cruddy_framework import UUID, CruddyModel, CruddyUUIDModel
 from examples.fastapi_cruddy_sqlite.models.common.relationships import GroupUserLink
 
 if TYPE_CHECKING:
     from examples.fastapi_cruddy_sqlite.models.user import User
+
+
+EXAMPLE_GROUP = {"name": "Cruddy Fans"}
 
 # The way the CRUD Router works, it needs an update, create, and base model.
 # If you always structure model files in this order, you can extend from the
@@ -20,7 +23,7 @@ if TYPE_CHECKING:
 # client's PATCH action. Generally, the update model should have the fewest
 # number of available fields for a client to manipulate.
 class GroupUpdate(CruddyModel):
-    name: str
+    name: str = Field(schema_extra={"example": EXAMPLE_GROUP["name"]})
 
 
 # The "Create" model variant expands on the update model, above, and adds
@@ -40,7 +43,7 @@ class GroupCreate(GroupUpdate):
 # fields need to be optional.
 class GroupView(CruddyUUIDModel):
     id: Optional[UUID]
-    name: Optional[str]
+    name: Optional[str] = Field(schema_extra={"example": EXAMPLE_GROUP["name"]})
     created_at: Optional[datetime]
     updated_at: Optional[datetime]
 

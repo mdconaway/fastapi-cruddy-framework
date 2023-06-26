@@ -6,7 +6,6 @@ from examples.fastapi_cruddy_sqlite.models.post import (
     PostUpdate,
     PostView,
 )
-from examples.fastapi_cruddy_sqlite.schemas.response import MetaObject
 from examples.fastapi_cruddy_sqlite.policies.verify_session import verify_session
 
 
@@ -14,7 +13,6 @@ resource = Resource(
     adapter=sqlite,
     id_type=UUID,
     response_schema=PostView,
-    response_meta_schema=MetaObject,
     resource_update_model=PostUpdate,
     resource_create_model=PostCreate,
     resource_model=Post,
