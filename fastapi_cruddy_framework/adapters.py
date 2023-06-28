@@ -1,3 +1,4 @@
+from sqlalchemy.pool import StaticPool
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine
 from contextlib import asynccontextmanager
@@ -119,4 +120,10 @@ class SqliteAdapter(BaseAdapter):
             self.connection_uri = f"{self.SQLITE_ASYNC_URL_PREFIX}{self.MEMORY_LOCATION_START}{db_path}{self.MEMORY_LOCATION_END}"
         else:
             self.connection_uri = f"{self.SQLITE_ASYNC_URL_PREFIX}{db_path}"
-        self.engine = create_async_engine(self.connection_uri, echo=True, future=True)
+        self.engine = create_async_engine(
+            self.connection_uri,
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+            echo=True,
+            future=True,
+        )
