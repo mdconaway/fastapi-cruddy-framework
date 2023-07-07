@@ -18,7 +18,7 @@ from sqlalchemy.sql.schema import Table, Column
 from sqlalchemy.types import ARRAY, JSON, VARCHAR
 from sqlalchemy.orm import RelationshipProperty, ONETOMANY, MANYTOMANY
 from sqlmodel import cast, inspect
-from typing import Union, List, Dict
+from typing import Any, Type, Union, List, Dict
 from pydantic.fields import Undefined
 from pydantic.types import Json
 from .schemas import (
@@ -26,7 +26,7 @@ from .schemas import (
     CruddyModel,
 )
 from .adapters import BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter
-from .util import get_pk, possible_id_types, lifecycle_types
+from .util import get_pk, possible_id_types, possible_id_values, lifecycle_types
 
 JSON_COLUMNS = (JSON, JSONB)
 # The CAST MAP provides composite keys (lhs comparator|rhs value type) which map to a DB cast function
@@ -34,13 +34,13 @@ JSON_COLUMNS = (JSON, JSONB)
 QUERY_FORGE_CAST_MAP = {
     "*contains:dict": lambda v, model_attr: cast(v, model_attr.type),
     "*contains:list": lambda v, model_attr: cast(v, model_attr.type),
-    "*contains:": lambda v, model_attr: cast([v], model_attr.type),
+    "*contains:": lambda v, model_attr: cast([v], model_attr.type),  # type: ignore
     "*contained_by:dict": lambda v, model_attr: cast(v, model_attr.type),
     "*contained_by:list": lambda v, model_attr: cast(v, model_attr.type),
-    "*contained_by:": lambda v, model_attr: cast([v], model_attr.type),
-    "*has_all:": lambda v, *args: cast([v], ARRAY),
+    "*contained_by:": lambda v, model_attr: cast([v], model_attr.type),  # type: ignore
+    "*has_all:": lambda v, *args: cast([v], ARRAY),  # type: ignore
     "*has_all:list": lambda v, *args: cast(v, ARRAY),
-    "*has_any:": lambda v, *args: cast([v], ARRAY),
+    "*has_any:": lambda v, *args: cast([v], ARRAY),  # type: ignore
     "*has_any:list": lambda v, *args: cast(v, ARRAY),
     "*has_key:": lambda v, *args: cast(v, VARCHAR),
 }
@@ -75,11 +75,11 @@ LOGGER = getLogger(__file__)
 # -------------------------------------------------------------------------------------------
 class AbstractRepository:
     adapter: Union[BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter]
-    update_model: CruddyModel
-    create_model: CruddyModel
-    model: CruddyModel
+    update_model: Type[CruddyModel]
+    create_model: Type[CruddyModel]
+    model: Type[CruddyModel]
     id_type: possible_id_types
-    primary_key: str = None
+    primary_key: Union[str, None] = None
     lifecycle: Dict[str, lifecycle_types] = {
         "before_create": None,
         "after_create": None,
@@ -102,9 +102,9 @@ class AbstractRepository:
         adapter: Union[
             BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter
         ] = ...,
-        update_model: CruddyModel = ...,
-        create_model: CruddyModel = ...,
-        model: CruddyModel = ...,
+        update_model: Type[CruddyModel] = ...,
+        create_model: Type[CruddyModel] = ...,
+        model: Type[CruddyModel] = ...,
         id_type: possible_id_types = int,
         lifecycle_before_create: lifecycle_types = None,
         lifecycle_after_create: lifecycle_types = None,
@@ -153,61 +153,63 @@ class AbstractRepository:
         async with self.adapter.getSession() as session:
             record = self.model(**data.dict())
             if exists(self.lifecycle["before_create"]):
-                await self.lifecycle["before_create"](record)
+                await self.lifecycle["before_create"](record)  # type: ignore
             session.add(record)
         if exists(self.lifecycle["after_create"]):
-            await self.lifecycle["after_create"](record)
+            await self.lifecycle["after_create"](record)  # type: ignore
         return record
         # return a value?
 
-    async def get_by_id(self, id: possible_id_types):
+    async def get_by_id(self, id: possible_id_values):
         # retrieve user data by id
-        query = select(self.model).where(getattr(self.model, self.primary_key) == id)
+        query = select(self.model).where(
+            getattr(self.model, str(self.primary_key)) == id
+        )
         async with self.adapter.getSession() as session:
             if exists(self.lifecycle["before_get_one"]):
-                await self.lifecycle["before_get_one"](id)
+                await self.lifecycle["before_get_one"](id)  # type: ignore
             result = (await session.execute(query)).scalar_one_or_none()
         if exists(self.lifecycle["after_get_one"]):
-            await self.lifecycle["after_get_one"](result)
+            await self.lifecycle["after_get_one"](result)  # type: ignore
         return result
 
-    async def update(self, id: possible_id_types, data: CruddyModel):
+    async def update(self, id: possible_id_values, data: CruddyModel):
         # update user data
         values = data.dict()
         if exists(self.lifecycle["before_update"]):
-            await self.lifecycle["before_update"](values, id)
+            await self.lifecycle["before_update"](values, id)  # type: ignore
         query = (
             _update(self.model)
-            .where(getattr(self.model, self.primary_key) == id)
+            .where(getattr(self.model, str(self.primary_key)) == id)
             .values(**values)
             .execution_options(synchronize_session="fetch")
         )
         async with self.adapter.getSession() as session:
             result = await session.execute(query)
-        if result.rowcount == 1:
+        if result.rowcount == 1:  # type: ignore
             updated_record = await self.get_by_id(id=id)
             if exists(self.lifecycle["after_update"]):
-                await self.lifecycle["after_update"](updated_record)
+                await self.lifecycle["after_update"](updated_record)  # type: ignore
             return updated_record
         return None
         # return a value?
 
-    async def delete(self, id: possible_id_types):
+    async def delete(self, id: possible_id_values):
         # delete user data by id
         record = await self.get_by_id(id=id)
         if exists(self.lifecycle["before_delete"]):
-            await self.lifecycle["before_delete"](record)
+            await self.lifecycle["before_delete"](record)  # type: ignore
         query = (
             _delete(self.model)
-            .where(getattr(self.model, self.primary_key) == id)
+            .where(getattr(self.model, str(self.primary_key)) == id)
             .execution_options(synchronize_session="fetch")
         )
         async with self.adapter.getSession() as session:
             result = await session.execute(query)
 
-        if result.rowcount == 1:
+        if result.rowcount == 1:  # type: ignore
             if exists(self.lifecycle["after_delete"]):
-                await self.lifecycle["after_delete"](record)
+                await self.lifecycle["after_delete"](record)  # type: ignore
             return record
         return None
         # return a value?
@@ -216,8 +218,8 @@ class AbstractRepository:
         self,
         page: int = 1,
         limit: int = 10,
-        columns: List[str] = None,
-        sort: List[str] = None,
+        columns: Union[List[str], None] = None,
+        sort: Union[List[str], None] = None,
         where: Json = None,
         # possible lifecycle hooks from foreign resource
         _lifecycle_before: lifecycle_types = None,
@@ -244,7 +246,7 @@ class AbstractRepository:
             # use this hook to force things to be in a range, like limits!
             # setting conf.limit = 20 in user app code would alter the limit for
             # this query
-            await lifecycle_before(query_conf)
+            await lifecycle_before(query_conf)  # type: ignore
 
         get_columns: List[str] = (
             query_conf["columns"]
@@ -252,7 +254,7 @@ class AbstractRepository:
             else list(self.model.__fields__.keys())
         )
         if self.primary_key not in get_columns:
-            get_columns.append(self.primary_key)
+            get_columns.append(str(self.primary_key))
 
         select_items = list(map(lambda x: getattr(self.model, x), get_columns))
         query = select(*select_items)
@@ -311,19 +313,19 @@ class AbstractRepository:
         )
 
         if exists(lifecycle_after):
-            await lifecycle_after(result)
+            await lifecycle_after(result)  # type: ignore
 
         return result
 
     async def get_all_relations(
         self,
-        id: possible_id_types = ...,
+        id: possible_id_values = ...,
         relation: str = ...,
-        relation_model: CruddyModel = ...,
+        relation_model: Type[CruddyModel] = ...,
         page: int = 1,
         limit: int = 10,
-        columns: List[str] = None,
-        sort: List[str] = None,
+        columns: Union[List[str], None] = None,
+        sort: Union[List[str], None] = None,
         where: Json = None,
         # the foreign repository's lifecycle hooks must be injected
         _lifecycle_before: lifecycle_types = None,
@@ -341,7 +343,7 @@ class AbstractRepository:
         }
 
         if exists(_lifecycle_before):
-            await _lifecycle_before(query_conf)
+            await _lifecycle_before(query_conf)  # type: ignore
 
         get_columns: List[str] = (
             query_conf["columns"]
@@ -357,7 +359,7 @@ class AbstractRepository:
 
         query = query.join(getattr(self.model, relation))
 
-        joinable = [getattr(self.model, self.primary_key) == id]
+        joinable = [getattr(self.model, str(self.primary_key)) == id]
 
         if isinstance(query_conf["where"], dict) or isinstance(
             query_conf["where"], list
@@ -414,21 +416,21 @@ class AbstractRepository:
         )
 
         if exists(_lifecycle_after):
-            await _lifecycle_after(result)
+            await _lifecycle_after(result)  # type: ignore
 
         return result
 
     # This one is rather "alchemy" because join tables aren't resources
     async def set_many_many_relations(
         self,
-        id: possible_id_types,
+        id: possible_id_values,
         relation: str = ...,
-        relations: List[possible_id_types] = ...,
+        relations: List[possible_id_values] = ...,
     ):
         relation_conf = {"id": id, "relation": relation, "relations": relations}
 
         if exists(self.lifecycle["before_set_relations"]):
-            await self.lifecycle["before_set_relations"](relation_conf)
+            await self.lifecycle["before_set_relations"](relation_conf)  # type: ignore
 
         model_relation: RelationshipProperty = getattr(
             inspect(self.model).relationships, relation_conf["relation"]
@@ -436,12 +438,12 @@ class AbstractRepository:
         pairs = list(model_relation.local_remote_pairs)
         # origin_table: Table = None
         # origin_key: str = None
-        join_table: Table = None
-        join_table_origin_attr: str = None
-        join_table_foreign_attr: str = None
-        join_table_foreign: Table = None
-        foreign_table: Table = None
-        foreign_key: str = None
+        join_table: Union[Table, None] = None
+        join_table_origin_attr: Union[str, None] = None
+        join_table_foreign_attr: Union[str, None] = None
+        join_table_foreign: Union[Table, None] = None
+        foreign_table: Union[Table, None] = None
+        foreign_key: Union[str, None] = None
         for v in pairs:
             local: Column = v[0]
             remote: Column = v[1]
@@ -459,13 +461,20 @@ class AbstractRepository:
                 foreign_key = local.key
                 # This is the link from the join table to the related model
 
+        if join_table is None or foreign_table is None or join_table_foreign is None:
+            raise TypeError("join table configuration is undefined")
+
         if join_table.name != join_table_foreign.name:
             raise TypeError("Relationship many to many tables are not the same type!")
 
-        validation_target_col: Column = getattr(foreign_table.columns, foreign_key)
+        validation_target_col: Column = getattr(foreign_table.columns, str(foreign_key))
         # origin_id_col: Column = getattr(origin_table.columns, origin_key)
-        join_origin_col: Column = getattr(join_table.columns, join_table_origin_attr)
-        join_foreign_col: Column = getattr(join_table.columns, join_table_foreign_attr)
+        join_origin_col: Column = getattr(
+            join_table.columns, str(join_table_origin_attr)
+        )
+        join_foreign_col: Column = getattr(
+            join_table.columns, str(join_table_foreign_attr)
+        )
         # validate_origin_id = select(from_obj=origin_table, columns=[origin_id_col]).where(origin_id_col == id)
         validate_relation_ids = select(
             from_obj=foreign_table, columns=[validation_target_col]
@@ -483,7 +492,7 @@ class AbstractRepository:
                 map(
                     lambda x: {
                         join_table_origin_attr: relation_conf["id"],
-                        join_table_foreign_attr: f"{x._mapping[foreign_key]}",
+                        join_table_foreign_attr: f"{x._mapping[foreign_key]}",  # type: ignore
                     },
                     db_ids,
                 )
@@ -493,7 +502,7 @@ class AbstractRepository:
             )  # .returning(join_foreign_col) # RETURNING DOESNT WORK ON ALL ADAPTERS
             await session.execute(clear_relations_query)
 
-            check_ids = list(map(lambda x: f"{x._mapping[foreign_key]}", db_ids))
+            check_ids = list(map(lambda x: f"{x._mapping[foreign_key]}", db_ids))  # type: ignore
             if len(insertable) > 0:
                 await session.execute(create_relations_query)
                 find_tgt_query = select(join_table).where(
@@ -508,7 +517,7 @@ class AbstractRepository:
                 result = 0
 
         if exists(self.lifecycle["after_set_relations"]):
-            await self.lifecycle["after_set_relations"](
+            await self.lifecycle["after_set_relations"](  # type: ignore
                 {
                     "model": self.model,
                     "relation_conf": relation_conf,
@@ -524,32 +533,40 @@ class AbstractRepository:
     # There should probably be a configuration flag to disable this form of unsafe relationship update
     async def set_one_many_relations(
         self,
-        id: possible_id_types,
+        id: possible_id_values,
         relation: str = ...,
-        relations: List[possible_id_types] = ...,
+        relations: List[possible_id_values] = ...,
     ):
         relation_conf = {"id": id, "relation": relation, "relations": relations}
 
         if exists(self.lifecycle["before_set_relations"]):
-            await self.lifecycle["before_set_relations"](relation_conf)
+            await self.lifecycle["before_set_relations"](relation_conf)  # type: ignore
 
         model_relation: RelationshipProperty = getattr(
             inspect(self.model).relationships, relation_conf["relation"]
         )
         pairs = list(model_relation.local_remote_pairs)
         found = False
+        related_model: Union[Table, None] = None
+        far_col_name: Union[str, None] = None
+        far_col: Union[Column, None] = None
         for v in pairs:
             local: Column = v[0]
             remote: Column = v[1]
             if local.table.name == self.model.__tablename__:
-                related_model: Table = remote.table
-                far_col_name: str = remote.key
+                related_model = remote.table
+                far_col_name = remote.key
                 far_col = remote
                 found = True
                 # origin_table = local.table
                 # origin_key = local.key
                 # This is the link from our origin model to the join table
-        if not found:
+        if (
+            not found
+            or related_model is None
+            or far_col_name is None
+            or far_col is None
+        ):
             raise RuntimeError(
                 "This should be impossible, but there was not a valid one-to-many relationship"
             )
@@ -588,7 +605,7 @@ class AbstractRepository:
             alter_result = (await session.execute(count_query)).scalar() or 0
 
         if exists(self.lifecycle["after_set_relations"]):
-            await self.lifecycle["after_set_relations"](
+            await self.lifecycle["after_set_relations"](  # type: ignore
                 {
                     "model": self.model,
                     "relation_conf": relation_conf,
@@ -634,7 +651,7 @@ class AbstractRepository:
     # This function needs to be extended to support "dot" notation in left hand keys to imply joined relation searchers
     def query_forge(
         self,
-        model: Union[CruddyModel, RelationshipProperty],
+        model: Union[CruddyModel, Type[CruddyModel], RelationshipProperty],
         where: Union[Dict, List[Dict]],
     ):
         level_criteria = []
@@ -678,7 +695,7 @@ class AbstractRepository:
                 v2 = v[k2]
                 mattr = getattr(model, k)
                 if isinstance(v2, dict) and "*datetime" in v2:
-                    v2 = parse(v2["*datetime"], tzinfos=[UTC])
+                    v2 = parse(v2["*datetime"], tzinfos=[UTC])  # type: ignore
                 if isinstance(k2, str) and not isinstance(v2, dict) and k2[0] == "*":
                     if k2 == "*eq":
                         level_criteria.append(mattr == v2)
@@ -701,7 +718,7 @@ class AbstractRepository:
                 and hasattr(model, k.split(".")[0])
                 and len(v.items()) == 1
                 and isinstance(
-                    getattr(model, k.split(".")[0], Undefined).type, JSON_COLUMNS
+                    getattr(model, k.split(".")[0], Undefined).type, JSON_COLUMNS  # type: ignore
                 )
             ):
                 [k1, *json_path] = k.split(".")

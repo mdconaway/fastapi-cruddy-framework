@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine
 from contextlib import asynccontextmanager
 from sqlmodel import text
 from sqlmodel.ext.asyncio.session import AsyncSession
-from typing import Union, AsyncIterator, Literal
+from typing import AsyncIterator, Literal
 from .schemas import CruddyModel
 
 
@@ -12,7 +12,7 @@ from .schemas import CruddyModel
 # BASE ADAPTER
 # -------------------------------------------------------------------------------------------
 class BaseAdapter:
-    engine: None
+    engine: AsyncEngine
 
     def __init__(self):
         self.engine = create_async_engine(
@@ -78,8 +78,8 @@ class BaseAdapter:
 
 
 class MysqlAdapter(BaseAdapter):
-    connection_uri: str = None
-    engine: Union[AsyncEngine, None] = None
+    connection_uri: str
+    engine: AsyncEngine
 
     def __init__(self, connection_uri="", pool_size=4, max_overflow=64):
         self.connection_uri = connection_uri
@@ -112,8 +112,8 @@ class SqliteAdapter(BaseAdapter):
     SQLITE_ASYNC_URL_PREFIX = "sqlite+aiosqlite:///"
     MEMORY_LOCATION_START = "file:"
     MEMORY_LOCATION_END = "?mode=memory&cache=shared&uri=true"
-    connection_uri: str = None
-    engine: Union[AsyncEngine, None] = None
+    connection_uri: str
+    engine: AsyncEngine
 
     def __init__(self, db_path="temp.db", mode: Literal["memory", "file"] = "memory"):
         if mode == "memory":

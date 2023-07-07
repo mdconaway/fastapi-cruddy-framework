@@ -1,17 +1,17 @@
-import logging
 import random
 import time
 import string
+from logging import getLogger, config
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from os import path
 
-logging.config.fileConfig(
+config.fileConfig(
     path.join(path.dirname(path.abspath(__file__)), "../config/logging.conf"),
     disable_existing_loggers=False,
 )
 
-logger = logging.getLogger(__name__)
+logger = getLogger(__name__)
 
 
 class RequestLogger(BaseHTTPMiddleware):

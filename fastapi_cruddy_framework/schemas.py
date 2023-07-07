@@ -1,5 +1,5 @@
 from sqlalchemy.orm import declared_attr, RelationshipProperty
-from typing import TypeVar, Optional, Generic, List, TYPE_CHECKING
+from typing import Any, Type, TypeVar, Optional, Generic, Union, List, TYPE_CHECKING
 from pydantic.generics import GenericModel
 from sqlmodel import Field, SQLModel
 from datetime import datetime
@@ -17,10 +17,14 @@ T = TypeVar("T")
 
 
 class RelationshipConfig:
-    orm_relationship: RelationshipProperty = None
-    foreign_resource: "Resource" = None
+    orm_relationship: RelationshipProperty
+    foreign_resource: "Resource"
 
-    def __init__(self, orm_relationship=None, foreign_resource=None):
+    def __init__(
+        self,
+        orm_relationship: RelationshipProperty = ...,
+        foreign_resource: "Resource" = ...,
+    ):
         self.orm_relationship = orm_relationship
         self.foreign_resource = foreign_resource
 
@@ -38,9 +42,9 @@ class BulkDTO(CruddyGenericModel):
     data: List
 
 
-class ResponseSchema(SQLModel):
+class ResponseSchema(CruddyGenericModel):
     # The response for a single object return
-    data: Optional[T] = None
+    data: Optional[Any] = None
 
 
 class CruddyModel(SQLModel):
@@ -58,8 +62,8 @@ class MetaObject(CruddyModel):
 
 class PageResponse(CruddyGenericModel):
     # The response for a pagination query.
-    meta: MetaObject
-    data: List[T]
+    meta: Union[Type[CruddyModel], Type[CruddyGenericModel]]
+    data: List[Any]
 
 
 class CruddyIntIDModel(CruddyModel):

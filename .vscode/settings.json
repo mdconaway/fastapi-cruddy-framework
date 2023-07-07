@@ -1,4 +1,8 @@
 {
     "python.formatting.provider": "black",
-    "python.analysis.extraPaths": ["${workspaceFolder}/fastapi_cruddy_framework","${workspaceFolder}/examples"]
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}/fastapi_cruddy_framework",
+        "${workspaceFolder}/examples"
+    ],
+    "python.analysis.typeCheckingMode": "basic"
 }

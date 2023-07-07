@@ -6,7 +6,7 @@ from sqlalchemy.orm import (
     MANYTOMANY,
     MANYTOONE,
 )
-from typing import Union, List, Dict, TYPE_CHECKING
+from typing import Type, Union, List, Dict, TYPE_CHECKING
 from pydantic.types import Json
 from .schemas import (
     RelationshipConfig,
@@ -15,10 +15,9 @@ from .schemas import (
     PageResponse,
     ResponseSchema,
     CruddyModel,
-    ExampleUpdate,
-    ExampleCreate,
+    CruddyGenericModel,
 )
-from .util import possible_id_types
+from .util import possible_id_types, possible_id_values
 
 if TYPE_CHECKING:
     from .repository import AbstractRepository
@@ -32,12 +31,10 @@ if TYPE_CHECKING:
 
 
 class CruddyController:
-    controller: APIRouter = None
-    repository: "AbstractRepository" = None
-    resource: "Resource" = None
-    adapter: Union[
-        "BaseAdapter", "MysqlAdapter", "PostgresqlAdapter", "SqliteAdapter"
-    ] = None
+    controller: APIRouter
+    repository: "AbstractRepository"
+    resource: "Resource"
+    adapter: Union["BaseAdapter", "MysqlAdapter", "PostgresqlAdapter", "SqliteAdapter"]
 
     def __init__(
         self,
@@ -161,7 +158,7 @@ def _ControllerConfigOneToMany(
     id_type: possible_id_types = ...,
     relationship_prop: str = ...,
     config: RelationshipConfig = ...,
-    meta_schema=MetaObject,
+    meta_schema: Union[Type[CruddyModel], Type[CruddyGenericModel]] = MetaObject,
     policies_universal: List = ...,
     policies_get_one: List = ...,
 ):
@@ -258,11 +255,11 @@ def _ControllerConfigManyToMany(
     id_type: possible_id_types = ...,
     relationship_prop: str = ...,
     config: RelationshipConfig = ...,
-    meta_schema=MetaObject,
+    meta_schema: Union[Type[CruddyModel], Type[CruddyGenericModel]] = MetaObject,
     policies_universal: List = ...,
     policies_get_one: List = ...,
 ):
-    far_model: CruddyModel = config.foreign_resource.repository.model
+    far_model: Type[CruddyModel] = config.foreign_resource.repository.model
 
     # Merge three policy sets onto this endpoint:
     # 1. Universal policies
@@ -317,7 +314,7 @@ def _ControllerConfigManyToMany(
 
 
 def GetRelationships(
-    record: CruddyModel, relation_config_map: Dict[str, RelationshipConfig]
+    record: Type[CruddyModel], relation_config_map: Dict[str, RelationshipConfig]
 ):
     record_relations = {}
     for k, v in relation_config_map.items():
@@ -332,8 +329,8 @@ def GetRelationships(
 
 
 async def SaveRelationships(
-    id: possible_id_types = ...,
-    record: CruddyModel = ...,
+    id: possible_id_values = ...,
+    record: Type[CruddyModel] = ...,
     relation_config_map: Dict[str, RelationshipConfig] = ...,
     repository: "AbstractRepository" = ...,
 ):
@@ -342,7 +339,7 @@ async def SaveRelationships(
     awaitables = []
     for k, v in relationship_lists.items():
         name: str = k
-        new_relations: List[possible_id_types] = v
+        new_relations: List[possible_id_values] = v
         config: RelationshipConfig = relation_config_map[name]
         if config.orm_relationship.direction == MANYTOMANY:
             awaitables.append(
@@ -369,13 +366,13 @@ def ControllerCongifurator(
     id_type: possible_id_types = int,
     single_name: str = ...,
     plural_name: str = ...,
-    single_schema=ResponseSchema,
-    many_schema=PageResponse,
-    meta_schema=MetaObject,
-    update_model=ExampleUpdate,
-    update_model_proxy=ExampleUpdate,
-    create_model=ExampleCreate,
-    create_model_proxy=ExampleCreate,
+    single_schema: Type[CruddyGenericModel] = ResponseSchema,
+    many_schema: Type[CruddyGenericModel] = PageResponse,
+    meta_schema: Union[Type[CruddyModel], Type[CruddyGenericModel]] = MetaObject,
+    update_model: Type[CruddyGenericModel] = ...,
+    update_model_proxy: Type[CruddyModel] = ...,
+    create_model: Type[CruddyGenericModel] = ...,
+    create_model_proxy: Type[CruddyModel] = ...,
     relations: Dict[str, RelationshipConfig] = ...,
     policies_universal=[],
     policies_create=[],
@@ -402,7 +399,7 @@ def ControllerCongifurator(
             the_thing = create_model_proxy(**the_thing_with_rels.dict())
             result = await repository.create(data=the_thing)
             relations_modified = await SaveRelationships(
-                id=getattr(result, repository.primary_key),
+                id=getattr(result, str(repository.primary_key)),
                 record=the_thing_with_rels,
                 relation_config_map=relations,
                 repository=repository,
@@ -423,7 +420,7 @@ def ControllerCongifurator(
             the_thing = update_model_proxy(**the_thing_with_rels.dict())
             result = await repository.update(id=id, data=the_thing)
             relations_modified = await SaveRelationships(
-                id=getattr(result, repository.primary_key),
+                id=getattr(result, str(repository.primary_key)),
                 record=the_thing_with_rels,
                 relation_config_map=relations,
                 repository=repository,

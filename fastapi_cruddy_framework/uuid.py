@@ -2,7 +2,9 @@
 import secrets
 import time
 import uuid
-from typing import Tuple
+from typing import Tuple, Union
+
+_int = int
 
 
 # -------------------------------------------------------------------------------------------
@@ -18,12 +20,12 @@ class UUID(uuid.UUID):
     # UUID draft version objects
     def __init__(
         self,
-        hex: str = None,
-        bytes: bytes = None,
-        bytes_le: bytes = None,
-        fields: Tuple[int, int, int, int, int, int] = None,
-        int: int = None,
-        version: int = None,
+        hex: Union[str, None] = None,
+        bytes: Union[bytes, None] = None,
+        bytes_le: Union[bytes, None] = None,
+        fields: Union[Tuple[int, int, int, int, int, int], None] = None,
+        int: Union[int, None] = None,
+        version: Union[int, None] = None,
         *,
         is_safe=uuid.SafeUUID.unknown,
     ) -> None:
@@ -38,17 +40,19 @@ class UUID(uuid.UUID):
                 version=version,
                 is_safe=is_safe,
             )
-        if not 0 <= int < 1 << 128:
-            raise ValueError("int is out of range (need a 128-bit value)")
-        if version is not None:
-            if not 6 <= version <= 7:
-                raise ValueError("illegal version number")
-            # Set the variant to RFC 4122.
-            int &= ~(0xC000 << 48)
-            int |= 0x8000 << 48
-            # Set the version number.
-            int &= ~(0xF000 << 64)
-            int |= version << 76
+
+        if isinstance(int, _int):
+            if not 0 <= int < 1 << 128:
+                raise ValueError("int is out of range (need a 128-bit value)")
+            if version is not None:
+                if not 6 <= version <= 7:
+                    raise ValueError("illegal version number")
+                # Set the variant to RFC 4122.
+                int &= ~(0xC000 << 48)
+                int |= 0x8000 << 48
+                # Set the version number.
+                int &= ~(0xF000 << 64)
+                int |= version << 76
         super().__init__(int=int, is_safe=is_safe)
 
     @property
@@ -80,7 +84,7 @@ _last_v6_timestamp = None
 _last_v7_timestamp = None
 
 
-def uuid6(clock_seq: int = None) -> UUID:
+def uuid6(clock_seq: Union[int, None] = None) -> UUID:
     # UUID version 6 is a field-compatible version of UUIDv1, reordered for
     # improved DB locality.  It is expected that UUIDv6 will primarily be
     # used in contexts where there are existing v1 UUIDs.  Systems that do

@@ -1,6 +1,6 @@
 import inspect
 from sqlalchemy.orm import class_mapper, object_mapper
-from typing import Union, Optional, Coroutine, Any, Callable
+from typing import Type, Union, Optional, Coroutine, Any, Callable
 from .uuid import UUID
 
 
@@ -12,6 +12,8 @@ def get_pk(model):
     return primary_key
 
 
-possible_id_types = Union[UUID, int, str]
+possible_id_types = Union[Type[UUID], Type[int], Type[str]]
+
+possible_id_values = Union[UUID, int, str]
 
 lifecycle_types = Optional[Callable[..., Coroutine[Any, Any, Any]]]

@@ -32,6 +32,8 @@ def getDirectoryModules(
             m_module_tokens = full_module_base + [module_name]
             full_module_name = ".".join(m_module_tokens)
             spec = importlib.util.spec_from_file_location(full_module_name, m)
+            if spec is None or spec.loader is None:
+                raise TypeError(f"{spec} is not a module")
             abstract_module = importlib.util.module_from_spec(spec)
             loaded_modules.append((module_name, abstract_module))
             sys.modules[full_module_name] = abstract_module

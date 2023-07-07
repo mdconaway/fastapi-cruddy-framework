@@ -9,9 +9,9 @@ from sqlalchemy.orm import (
     MANYTOMANY,
 )
 from sqlmodel import Field, inspect
-from typing import Union, Optional, List, Dict, Callable, Literal, Type
+from typing import Union, Optional, List, Dict, TypedDict, Callable, Literal, Type
+from enum import Enum
 from pydantic import create_model
-from pydantic.generics import GenericModel
 from .inflector import pluralizer
 from .uuid import UUID
 from .schemas import (
@@ -27,33 +27,42 @@ from .schemas import (
 from .controller import CruddyController, ControllerCongifurator
 from .repository import AbstractRepository
 from .adapters import BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter
-from .util import possible_id_types, lifecycle_types
+from .util import possible_id_types, possible_id_values, lifecycle_types
 from .uuid import uuid7
+
+
+class SchemaDict(TypedDict):
+    single: Type[CruddyGenericModel]
+    many: Type[CruddyGenericModel]
+    create: Type[CruddyGenericModel]
+    create_relations: Type[CruddyModel]
+    update: Type[CruddyGenericModel]
+    update_relations: Type[CruddyModel]
 
 
 # -------------------------------------------------------------------------------------------
 # APPLICATION RESOURCE
 # -------------------------------------------------------------------------------------------
 class Resource:
-    _registry: "ResourceRegistry" = None
+    _registry: "ResourceRegistry"
     _link_prefix: str = ""
     _relations: Dict[str, RelationshipConfig] = {}
     _resource_path: str = "/example"
-    _tags: List[str] = ["example"]
-    _create_schema: CruddyModel = None
-    _update_schema: CruddyModel = None
-    _response_schema: CruddyModel = None
-    _meta_schema: CruddyGenericModel = None
+    _tags: List[Union[str, Enum]] = ["example"]
+    _create_schema: Type[CruddyModel]
+    _update_schema: Type[CruddyModel]
+    _response_schema: Type[CruddyModel]
+    _meta_schema: Union[Type[CruddyModel], Type[CruddyGenericModel]]
     _id_type: possible_id_types = int
-    _model_name_single: str = None
-    _model_name_plural: str = None
+    _model_name_single: str
+    _model_name_plural: str
     _on_resolution: Union[Callable, None] = None
-    adapter: PostgresqlAdapter = None
-    repository: AbstractRepository = None
-    controller: APIRouter = None
-    controller_extension: CruddyController = None
-    policies: Dict[str, List[Callable]] = None
-    schemas: Dict[str, GenericModel] = None
+    adapter: Union[BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter]
+    repository: AbstractRepository
+    controller: APIRouter
+    controller_extension: Union[Type[CruddyController], None] = None
+    policies: Dict[str, List[Callable]]
+    schemas: SchemaDict
 
     def __init__(
         self,
@@ -62,12 +71,14 @@ class Resource:
         adapter: Union[
             BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter, None
         ] = None,
-        resource_create_model: CruddyModel = ExampleCreate,
-        resource_update_model: CruddyModel = ExampleUpdate,
-        resource_model: CruddyModel = Example,
-        response_schema: CruddyModel = ExampleView,
+        resource_create_model: Type[CruddyModel] = ExampleCreate,
+        resource_update_model: Type[CruddyModel] = ExampleUpdate,
+        resource_model: Type[CruddyModel] = Example,
+        response_schema: Type[CruddyModel] = ExampleView,
         # None of the following arguments are required. But they allow you to do powerful things!
-        response_meta_schema: CruddyModel = MetaObject,
+        response_meta_schema: Union[
+            Type[CruddyModel], Type[CruddyGenericModel]
+        ] = MetaObject,
         # the adapter type only has two options because sqlite will take priority if its options are set
         adapter_type: Literal["mysql", "postgresql"] = "postgresql",
         db_mode: Literal["memory", "file"] = "memory",
@@ -76,8 +87,8 @@ class Resource:
         pool_size=4,
         max_overflow=64,
         link_prefix="",
-        path: str = None,
-        tags: List[str] = None,
+        path: Union[str, None] = None,
+        tags: Union[List[Union[str, Enum]], None] = None,
         protected_relationships: List[str] = [],
         policies_universal: List[Callable] = [],
         policies_create: List[Callable] = [],
@@ -102,7 +113,7 @@ class Resource:
         lifecycle_after_get_all: lifecycle_types = None,
         lifecycle_before_set_relations: lifecycle_types = None,
         lifecycle_after_set_relations: lifecycle_types = None,
-        controller_extension: Union[CruddyController, None] = None,
+        controller_extension: Union[Type[CruddyController], None] = None,
     ):
         possible_tag = f"{resource_model.__name__}".lower()
         possible_path = f"/{pluralizer.plural(possible_tag)}"
@@ -136,16 +147,16 @@ class Resource:
         }
 
         if None != adapter:
-            self.adapter = adapter
+            self.adapter = adapter  # type: ignore
         elif None != db_path:
-            self.adapter = SqliteAdapter(db_path=db_path, mode=db_mode)
+            self.adapter = SqliteAdapter(db_path=str(db_path), mode=db_mode)
         elif adapter_type == "postgresql":
             self.adapter = PostgresqlAdapter(connection_uri, pool_size, max_overflow)
         elif adapter_type == "mysql":
             self.adapter = MysqlAdapter(connection_uri, pool_size, max_overflow)
 
         self.repository = AbstractRepository(
-            adapter=self.adapter,
+            adapter=self.adapter,  # type: ignore
             update_model=resource_update_model,
             create_model=resource_create_model,
             model=resource_model,
@@ -251,7 +262,7 @@ class Resource:
             __base__=CruddyGenericModel,
             **{
                 resource_model_name: (SingleCreateSchema, ...),
-            },
+            },  # type: ignore
         )
         # End create record envelope schema
 
@@ -265,7 +276,7 @@ class Resource:
             __base__=CruddyGenericModel,
             **{
                 resource_model_name: (SingleUpdateSchema, ...),
-            },
+            },  # type: ignore
         )
         # End update record envelope schema
 
@@ -283,7 +294,7 @@ class Resource:
             __base__=CruddyGenericModel,
             **{
                 resource_model_name: (Optional[Union[SingleSchemaLinked, None]], None),
-            },
+            },  # type: ignore
         )
 
         handle_data_or_none = self._create_schema_arg_handler(
@@ -308,7 +319,7 @@ class Resource:
             __base__=CruddyGenericModel,
             **{
                 resource_model_plural: (Optional[List[SingleSchemaLinked]], None),
-            },
+            },  # type: ignore
             meta=(response_meta_schema, ...),
         )
 
@@ -323,7 +334,7 @@ class Resource:
                         map(
                             lambda x: SingleSchemaLinked(
                                 **x._mapping,
-                                links=local_resource._link_builder(
+                                links=local_resource._link_builder(  # type: ignore
                                     id=x._mapping[local_resource.repository.primary_key]
                                 ),
                             ),
@@ -351,7 +362,7 @@ class Resource:
             "update_relations": SingleUpdateSchema,
         }
 
-    def _link_builder(self, id: possible_id_types = None):
+    def _link_builder(self, id: possible_id_values = ...):
         # During "many" lookups, and depending on DB type, the id value return is a mapping
         # from the DB, so the id value is not properly "dasherized" into UUID format. This
         # REGEX fixes the issue without adding the CPU overhead of transforming each row
@@ -364,7 +375,7 @@ class Resource:
             new_link_object[k] = self._single_link(id=id, relationship=k)
         return new_link_object
 
-    def _single_link(self, id: possible_id_types = None, relationship: str = ""):
+    def _single_link(self, id: possible_id_values = "", relationship: str = ""):
         return f"{self._link_prefix}{self._resource_path}/{id}/{relationship}"
 
     def _create_schema_arg_handler(self, single_schema_linked, resource_model_name):
@@ -377,7 +388,7 @@ class Resource:
                 return data.dict()
             return data
 
-        def handle_data_or_none(args):
+        def handle_data_or_none(args: Union[Dict, None]):
             if args == None:
                 return {"data": None}
 
@@ -461,7 +472,7 @@ class ResourceRegistry:
     _resolver_invoked: bool = False
     _resolver_completed: bool = False
     _resources: List[Resource] = []
-    _base_models: Dict[str, CruddyModel] = {}
+    _base_models: Dict[str, Type[CruddyModel]] = {}
     _rels_via_models: Dict[str, Dict] = {}
     _resources_via_models: Dict[str, Resource] = {}
 
@@ -474,7 +485,7 @@ class ResourceRegistry:
         self._resources_via_models = {}
 
     # Returns a CruddyModel tracked by Class name by the registry
-    def get_model_by_name(self, model_name: str) -> Union[CruddyModel, None]:
+    def get_model_by_name(self, model_name: str) -> Union[Type[CruddyModel], None]:
         return self._base_models.get(model_name, None)
 
     # Returns a dictionary configuration of all relationships identified for a model's Class name
@@ -504,7 +515,7 @@ class ResourceRegistry:
     # Returns a CruddyController class tracked by its core model's Class name
     def get_controller_extension_by_name(
         self, model_name: str
-    ) -> Union[CruddyController, None]:
+    ) -> Union[Type[CruddyController], None]:
         resource = self.get_resource_by_name(model_name=model_name)
         if not resource:
             return None
@@ -514,7 +525,7 @@ class ResourceRegistry:
     # needed to efficiently search between models to conduct relational
     # joins and controller expansion. Is invoked by each resource as it
     # is created.
-    def register(self, res: Resource = None):
+    def register(self, res: Resource = ...):
         base_model = res.repository.model
         map_name = base_model.__name__
         self._base_models[map_name] = base_model
