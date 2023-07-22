@@ -529,7 +529,7 @@ As would the following query:
 
 `/resource?where={"user.config.favoriteColor":{"*eq":"black"}}`
 
-`/resource?where={"favorites.":{"*contained_by":{"tags":{["foo","bar","baz]}}}}`
+`/resource?where={"favorites.":{"*contained_by":{"tags":["foo","bar","baz]}}}`
 
 `/resource?where={"favorites.tags":{"*contains":["foo"]}}`
 

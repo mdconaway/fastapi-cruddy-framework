@@ -6,6 +6,8 @@ from tests.helpers import BrowserTestClient
 
 elves_group_id = None
 orcs_group_id = None
+user_id = None
+post_id = None
 
 
 @mark.asyncio
@@ -56,6 +58,78 @@ async def test_create_groups(authenticated_client: BrowserTestClient):
 
 @mark.asyncio
 @mark.dependency(depends=["test_create_groups"])
+async def test_create_user_post(authenticated_client: BrowserTestClient):
+    global user_id
+    global post_id
+
+    response = authenticated_client.post(
+        f"/users",
+        json={
+            "user": {
+                "first_name": "Orc",
+                "last_name": "Peasant",
+                "email": "orc.peasant@cruddy-framework.com",
+                "is_active": True,
+                "is_superuser": False,
+                "birthdate": "2023-07-22T14:43:31.038Z",
+                "phone": "888-555-5555",
+                "state": "Mordor",
+                "country": "Middle Earth",
+                "address": "1 Volcano Way",
+                "password": "itoilallday",
+                "groups": [orcs_group_id],
+            }
+        },
+    )
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result["user"], dict)
+    user_id = result["user"]["id"]
+
+    response = authenticated_client.post(
+        f"/posts",
+        json={
+            "post": {
+                "user_id": user_id,
+                "content": "I'm so tired of working for lord Sauron. We keep getting sent into battle and charging at walls full of knights. It's like he doesn't care about us.",
+                "tags": {"categories": ["rants"]},
+            }
+        },
+    )
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result["post"], dict)
+    post_id = result["post"]["id"]
+
+
+@mark.asyncio
+@mark.dependency(depends=["test_create_user_post"])
+async def test_get_posts_json_notation(authenticated_client: BrowserTestClient):
+    global post_id
+
+    where = dumps({"tags.categories": {"*contains": ["rants"]}})
+    response = authenticated_client.get(f"/posts?where={where}")
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert len(result["posts"]) is 1
+    assert result["posts"][0]["id"] == post_id
+    assert result["meta"]["page"] is 1
+    assert result["meta"]["limit"] is 10
+    assert result["meta"]["pages"] is 1
+    assert result["meta"]["records"] is 1
+
+    where = dumps({"tags.categories": {"*contains": ["blog"]}})
+    response = authenticated_client.get(f"/posts?where={where}")
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result["posts"], list)
+    for post in result["posts"]:
+        assert isinstance(post, dict)
+        assert post["id"] != post_id
+
+
+@mark.asyncio
+@mark.dependency(depends=["test_create_user_post"])
 async def test_get_groups_where_list_complex(authenticated_client: BrowserTestClient):
     where = dumps(
         [{"name": {"*contains": "Elves"}}, {"name": {"*contains": "Anonymous"}}]
@@ -214,6 +288,8 @@ async def test_get_group_where_dict_validate_links(
 async def test_cleanup(authenticated_client: BrowserTestClient):
     global elves_group_id
     global orcs_group_id
+    global user_id
+    global post_id
 
     response = authenticated_client.delete(f"/groups/{elves_group_id}")
     assert response.status_code == status.HTTP_200_OK
@@ -226,3 +302,13 @@ async def test_cleanup(authenticated_client: BrowserTestClient):
     result = response.json()
     assert isinstance(result, dict)
     assert result["group"]["id"] == orcs_group_id
+
+    response = authenticated_client.delete(f"/users/{user_id}")
+    # This should return a 405 as delete-user is blocked using a framework feature!
+    assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
+
+    response = authenticated_client.delete(f"/posts/{post_id}")
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result, dict)
+    assert result["post"]["id"] == post_id
