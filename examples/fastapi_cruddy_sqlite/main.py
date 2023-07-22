@@ -1,4 +1,3 @@
-import uvicorn
 import logging
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
@@ -34,7 +33,7 @@ app.add_middleware(
     cookie_name=sessions.SESSION_COOKIE_NAME,
     https_only=False,
     same_site="lax",  # lax or strict
-    max_age=timedelta(days=int(sessions.SESSION_MAX_AGE)),  # in seconds
+    max_age=int(timedelta(days=sessions.SESSION_MAX_AGE).total_seconds()),  # in seconds
 )
 
 
@@ -48,12 +47,3 @@ async def bootstrap():
     app.include_router(ApplicationRouter)
     logger.info(f"{general.PROJECT_NAME}, {general.API_VERSION}: Bootstrap complete")
     # You can do any init hooks below
-
-
-def local_start():
-    uvicorn.run(
-        "examples.fastapi_cruddy_sqlite.main:app",
-        host="0.0.0.0",
-        port=http.HTTP_PORT,
-        reload=True,
-    )
