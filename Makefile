@@ -20,7 +20,7 @@ lint: ## Lint the repository
 
 test: ## Run pytest tests on this repository to confirm functionality and prevent regressions
 	@echo "Running $@"
-	poetry run coverage run --source=fastapi_cruddy_framework -m pytest tests && poetry run coverage report -m && poetry run coverage xml --fail-under 50
+	poetry run coverage run --source=fastapi_cruddy_framework -m pytest tests && poetry run coverage report -m && poetry run coverage xml --fail-under 70
 
 publish: ## Build and publish this projec't distribution package to PyPi
 	@echo "Running $@"

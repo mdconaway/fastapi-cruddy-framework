@@ -15,7 +15,7 @@ async def test_create_group(authenticated_client: BrowserTestClient):
         f"/groups",
         json={"group": {"name": "Hobbits Anonymous"}},
     )
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert isinstance(result["group"], dict)
     group_id = result["group"]["id"]
@@ -45,7 +45,7 @@ async def test_create_user(authenticated_client: BrowserTestClient):
             }
         },
     )
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert isinstance(result["user"], dict)
     user_id = result["user"]["id"]
@@ -66,7 +66,7 @@ async def test_create_post(authenticated_client: BrowserTestClient):
             }
         },
     )
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert isinstance(result["post"], dict)
     post_id = result["post"]["id"]
@@ -75,30 +75,23 @@ async def test_create_post(authenticated_client: BrowserTestClient):
 # The below functions are mainly cleanup based on the create functions above
 @mark.asyncio
 @mark.dependency(depends=["test_create_post"])
-async def test_delete_user(authenticated_client: BrowserTestClient):
+async def test_cleanup(authenticated_client: BrowserTestClient):
     global user_id
+    global post_id
+    global group_id
+
     response = authenticated_client.delete(f"/users/{user_id}")
     # This should return a 405 as delete-user is blocked using a framework feature!
     assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
 
-
-@mark.asyncio
-@mark.dependency(depends=["test_delete_user"])
-async def test_delete_post(authenticated_client: BrowserTestClient):
-    global post_id
     response = authenticated_client.delete(f"/posts/{post_id}")
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert isinstance(result, dict)
     assert result["post"]["id"] == post_id
 
-
-@mark.asyncio
-@mark.dependency(depends=["test_delete_user"])
-async def test_delete_group(authenticated_client: BrowserTestClient):
-    global group_id
     response = authenticated_client.delete(f"/groups/{group_id}")
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert isinstance(result, dict)
     assert result["group"]["id"] == group_id
