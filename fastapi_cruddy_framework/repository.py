@@ -160,14 +160,17 @@ class AbstractRepository:
         return record
         # return a value?
 
-    async def get_by_id(self, id: possible_id_values):
+    async def get_by_id(self, id: possible_id_values, where: Json = None):
         # retrieve user data by id
-        query = select(self.model).where(
-            getattr(self.model, str(self.primary_key)) == id
-        )
         async with self.adapter.getSession() as session:
             if exists(self.lifecycle["before_get_one"]):
-                await self.lifecycle["before_get_one"](id)  # type: ignore
+                await self.lifecycle["before_get_one"](id, where)  # type: ignore
+            query = select(self.model).where(
+                and_(
+                    getattr(self.model, str(self.primary_key)) == id,
+                    *self.query_forge(model=self.model, where=where),
+                )
+            )
             result = (await session.execute(query)).scalar_one_or_none()
         if exists(self.lifecycle["after_get_one"]):
             await self.lifecycle["after_get_one"](result)  # type: ignore

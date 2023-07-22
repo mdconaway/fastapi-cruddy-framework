@@ -1,3 +1,4 @@
+from json import dumps
 from pytest import mark
 from fastapi import status
 from tests.helpers import BrowserTestClient
@@ -85,6 +86,20 @@ async def test_get_user_by_id(authenticated_client: BrowserTestClient):
 
 @mark.asyncio
 @mark.dependency(depends=["test_get_user_by_id"])
+async def test_get_user_by_id_restricted(authenticated_client: BrowserTestClient):
+    global user_id
+    where = dumps({"first_name": "Sauron"})
+    response = authenticated_client.get(f"/users/{user_id}?where={where}")
+    # This should probably be a 404 instead of 200
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    result = response.json()
+    assert isinstance(result, dict)
+    assert len(result.keys()) is 1
+    assert "detail" in result.keys()
+
+
+@mark.asyncio
+@mark.dependency(depends=["test_get_user_by_id_restricted"])
 async def test_get_group_by_id(authenticated_client: BrowserTestClient):
     global group_id
     response = authenticated_client.get(f"/groups/{group_id}")

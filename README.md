@@ -205,7 +205,7 @@ The following lifecycle hook methods, which can be defined in user-space code, r
 
 `lifecycle_after_delete` - Record with an ID, as returned from the database. This record no longer exists in the database.
 
-`lifecycle_before_get_one` - A primary key value that will be used to fetch the record from the database.
+`lifecycle_before_get_one` - A primary key value that will be used to fetch the record from the database, and a secondary where filter if one was used.
 
 `lifecycle_after_get_one` - Record with an ID, as returned from the database.
 

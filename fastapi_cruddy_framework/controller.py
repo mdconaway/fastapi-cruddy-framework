@@ -1,5 +1,5 @@
 from asyncio import gather
-from fastapi import APIRouter, Path, Query, Depends
+from fastapi import APIRouter, Path, Query, Depends, HTTPException, status
 from sqlalchemy.sql.schema import Column, ForeignKey
 from sqlalchemy.orm import (
     ONETOMANY,
@@ -98,17 +98,21 @@ def _ControllerConfigManyToOne(
     async def get_many_to_one(
         id: id_type = Path(..., alias="id"),
         columns: List[str] = Query(None, alias="columns"),
+        where: Json = Query(None, alias="where"),
     ):
         origin_record = await repository.get_by_id(id=id)
 
         # Consider raising 404 here and in get by ID
         if origin_record == None:
-            return config.foreign_resource.schemas["single"](data=None)
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail=f"Record {id} not found"
+            )
 
         # Build a query to use foreign resource to find related objects
 
         tgt_id = origin_record.dict()[near_col_name]
-        where = {far_col_name: {"*eq": tgt_id}}
+        must_be = {far_col_name: {"*eq": tgt_id}}
+        where = must_be if where is None else {"*and": [must_be, where]}
 
         _lifecycle_before = None
         foreign_lifecycle_before = config.foreign_resource.repository.lifecycle[
@@ -147,6 +151,11 @@ def _ControllerConfigManyToOne(
         else:
             if foreign_lifecycle_after != None:
                 await foreign_lifecycle_after(None)
+
+        if data is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Record not found"
+            )
 
         # Invoke the dynamically built model
         return config.foreign_resource.schemas["single"](data=data)
@@ -193,9 +202,8 @@ def _ControllerConfigOneToMany(
 
         # Consider raising 404 here and in get by ID
         if origin_record == None:
-            return config.foreign_resource.schemas["many"](
-                data=[],
-                meta=meta_schema(**{"page": 0, "limit": 0, "pages": 0, "records": 0}),
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail=f"Record {id} not found"
             )
 
         # Build a query to use foreign resource to find related objects
@@ -283,6 +291,12 @@ def _ControllerConfigManyToMany(
         sort: List[str] = Query(None, alias="sort"),
         where: Json = Query(None, alias="where"),
     ):
+        # Consider raising 404 here and in get by ID
+        if await repository.get_by_id(id=id) == None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail=f"Record {id} not found"
+            )
+
         # Collect the bulk data transfer object from the query
         result: BulkDTO = await repository.get_all_relations(
             id=id,
@@ -419,13 +433,20 @@ def ControllerCongifurator(
             the_thing_with_rels = getattr(data, single_name)
             the_thing = update_model_proxy(**the_thing_with_rels.dict())
             result = await repository.update(id=id, data=the_thing)
+            # Add error logic?
+            if result is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Record id {id} not found",
+                )
+
             relations_modified = await SaveRelationships(
                 id=getattr(result, str(repository.primary_key)),
                 record=the_thing_with_rels,
                 relation_config_map=relations,
                 repository=repository,
             )
-            # Add error logic?
+
             return single_schema(data=result)
 
     if not disable_delete:
@@ -440,7 +461,14 @@ def ControllerCongifurator(
             id: id_type = Path(..., alias="id"),
         ):
             data = await repository.delete(id=id)
+
             # Add error logic?
+            if data is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Record id {id} not found",
+                )
+
             return single_schema(data=data)
 
     if not disable_get_one:
@@ -451,8 +479,19 @@ def ControllerCongifurator(
             response_model_exclude_none=True,
             dependencies=assemblePolicies(policies_universal, policies_get_one),
         )
-        async def get_by_id(id: id_type = Path(..., alias="id")):
-            data = await repository.get_by_id(id=id)
+        async def get_by_id(
+            id: id_type = Path(..., alias="id"),
+            where: Json = Query(None, alias="where"),
+        ):
+            data = await repository.get_by_id(id=id, where=where)
+
+            # Add error logic?
+            if data is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Record id {id} not found",
+                )
+
             return single_schema(data=data)
 
     if not disable_get_many:
