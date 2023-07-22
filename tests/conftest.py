@@ -22,7 +22,7 @@ def event_loop():
 @fixture(scope="session", autouse=True)
 @mark.asyncio
 async def app():
-    # Don't move this import! Trust me.
+    # Don't move this import!
     from examples.fastapi_cruddy_sqlite.main import app
 
     yield app

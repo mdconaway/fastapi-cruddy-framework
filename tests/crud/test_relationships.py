@@ -1,16 +1,26 @@
+from json import dumps
 from pytest import mark
 from fastapi import status
 from tests.helpers import BrowserTestClient
 
 group_id = None
+alt_group_id = None
+tertiary_group_id = None
 user_id = None
+alt_user_id = None
 post_id = None
 
 
 @mark.asyncio
 @mark.dependency()
-async def test_create_group(authenticated_client: BrowserTestClient):
+async def test_setup(authenticated_client: BrowserTestClient):
     global group_id
+    global alt_group_id
+    global tertiary_group_id
+    global user_id
+    global alt_user_id
+    global post_id
+
     response = authenticated_client.post(
         f"/groups",
         json={"group": {"name": "Shire Lovers Anonymous"}},
@@ -20,12 +30,15 @@ async def test_create_group(authenticated_client: BrowserTestClient):
     assert isinstance(result["group"], dict)
     group_id = result["group"]["id"]
 
+    response = authenticated_client.post(
+        f"/groups",
+        json={"group": {"name": "Shire Haters Anonymous"}},
+    )
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result["group"], dict)
+    alt_group_id = result["group"]["id"]
 
-@mark.asyncio
-@mark.dependency(depends=["test_create_group"])
-async def test_create_user(authenticated_client: BrowserTestClient):
-    global group_id
-    global user_id
     response = authenticated_client.post(
         f"/users",
         json={
@@ -50,12 +63,44 @@ async def test_create_user(authenticated_client: BrowserTestClient):
     assert isinstance(result["user"], dict)
     user_id = result["user"]["id"]
 
+    response = authenticated_client.post(
+        f"/users",
+        json={
+            "user": {
+                "first_name": "Sauron",
+                "last_name": "The Artist Formerly Known As",
+                "email": "theartistformerlyknownassauon@cruddy-framework.com",
+                "is_active": True,
+                "is_superuser": True,
+                "birthdate": "2023-07-22T14:43:31.038Z",
+                "phone": "888-555-5555",
+                "state": "Mordor",
+                "country": "Middle Earth",
+                "address": "1 Volcano Way",
+                "password": "peskyhobbits",
+                "groups": [alt_group_id],
+            }
+        },
+    )
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result["user"], dict)
+    alt_user_id = result["user"]["id"]
 
-@mark.asyncio
-@mark.dependency(depends=["test_create_user"])
-async def test_create_post(authenticated_client: BrowserTestClient):
-    global user_id
-    global post_id
+    response = authenticated_client.post(
+        f"/groups",
+        json={
+            "group": {
+                "name": "Good and Evil Anonymous",
+                "users": [user_id, alt_user_id],
+            }
+        },
+    )
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result["group"], dict)
+    tertiary_group_id = result["group"]["id"]
+
     response = authenticated_client.post(
         f"/posts",
         json={
@@ -73,19 +118,19 @@ async def test_create_post(authenticated_client: BrowserTestClient):
 
 
 @mark.asyncio
-@mark.dependency(depends=["test_create_post"])
+@mark.dependency(depends=["test_setup"])
 async def test_get_groups_through_user(authenticated_client: BrowserTestClient):
     global user_id
     global group_id
     response = authenticated_client.get(f"/users/{user_id}/groups")
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
+    assert len(result["groups"]) is 2
     assert result["groups"][0]["id"] == group_id
-    assert len(result["groups"]) is 1
     assert result["meta"]["page"] is 1
     assert result["meta"]["limit"] is 10
     assert result["meta"]["pages"] is 1
-    assert result["meta"]["records"] is 1
+    assert result["meta"]["records"] is 2
 
 
 @mark.asyncio
@@ -124,23 +169,255 @@ async def test_get_users_through_group(authenticated_client: BrowserTestClient):
     response = authenticated_client.get(f"/groups/{group_id}/users")
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
-    assert result["users"][0]["id"] == user_id
     assert len(result["users"]) is 1
+    assert result["users"][0]["id"] == user_id
     assert result["meta"]["page"] is 1
     assert result["meta"]["limit"] is 10
     assert result["meta"]["pages"] is 1
     assert result["meta"]["records"] is 1
 
 
-# The below functions are mainly cleanup based on the create functions above
 @mark.asyncio
 @mark.dependency(depends=["test_get_users_through_group"])
+async def test_alter_users_in_group(authenticated_client: BrowserTestClient):
+    global group_id
+    global user_id
+    global alt_user_id
+    response = authenticated_client.patch(
+        f"/groups/{group_id}",
+        json={
+            "group": {
+                "id": "woopsie",
+                "users": [user_id, alt_user_id],
+                "name": "Shire Watchers Anonymous",
+            }
+        },
+    )
+    assert response.status_code == status.HTTP_200_OK
+
+    response = authenticated_client.get(f"/groups/{group_id}/users?sort=first_name asc")
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert len(result["users"]) is 2
+    assert result["users"][0]["id"] == user_id
+    assert result["users"][1]["id"] == alt_user_id
+    assert result["meta"]["page"] is 1
+    assert result["meta"]["limit"] is 10
+    assert result["meta"]["pages"] is 1
+    assert result["meta"]["records"] is 2
+
+
+@mark.asyncio
+@mark.dependency(depends=["test_alter_users_in_group"])
+async def test_filter_users_in_group(authenticated_client: BrowserTestClient):
+    global user_id
+    global alt_user_id
+    global tertiary_group_id
+
+    response = authenticated_client.get(f"/groups/{tertiary_group_id}/users")
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert len(result["users"]) is 2
+
+    where = dumps({"id": alt_user_id})
+    response = authenticated_client.get(
+        f"/groups/{tertiary_group_id}/users?where={where}"
+    )
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert len(result["users"]) is 1
+    assert result["users"][0]["id"] == alt_user_id
+
+    where = dumps({"id": user_id})
+    response = authenticated_client.get(
+        f"/groups/{tertiary_group_id}/users?where={where}"
+    )
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert len(result["users"]) is 1
+    assert result["users"][0]["id"] == user_id
+
+    where = dumps({"*or": [{"id": user_id}, {"id": alt_user_id}]})
+    response = authenticated_client.get(
+        f"/groups/{tertiary_group_id}/users?where={where}&sort=first_name asc"
+    )
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert len(result["users"]) is 2
+    assert result["users"][0]["id"] == user_id
+    assert result["users"][1]["id"] == alt_user_id
+
+    where = dumps(
+        {
+            "*or": [
+                {"first_name": {"*contains": "rodo"}},
+                {"first_name": {"*contains": "auron"}},
+            ]
+        }
+    )
+    response = authenticated_client.get(
+        f"/groups/{tertiary_group_id}/users?where={where}&sort=first_name desc"
+    )
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert len(result["users"]) is 2
+    assert result["users"][0]["id"] == alt_user_id
+    assert result["users"][1]["id"] == user_id
+
+    where = dumps(
+        {
+            "*or": [
+                {"first_name": {"*contains": "rodo"}},
+                {"first_name": {"*contains": "auron"}},
+            ]
+        }
+    )
+    response = authenticated_client.get(
+        f"/groups/{tertiary_group_id}/users?where={where}&columns=first_name"
+    )
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert len(result["users"]) is 2
+    assert len(result["users"][0].keys()) is 3
+    assert len(result["users"][1].keys()) is 3
+    assert "id" in result["users"][0].keys()
+    assert "first_name" in result["users"][0].keys()
+    assert "links" in result["users"][0].keys()
+    assert "id" in result["users"][1].keys()
+    assert "first_name" in result["users"][1].keys()
+    assert "links" in result["users"][1].keys()
+
+    where = dumps(
+        {
+            "*or": [
+                {"first_name": {"*contains": "rodo"}},
+                {"first_name": {"*contains": "auron"}},
+            ]
+        }
+    )
+    response = authenticated_client.get(
+        f"/groups/{tertiary_group_id}/users?where={where}&sort=first_name asc&limit=1"
+    )
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert len(result["users"]) is 1
+    assert result["users"][0]["id"] == user_id
+    assert result["meta"]["page"] is 1
+    assert result["meta"]["limit"] is 1
+    assert result["meta"]["pages"] is 2
+    assert result["meta"]["records"] is 2
+
+
+@mark.asyncio
+@mark.dependency(depends=["test_filter_users_in_group"])
+async def test_remove_from_all_groups(authenticated_client: BrowserTestClient):
+    global alt_user_id
+    global alt_group_id
+
+    response = authenticated_client.get(f"/users/{alt_user_id}/groups")
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert len(result["groups"]) is 3
+
+    response = authenticated_client.patch(
+        f"/users/{alt_user_id}",
+        json={
+            "user": {
+                "id": "woopsie",
+                "first_name": "Sauron",
+                "last_name": "The Artist Formerly Known As",
+                "email": "theartistformerlyknownassauon@cruddy-framework.com",
+                "is_active": True,
+                "is_superuser": True,
+                "birthdate": "2023-07-22T14:43:31.038Z",
+                "phone": "888-555-5555",
+                "state": "Mordor",
+                "country": "Middle Earth",
+                "address": "1 Volcano Way",
+                "password": "peskyhobbits",
+                "groups": [],
+            }
+        },
+    )
+    assert response.status_code == status.HTTP_200_OK
+
+    response = authenticated_client.get(f"/users/{alt_user_id}/groups")
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert len(result["groups"]) is 0
+
+    response = authenticated_client.get(f"/groups/{alt_group_id}/users")
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert len(result["users"]) is 0
+
+
+@mark.asyncio
+@mark.dependency(depends=["test_remove_from_all_groups"])
+async def test_guarded_relationship(authenticated_client: BrowserTestClient):
+    global post_id
+    global user_id
+    global alt_user_id
+
+    response = authenticated_client.patch(
+        f"/posts/{post_id}",
+        json={
+            "post": {
+                "user_id": alt_user_id,
+                "content": "Sauron sees Bilbo.",
+                "tags": {"categories": ["blog"]},
+            }
+        },
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert result["post"]["user_id"] == user_id
+
+    response = authenticated_client.patch(
+        f"/users/{alt_user_id}",
+        json={
+            "user": {
+                "id": "woopsie",
+                "first_name": "Sauron",
+                "last_name": "The Artist Formerly Known As",
+                "email": "theartistformerlyknownassauon@cruddy-framework.com",
+                "is_active": True,
+                "is_superuser": True,
+                "birthdate": "2023-07-22T14:43:31.038Z",
+                "phone": "888-555-5555",
+                "state": "Mordor",
+                "country": "Middle Earth",
+                "address": "1 Volcano Way",
+                "password": "peskyhobbits",
+                "posts": [post_id],
+            }
+        },
+    )
+    assert response.status_code == status.HTTP_200_OK
+
+    response = authenticated_client.get(f"/posts/{post_id}")
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert result["post"]["user_id"] == user_id
+
+
+# The below functions are mainly cleanup based on the create functions above
+@mark.asyncio
+@mark.dependency(depends=["test_guarded_relationship"])
 async def test_cleanup(authenticated_client: BrowserTestClient):
     global user_id
+    global alt_user_id
     global post_id
     global group_id
+    global alt_group_id
+    global tertiary_group_id
 
     response = authenticated_client.delete(f"/users/{user_id}")
+    # This should return a 405 as delete-user is blocked using a framework feature!
+    assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
+
+    response = authenticated_client.delete(f"/users/{alt_user_id}")
     # This should return a 405 as delete-user is blocked using a framework feature!
     assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
 
@@ -155,3 +432,15 @@ async def test_cleanup(authenticated_client: BrowserTestClient):
     result = response.json()
     assert isinstance(result, dict)
     assert result["group"]["id"] == group_id
+
+    response = authenticated_client.delete(f"/groups/{alt_group_id}")
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result, dict)
+    assert result["group"]["id"] == alt_group_id
+
+    response = authenticated_client.delete(f"/groups/{tertiary_group_id}")
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result, dict)
+    assert result["group"]["id"] == tertiary_group_id
