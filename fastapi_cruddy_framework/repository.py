@@ -18,7 +18,7 @@ from sqlalchemy.sql.schema import Table, Column
 from sqlalchemy.types import ARRAY, JSON, VARCHAR
 from sqlalchemy.orm import RelationshipProperty, ONETOMANY, MANYTOMANY
 from sqlmodel import cast, inspect
-from typing import Any, Type, Union, List, Dict
+from typing import Type, Union, List, Dict
 from pydantic.fields import Undefined
 from pydantic.types import Json
 from .schemas import (

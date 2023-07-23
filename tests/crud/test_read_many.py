@@ -3,7 +3,6 @@ from pytest import mark
 from fastapi import status
 from tests.helpers import BrowserTestClient
 
-
 elves_group_id = None
 orcs_group_id = None
 user_id = None
@@ -92,7 +91,7 @@ async def test_create_user_post(authenticated_client: BrowserTestClient):
             "post": {
                 "user_id": user_id,
                 "content": "I'm so tired of working for lord Sauron. We keep getting sent into battle and charging at walls full of knights. It's like he doesn't care about us.",
-                "tags": {"categories": ["rants"]},
+                "tags": {"categories": ["rant"]},
             }
         },
     )
@@ -107,7 +106,10 @@ async def test_create_user_post(authenticated_client: BrowserTestClient):
 async def test_get_posts_json_notation(authenticated_client: BrowserTestClient):
     global post_id
 
-    where = dumps({"tags.categories": {"*contains": ["rants"]}})
+    response = authenticated_client.get(f"/posts")
+    result = response.json()
+
+    where = dumps({"tags.categories": {"*eq": ["rant"]}})
     response = authenticated_client.get(f"/posts?where={where}")
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
@@ -118,14 +120,12 @@ async def test_get_posts_json_notation(authenticated_client: BrowserTestClient):
     assert result["meta"]["pages"] is 1
     assert result["meta"]["records"] is 1
 
-    where = dumps({"tags.categories": {"*contains": ["blog"]}})
+    where = dumps({"tags.categories": {"*eq": ["blog"]}})
     response = authenticated_client.get(f"/posts?where={where}")
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert isinstance(result["posts"], list)
-    for post in result["posts"]:
-        assert isinstance(post, dict)
-        assert post["id"] != post_id
+    assert len(result["posts"]) is 0
 
 
 @mark.asyncio
