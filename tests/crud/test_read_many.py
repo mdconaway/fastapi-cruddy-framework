@@ -32,9 +32,11 @@ async def test_get_groups_where_list_simple(authenticated_client: BrowserTestCli
 
 @mark.asyncio
 @mark.dependency(depends=["test_get_groups_where_list_simple"])
-async def test_create_groups(authenticated_client: BrowserTestClient):
+async def test_setup(authenticated_client: BrowserTestClient):
     global elves_group_id
     global orcs_group_id
+    global user_id
+    global post_id
 
     response = authenticated_client.post(
         f"/groups",
@@ -53,13 +55,6 @@ async def test_create_groups(authenticated_client: BrowserTestClient):
     result = response.json()
     assert isinstance(result["group"], dict)
     orcs_group_id = result["group"]["id"]
-
-
-@mark.asyncio
-@mark.dependency(depends=["test_create_groups"])
-async def test_create_user_post(authenticated_client: BrowserTestClient):
-    global user_id
-    global post_id
 
     response = authenticated_client.post(
         f"/users",
@@ -102,7 +97,7 @@ async def test_create_user_post(authenticated_client: BrowserTestClient):
 
 
 @mark.asyncio
-@mark.dependency(depends=["test_create_user_post"])
+@mark.dependency(depends=["test_setup"])
 async def test_get_posts_json_notation(authenticated_client: BrowserTestClient):
     global post_id
 
@@ -129,7 +124,24 @@ async def test_get_posts_json_notation(authenticated_client: BrowserTestClient):
 
 
 @mark.asyncio
-@mark.dependency(depends=["test_create_user_post"])
+@mark.dependency(depends=["test_get_posts_json_notation"])
+async def test_get_groups_no_results(authenticated_client: BrowserTestClient):
+    global elves_group_id
+    global orcs_group_id
+
+    where = dumps({"name": "I'm not real"})
+    response = authenticated_client.get(f"/groups?where={where}")
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert len(result["groups"]) is 0
+    assert result["meta"]["page"] is 1
+    assert result["meta"]["limit"] is 10
+    assert result["meta"]["pages"] is 0
+    assert result["meta"]["records"] is 0
+
+
+@mark.asyncio
+@mark.dependency(depends=["test_get_groups_no_results"])
 async def test_get_groups_where_list_complex(authenticated_client: BrowserTestClient):
     where = dumps(
         [{"name": {"*contains": "Elves"}}, {"name": {"*contains": "Anonymous"}}]
@@ -137,8 +149,8 @@ async def test_get_groups_where_list_complex(authenticated_client: BrowserTestCl
     response = authenticated_client.get(f"/groups?where={where}")
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
-    assert result["groups"][0]["id"] == elves_group_id
     assert len(result["groups"]) is 1
+    assert result["groups"][0]["id"] == elves_group_id
     assert result["meta"]["page"] is 1
     assert result["meta"]["limit"] is 10
     assert result["meta"]["pages"] is 1
@@ -155,8 +167,8 @@ async def test_get_group_where_dict_simple(authenticated_client: BrowserTestClie
     response = authenticated_client.get(f"/groups?where={where}")
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
-    assert result["groups"][0]["id"] == elves_group_id
     assert len(result["groups"]) is 1
+    assert result["groups"][0]["id"] == elves_group_id
     assert result["meta"]["page"] is 1
     assert result["meta"]["limit"] is 10
     assert result["meta"]["pages"] is 1
@@ -166,8 +178,8 @@ async def test_get_group_where_dict_simple(authenticated_client: BrowserTestClie
     response = authenticated_client.get(f"/groups?where={where}")
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
-    assert result["groups"][0]["id"] == orcs_group_id
     assert len(result["groups"]) is 1
+    assert result["groups"][0]["id"] == orcs_group_id
     assert result["meta"]["page"] is 1
     assert result["meta"]["limit"] is 10
     assert result["meta"]["pages"] is 1

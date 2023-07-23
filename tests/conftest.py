@@ -3,6 +3,7 @@ from asyncio import get_event_loop_policy, sleep
 from pytest import fixture, mark
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from httpx._models import Cookies
 from tests.helpers import BrowserTestClient
 
 logger = getLogger(__name__)
@@ -41,7 +42,9 @@ async def client(app: FastAPI):
 @fixture(scope="session", autouse=True)
 @mark.asyncio
 async def unauthenticated_client(client: TestClient):
-    blank_client = BrowserTestClient(client=client, cookies=None, ws_headers=None)
+    blank_client = BrowserTestClient(
+        client=client, cookies=None, headers=None, ws_headers=None
+    )
     yield blank_client
 
 
@@ -49,8 +52,12 @@ async def unauthenticated_client(client: TestClient):
 @mark.asyncio
 async def authenticated_client(client: TestClient):
     response = client.get(f"/users/authorization{FAKE_AUTH_QP}")
+    client.cookies = Cookies()
     sessioned_client = BrowserTestClient(
-        client=client, cookies=response.cookies, ws_headers=FAKE_WEBSOCKET_HEADERS
+        client=client,
+        cookies=response.cookies,
+        headers=FAKE_WEBSOCKET_HEADERS,
+        ws_headers=FAKE_WEBSOCKET_HEADERS,
     )
     yield sessioned_client
 

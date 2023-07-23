@@ -32,6 +32,7 @@ class BrowserTestClient:
 
     def _process_cookies(self, result: Response) -> Response:
         self.cookies = result.cookies
+        self.client.cookies = Cookies()
         return result
 
     def request(  # type: ignore[override]
