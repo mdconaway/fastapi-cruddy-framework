@@ -29,6 +29,7 @@ class BrowserTestClient:
         self.cookies = cookies
         self.headers = headers
         self.ws_headers = ws_headers
+        self.client.cookies = Cookies()
 
     def _process_cookies(self, result: Response) -> Response:
         self.cookies = result.cookies
