@@ -24,7 +24,7 @@ from .schemas import (
     ExampleView,
     Example,
 )
-from .controller import CruddyController, ControllerCongifurator
+from .controller import Actions, CruddyController, ControllerConfigurator
 from .repository import AbstractRepository
 from .adapters import BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter
 from .util import possible_id_types, possible_id_values, lifecycle_types
@@ -58,6 +58,7 @@ class Resource:
     _model_name_plural: str
     _on_resolution: Union[Callable, None] = None
     adapter: Union[BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter]
+    actions: Actions
     repository: AbstractRepository
     controller: APIRouter
     controller_extension: Union[Type[CruddyController], None] = None
@@ -418,26 +419,38 @@ class Resource:
     def resolve(self):
         self.repository.resolve()
 
+        self.actions = Actions(
+            id_type=self._id_type,
+            single_name=self._model_name_single,
+            repository=self.repository,
+            create_model=self.schemas["create"],
+            create_model_proxy=self._create_schema,
+            update_model=self.schemas["update"],
+            update_model_proxy=self._update_schema,
+            single_schema=self.schemas["single"],
+            many_schema=self.schemas["many"],
+            meta_schema=self._meta_schema,
+            relations=self._relations,
+        )
+
         if self.controller_extension != None and issubclass(
             self.controller_extension, CruddyController
         ):
             self.controller_extension(
+                actions=self.actions,
                 controller=self.controller,
                 repository=self.repository,
                 resource=self,
                 adapter=self.adapter,
             )
 
-        self.controller = ControllerCongifurator(
-            controller=self.controller,
-            repository=self.repository,
+        ControllerConfigurator(
             id_type=self._id_type,
             single_name=self._model_name_single,
             plural_name=self._model_name_plural,
-            create_model=self.schemas["create"],
-            create_model_proxy=self._create_schema,
-            update_model=self.schemas["update"],
-            update_model_proxy=self._update_schema,
+            controller=self.controller,
+            repository=self.repository,
+            actions=self.actions,
             single_schema=self.schemas["single"],
             many_schema=self.schemas["many"],
             meta_schema=self._meta_schema,

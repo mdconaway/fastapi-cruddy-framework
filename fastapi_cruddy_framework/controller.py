@@ -8,6 +8,7 @@ from sqlalchemy.orm import (
 )
 from typing import Type, Union, List, Dict, TYPE_CHECKING
 from pydantic.types import Json
+from .inflector import pluralizer
 from .schemas import (
     RelationshipConfig,
     BulkDTO,
@@ -24,13 +25,176 @@ if TYPE_CHECKING:
     from .resource import Resource
     from .adapters import BaseAdapter, MysqlAdapter, PostgresqlAdapter, SqliteAdapter
 
+# -------------------------------------------------------------------------------------------
+# RELATIONSHIP UTILITY FUNCTIONS
+# -------------------------------------------------------------------------------------------
+
+
+def GetRelationships(
+    record: Type[CruddyModel], relation_config_map: Dict[str, RelationshipConfig]
+):
+    record_relations = {}
+    for k, v in relation_config_map.items():
+        direction = v.orm_relationship.direction
+        if (
+            (direction == MANYTOMANY or direction == ONETOMANY)
+            and hasattr(record, k)
+            and getattr(record, k) != None
+        ):
+            record_relations[k] = getattr(record, k)
+    return record_relations
+
+
+async def SaveRelationships(
+    id: possible_id_values = ...,
+    record: Type[CruddyModel] = ...,
+    relation_config_map: Dict[str, RelationshipConfig] = ...,
+    repository: "AbstractRepository" = ...,
+):
+    relationship_lists = GetRelationships(record, relation_config_map)
+    modified_records = 0
+    awaitables = []
+    for k, v in relationship_lists.items():
+        name: str = k
+        new_relations: List[possible_id_values] = v
+        config: RelationshipConfig = relation_config_map[name]
+        if config.orm_relationship.direction == MANYTOMANY:
+            awaitables.append(
+                repository.set_many_many_relations(
+                    id=id, relation=name, relations=new_relations
+                )
+            )
+        elif config.orm_relationship.direction == ONETOMANY:
+            awaitables.append(
+                repository.set_one_many_relations(
+                    id=id, relation=name, relations=new_relations
+                )
+            )
+    results = await gather(*awaitables, return_exceptions=True)
+    for result_or_exc in results:
+        if not isinstance(result_or_exc, Exception):
+            modified_records += result_or_exc
+    return modified_records
+
 
 # -------------------------------------------------------------------------------------------
-# CONTROLLER / ROUTER
+# ACTION MAP (FOR REUSE IN CLIENT CODE)
+# -------------------------------------------------------------------------------------------
+
+
+class Actions:
+    def __init__(
+        self,
+        id_type: possible_id_types,
+        single_name: str,
+        repository: "AbstractRepository",
+        create_model: Type[CruddyGenericModel],
+        create_model_proxy: Type[CruddyModel],
+        update_model: Type[CruddyGenericModel],
+        update_model_proxy: Type[CruddyModel],
+        single_schema: Type[CruddyGenericModel],
+        many_schema: Type[CruddyGenericModel],
+        meta_schema: Union[Type[CruddyModel], Type[CruddyGenericModel]],
+        relations: Dict[str, RelationshipConfig],
+    ):
+        async def create(data: create_model):
+            the_thing_with_rels = getattr(data, single_name)
+            the_thing = create_model_proxy(**the_thing_with_rels.dict())
+            result = await repository.create(data=the_thing)
+            relations_modified = await SaveRelationships(
+                id=getattr(result, str(repository.primary_key)),
+                record=the_thing_with_rels,
+                relation_config_map=relations,
+                repository=repository,
+            )
+            # Add error logic?
+            return single_schema(data=result)
+
+        async def update(id: id_type = Path(..., alias="id"), *, data: update_model):
+            the_thing_with_rels = getattr(data, single_name)
+            the_thing = update_model_proxy(**the_thing_with_rels.dict())
+            result = await repository.update(id=id, data=the_thing)
+            # Add error logic?
+            if result is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Record id {id} not found",
+                )
+
+            relations_modified = await SaveRelationships(
+                id=getattr(result, str(repository.primary_key)),
+                record=the_thing_with_rels,
+                relation_config_map=relations,
+                repository=repository,
+            )
+
+            return single_schema(data=result)
+
+        async def delete(
+            id: id_type = Path(..., alias="id"),
+        ):
+            data = await repository.delete(id=id)
+
+            # Add error logic?
+            if data is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Record id {id} not found",
+                )
+
+            return single_schema(data=data)
+
+        async def get_by_id(
+            id: id_type = Path(..., alias="id"),
+            where: Json = Query(None, alias="where"),
+        ):
+            data = await repository.get_by_id(id=id, where=where)
+
+            # Add error logic?
+            if data is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Record id {id} not found",
+                )
+
+            return single_schema(data=data)
+
+        async def get_all(
+            page: int = 1,
+            limit: int = 10,
+            columns: List[str] = Query(None, alias="columns"),
+            sort: List[str] = Query(None, alias="sort"),
+            where: Json = Query(None, alias="where"),
+        ):
+            result: BulkDTO = await repository.get_all(
+                page=page, limit=limit, columns=columns, sort=sort, where=where
+            )
+            meta = {
+                "page": result.page,
+                "limit": result.limit,
+                "pages": result.total_pages,
+                "records": result.total_records,
+            }
+            return many_schema(
+                meta=meta_schema(**meta),
+                data=result.data,
+            )
+
+        # These functions all have dynamic signatures, so are generated within __init__
+        self.create = create
+        self.update = update
+        self.delete = delete
+        self.get_by_id = get_by_id
+        self.get_all = get_all
+
+
+# -------------------------------------------------------------------------------------------
+# CONTROLLER EXTENSION (FOR CLIENT USE)
 # -------------------------------------------------------------------------------------------
 
 
 class CruddyController:
+    actions: Actions
     controller: APIRouter
     repository: "AbstractRepository"
     resource: "Resource"
@@ -38,6 +202,7 @@ class CruddyController:
 
     def __init__(
         self,
+        actions: Actions = ...,
         controller: APIRouter = ...,
         repository: "AbstractRepository" = ...,
         resource: "Resource" = ...,
@@ -45,6 +210,7 @@ class CruddyController:
             "BaseAdapter", "MysqlAdapter", "PostgresqlAdapter", "SqliteAdapter"
         ] = ...,
     ):
+        self.actions = actions
         self.controller = controller
         self.repository = repository
         self.resource = resource
@@ -56,6 +222,11 @@ class CruddyController:
         # This is the best place to add more methods to the resource controller!
         # By defining your controllers as classes, you can even share methods between resources, like a mixin!
         pass
+
+
+# -------------------------------------------------------------------------------------------
+# UTILITY FUNCTIONS FOR CONTROLLER CONFIGURATION
+# -------------------------------------------------------------------------------------------
 
 
 def assemblePolicies(*args: (List)):
@@ -80,6 +251,8 @@ def _ControllerConfigManyToOne(
     far_col: Column = far_side.column
     far_col_name = far_col.name
     near_col_name = col.name
+    resource_model_name = f"{repository.model.__name__}".lower()
+    foreign_model_name = f"{config.foreign_resource.repository.model.__name__}".lower()
 
     # Merge three policy sets onto this endpoint:
     # 1. Universal policies
@@ -87,6 +260,7 @@ def _ControllerConfigManyToOne(
     # 3. Related resource policies
     @controller.get(
         f'/{"{id}"}/{relationship_prop}',
+        description=f"Get the '{foreign_model_name}' a '{resource_model_name}' belongs to",
         response_model=config.foreign_resource.schemas["single"],
         response_model_exclude_none=True,
         dependencies=assemblePolicies(
@@ -175,6 +349,10 @@ def _ControllerConfigOneToMany(
     col: Column = next(iter(config.orm_relationship.local_columns))
     far_col_name = far_col.name
     near_col_name = col.name
+    resource_model_name = f"{repository.model.__name__}".lower()
+    foreign_model_name = pluralizer.plural(
+        f"{config.foreign_resource.repository.model.__name__}".lower()
+    )
 
     # Merge three policy sets onto this endpoint:
     # 1. Universal policies
@@ -182,6 +360,7 @@ def _ControllerConfigOneToMany(
     # 3. Related resource policies
     @controller.get(
         f'/{"{id}"}/{relationship_prop}',
+        description=f"Get all '{foreign_model_name}' belonging to a '{resource_model_name}'",
         response_model=config.foreign_resource.schemas["many"],
         response_model_exclude_none=True,
         dependencies=assemblePolicies(
@@ -268,6 +447,10 @@ def _ControllerConfigManyToMany(
     policies_get_one: List = ...,
 ):
     far_model: Type[CruddyModel] = config.foreign_resource.repository.model
+    resource_model_name = f"{repository.model.__name__}".lower()
+    foreign_model_name = pluralizer.plural(
+        f"{config.foreign_resource.repository.model.__name__}".lower()
+    )
 
     # Merge three policy sets onto this endpoint:
     # 1. Universal policies
@@ -275,6 +458,7 @@ def _ControllerConfigManyToMany(
     # 3. Related resource policies
     @controller.get(
         f'/{"{id}"}/{relationship_prop}',
+        description=f"Get all '{foreign_model_name}' related to a '{resource_model_name}'",
         response_model=config.foreign_resource.schemas["many"],
         response_model_exclude_none=True,
         dependencies=assemblePolicies(
@@ -327,54 +511,13 @@ def _ControllerConfigManyToMany(
         )
 
 
-def GetRelationships(
-    record: Type[CruddyModel], relation_config_map: Dict[str, RelationshipConfig]
-):
-    record_relations = {}
-    for k, v in relation_config_map.items():
-        direction = v.orm_relationship.direction
-        if (
-            (direction == MANYTOMANY or direction == ONETOMANY)
-            and hasattr(record, k)
-            and getattr(record, k) != None
-        ):
-            record_relations[k] = getattr(record, k)
-    return record_relations
+# -------------------------------------------------------------------------------------------
+# CONTROLLER CONFIGURATOR
+# Binds routes to controller actions based on application configuration
+# -------------------------------------------------------------------------------------------
 
 
-async def SaveRelationships(
-    id: possible_id_values = ...,
-    record: Type[CruddyModel] = ...,
-    relation_config_map: Dict[str, RelationshipConfig] = ...,
-    repository: "AbstractRepository" = ...,
-):
-    relationship_lists = GetRelationships(record, relation_config_map)
-    modified_records = 0
-    awaitables = []
-    for k, v in relationship_lists.items():
-        name: str = k
-        new_relations: List[possible_id_values] = v
-        config: RelationshipConfig = relation_config_map[name]
-        if config.orm_relationship.direction == MANYTOMANY:
-            awaitables.append(
-                repository.set_many_many_relations(
-                    id=id, relation=name, relations=new_relations
-                )
-            )
-        elif config.orm_relationship.direction == ONETOMANY:
-            awaitables.append(
-                repository.set_one_many_relations(
-                    id=id, relation=name, relations=new_relations
-                )
-            )
-    results = await gather(*awaitables, return_exceptions=True)
-    for result_or_exc in results:
-        if not isinstance(result_or_exc, Exception):
-            modified_records += result_or_exc
-    return modified_records
-
-
-def ControllerCongifurator(
+def ControllerConfigurator(
     controller: APIRouter = ...,
     repository: "AbstractRepository" = ...,
     id_type: possible_id_types = int,
@@ -383,11 +526,8 @@ def ControllerCongifurator(
     single_schema: Type[CruddyGenericModel] = ResponseSchema,
     many_schema: Type[CruddyGenericModel] = PageResponse,
     meta_schema: Union[Type[CruddyModel], Type[CruddyGenericModel]] = MetaObject,
-    update_model: Type[CruddyGenericModel] = ...,
-    update_model_proxy: Type[CruddyModel] = ...,
-    create_model: Type[CruddyGenericModel] = ...,
-    create_model_proxy: Type[CruddyModel] = ...,
     relations: Dict[str, RelationshipConfig] = ...,
+    actions: Actions = ...,
     policies_universal=[],
     policies_create=[],
     policies_update=[],
@@ -401,130 +541,53 @@ def ControllerCongifurator(
     disable_get_many=False,
 ) -> APIRouter:
     if not disable_create:
-
-        @controller.post(
+        controller.post(
             "",
+            description=f"Create a single '{single_name}'",
             response_model=single_schema,
             response_model_exclude_none=True,
             dependencies=assemblePolicies(policies_universal, policies_create),
-        )
-        async def create(data: create_model):
-            the_thing_with_rels = getattr(data, single_name)
-            the_thing = create_model_proxy(**the_thing_with_rels.dict())
-            result = await repository.create(data=the_thing)
-            relations_modified = await SaveRelationships(
-                id=getattr(result, str(repository.primary_key)),
-                record=the_thing_with_rels,
-                relation_config_map=relations,
-                repository=repository,
-            )
-            # Add error logic?
-            return single_schema(data=result)
+        )(actions.create)
 
     if not disable_update:
-
-        @controller.patch(
+        controller.patch(
             "/{id}",
+            description=f"Update a single '{single_name}'",
             response_model=single_schema,
             response_model_exclude_none=True,
             dependencies=assemblePolicies(policies_universal, policies_update),
-        )
-        async def update(id: id_type = Path(..., alias="id"), *, data: update_model):
-            the_thing_with_rels = getattr(data, single_name)
-            the_thing = update_model_proxy(**the_thing_with_rels.dict())
-            result = await repository.update(id=id, data=the_thing)
-            # Add error logic?
-            if result is None:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Record id {id} not found",
-                )
-
-            relations_modified = await SaveRelationships(
-                id=getattr(result, str(repository.primary_key)),
-                record=the_thing_with_rels,
-                relation_config_map=relations,
-                repository=repository,
-            )
-
-            return single_schema(data=result)
+        )(actions.update)
 
     if not disable_delete:
-
-        @controller.delete(
+        controller.delete(
             "/{id}",
+            description=f"Delete a single '{single_name}'",
             response_model=single_schema,
             response_model_exclude_none=True,
             dependencies=assemblePolicies(policies_universal, policies_delete),
-        )
-        async def delete(
-            id: id_type = Path(..., alias="id"),
-        ):
-            data = await repository.delete(id=id)
-
-            # Add error logic?
-            if data is None:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Record id {id} not found",
-                )
-
-            return single_schema(data=data)
+        )(actions.delete)
 
     if not disable_get_one:
-
-        @controller.get(
+        controller.get(
             "/{id}",
+            description=f"Fetch a single '{single_name}'",
             response_model=single_schema,
             response_model_exclude_none=True,
             dependencies=assemblePolicies(policies_universal, policies_get_one),
-        )
-        async def get_by_id(
-            id: id_type = Path(..., alias="id"),
-            where: Json = Query(None, alias="where"),
-        ):
-            data = await repository.get_by_id(id=id, where=where)
-
-            # Add error logic?
-            if data is None:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Record id {id} not found",
-                )
-
-            return single_schema(data=data)
+        )(actions.get_by_id)
 
     if not disable_get_many:
-
-        @controller.get(
+        controller.get(
             "",
+            description=f"Fetch many '{plural_name}'",
             response_model=many_schema,
             response_model_exclude_none=True,
             dependencies=assemblePolicies(policies_universal, policies_get_many),
-        )
-        async def get_all(
-            page: int = 1,
-            limit: int = 10,
-            columns: List[str] = Query(None, alias="columns"),
-            sort: List[str] = Query(None, alias="sort"),
-            where: Json = Query(None, alias="where"),
-        ):
-            result: BulkDTO = await repository.get_all(
-                page=page, limit=limit, columns=columns, sort=sort, where=where
-            )
-            meta = {
-                "page": result.page,
-                "limit": result.limit,
-                "pages": result.total_pages,
-                "records": result.total_records,
-            }
-            return many_schema(
-                meta=meta_schema(**meta),
-                data=result.data,
-            )
+        )(actions.get_all)
 
     # Add relationship link endpoints starting here...
     # Maybe add way to disable these getters?
+    # Maybe add way to wrangle this unknown number of functions into the actions map?
     for key, config in relations.items():
         if config.orm_relationship.direction == ONETOMANY:
             _ControllerConfigOneToMany(

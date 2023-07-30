@@ -57,8 +57,9 @@ Resource
 ResourceRegistry
 CruddyResourceRegistry
 # CONTROLLER / CONTROLLER HELPERS
+Actions
 CruddyController
-ControllerCongifurator
+ControllerConfigurator
 # REPOSITORY
 AbstractRepository
 # DATABASE ADAPTERS
@@ -92,6 +93,8 @@ uuid7
 get_pk
 possible_id_types
 lifecycle_types
+# TEST HELPERS
+BrowserTestClient
 ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -418,6 +421,107 @@ Make sure that the `model_name` string you pass to the registry EXACTLY mirrors 
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
+<!-- Actions -->
+
+### Actions
+
+The `Actions` class contains all the business logic for the <i>base</i> CRUD actions that are wired into a controller's route tree based on the framework options used. Each resource / controller will generate its own unique CRUD actions instance, and make this object available to user-space `CruddyController` instance, which are described in more detail below. Actions that are deferred from routing automatically (using option flags such as `disable_create`) are still generated for reach resource's actions map, which makes those functions available in the `CruddyController` setup function.
+
+Available actions:
+
+```python
+async def create(data: create_model)
+
+async def update(id: id_type = Path(..., alias="id"), *, data: update_model)
+
+async def delete(
+    id: id_type = Path(..., alias="id"),
+)
+
+async def get_by_id(
+    id: id_type = Path(..., alias="id"),
+    where: Json = Query(None, alias="where"),
+)
+
+async def get_all(
+    page: int = 1,
+    limit: int = 10,
+    columns: List[str] = Query(None, alias="columns"),
+    sort: List[str] = Query(None, alias="sort"),
+    where: Json = Query(None, alias="where"),
+)
+```
+
+You can re-use CRUD actions in your controllers as follows:
+
+```python
+from pydantic.types import Json
+from fastapi_cruddy_framework import CruddyController
+from fastapi import Query, Path, HTTPException, status
+from fastapi_cruddy_framework import CruddyController
+from examples.fastapi_cruddy_sqlite.policies.verify_session import verify_session
+from examples.fastapi_cruddy_sqlite.utils.dependency_list import dependency_list
+
+
+class UserController(CruddyController):
+    def setup(self):
+        # You can extend controller actions here!
+        # You can also access:
+        # self.actions
+        # self.resource
+        # self.repository
+        # self.adapter
+        # self.controller
+        id_type = self.resource._id_type
+        many_schema = self.resource.schemas["many"]
+
+        # You can tap into the controller's CRUD actions map in the following ways:
+        # 1. Override the action key
+        old_delete = self.actions.delete
+
+        async def new_delete(id: id_type = Path(..., alias="id"), confirm: str = "N"):
+            if confirm == "Y":
+                return await old_delete(id=id)
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="You must confirm you want to delete this record by setting the 'confirm' parameter to 'Y'",
+                )
+
+        self.actions.delete = new_delete
+
+        # 2. Provide a new route to an existing function (notice, no @ symbol!)
+        self.controller.get(
+            "/all",
+            description="Another way to get many users",
+            response_model=many_schema,
+            response_model_exclude_none=True,
+            dependencies=dependency_list(verify_session),
+        )(self.actions.get_all)
+
+        # 3. Re-use within your own function
+        @self.controller.get(
+            "/everything",
+            description="Yet another way to get many users",
+            response_model=many_schema,
+            response_model_exclude_none=True,
+            dependencies=dependency_list(verify_session),
+        )
+        async def get_all_again(
+            page: int = 1,
+            limit: int = 10,
+            columns: list[str] = Query(None, alias="columns"),
+            sort: list[str] = Query(None, alias="sort"),
+            where: Json = Query(None, alias="where"),
+        ):
+            return await self.actions.get_all(
+                page=page, limit=limit, columns=columns, sort=sort, where=where
+            )
+
+```
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 <!-- CruddyController -->
 
 ### CruddyController
@@ -438,6 +542,7 @@ class UserController(CruddyController):
     def setup(self):
         # You can extend controller actions here!
         # You can also access:
+        # self.actions
         # self.resource
         # self.repository
         # self.adapter
@@ -489,11 +594,11 @@ Notice that you don't need to instantiate your controller!
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-<!-- ControllerCongifurator -->
+<!-- ControllerConfigurator -->
 
-### ControllerCongifurator
+### ControllerConfigurator
 
-The `ControllerCongifurator` is a configuration function invoked by the `Resource` class after SQL Alchemy has resolved all model relationships. You shouldn't need to interact with this function, but if you're a super advanced user, or wunderkind, maybe you will find a reason to need this. In essence, this function builds out all of the basic CRUD logic for a resource, after the resource has constructed a repository and generated the shadow schemas for your models. This is where your CRUD routes and sub-routes are auto-magically configured.
+The `ControllerConfigurator` is a configuration function invoked by the `Resource` class after SQL Alchemy has resolved all model relationships. You shouldn't need to interact with this function, but if you're a super advanced user, or wunderkind, maybe you will find a reason to need this. In essence, this function builds out all of the basic CRUD logic for a resource, after the resource has constructed a repository and generated the shadow schemas for your models. This is where your CRUD routes and sub-routes are auto-magically configured.
 
 The controller/router configured by each of your `Resource` objects will allow the base resource or its relationships to be queried from the client via an arbitrarily complex `where` object (JSON encoded query parameter).
 
@@ -565,6 +670,91 @@ Generally, these functions do about what you would expect them to do. More docum
 <b>Important AbstractRepository Nuances</b>
 
 - `set_many_many_relations` and `set_one_many_relations` both destroy and then re-create the x-to-Many relationships they target. If a `user` with the id of 1 was a member of `groups` 1, 2, and 3, then calling `await user_repository.set_many_many_relations(1, 'groups', [4,5,6])` would result in `user` 1 being a member of only groups 4,5, and 6 after execution. Client applications should be aware of this functionality, and always send ALL relationships that should still exist during any relational updates.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+<!-- BrowserTestClient -->
+
+## BrowserTestClient
+
+The `BrowserTestClient` is a useful helper class to enable test suites to "boot" a Cruddy based app, and then use different virtual "browsers" to execute API tests against the app at the same time, against the same app instance. For usage examples, see `tests/conftest.py` and `tests/crud/*.py`. Assuming your app has some level of authentication present you could setup your own conftest.py to look like:
+
+```python
+from logging import getLogger
+from asyncio import get_event_loop_policy, sleep
+from pytest import fixture, mark
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+from httpx._models import Cookies
+from fastapi_cruddy_framework import BrowserTestClient
+
+logger = getLogger(__name__)
+
+FAKE_AUTH_TOKEN = "somefaketokenvalue"
+FAKE_AUTH_QP = f"?auth_token={FAKE_AUTH_TOKEN}"
+FAKE_WEBSOCKET_HEADERS = {"Authorization": f"Bearer {FAKE_AUTH_TOKEN}"}
+
+# This fixture allows your app to run within a single asyncio event loop throughout testing
+@fixture(scope="session", autouse=True)
+def event_loop():
+    loop = get_event_loop_policy().new_event_loop()
+    yield loop
+    loop.close()
+
+
+@fixture(scope="session", autouse=True)
+@mark.asyncio
+async def app():
+    # Don't move this import! You should import your app here so that python loads all the files at the correct moment in testing
+    from your_app.main import app
+
+    yield app
+
+
+@fixture(scope="session", autouse=True)
+@mark.asyncio
+async def client(app: FastAPI):
+    # By using "with" the FastAPI app launch hook is run, connecting the application router
+    with TestClient(app) as client:
+        # If your app needs to do something async or with a time delay (like connect to postgres), you can delay yielding your test client like this
+        while client.get("/health").json() != True:
+            await sleep(0.5)
+        yield client
+
+
+@fixture(scope="session", autouse=True)
+@mark.asyncio
+async def unauthenticated_client(client: TestClient):
+    blank_client = BrowserTestClient(
+        client=client, cookies=None, headers=None, ws_headers=None
+    )
+    yield blank_client
+
+
+@fixture(scope="session", autouse=True)
+@mark.asyncio
+async def authenticated_client(client: TestClient):
+    response = client.get(f"/users/authorization{FAKE_AUTH_QP}")
+    client.cookies = Cookies()
+    sessioned_client = BrowserTestClient(
+        client=client,
+        cookies=response.cookies,
+        headers=FAKE_WEBSOCKET_HEADERS,
+        ws_headers=FAKE_WEBSOCKET_HEADERS,
+    )
+    yield sessioned_client
+
+
+@fixture(scope="module")
+@mark.asyncio
+async def authenticated_websocket(authenticated_client: BrowserTestClient):
+    with authenticated_client.websocket_connect("/ws") as websocket:
+        # For example: data = websocket.receive_json(mode="text")
+        # Or websocket.send_json(data, mode="text")
+        yield websocket
+        websocket.close(code=1000)
+
+```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

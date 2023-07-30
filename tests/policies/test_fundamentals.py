@@ -1,6 +1,6 @@
 from pytest import mark
 from fastapi import status
-from tests.helpers import BrowserTestClient
+from fastapi_cruddy_framework import BrowserTestClient
 
 
 @mark.asyncio

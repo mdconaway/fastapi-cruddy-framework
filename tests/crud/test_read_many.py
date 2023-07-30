@@ -1,7 +1,7 @@
 from json import dumps
 from pytest import mark
 from fastapi import status
-from tests.helpers import BrowserTestClient
+from fastapi_cruddy_framework import BrowserTestClient
 
 elves_group_id = None
 orcs_group_id = None
@@ -318,6 +318,13 @@ async def test_cleanup(authenticated_client: BrowserTestClient):
     response = authenticated_client.delete(f"/users/{user_id}")
     # This should return a 405 as delete-user is blocked using a framework feature!
     assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
+
+    response = authenticated_client.delete(f"/users/purge/{user_id}?confirm=Y")
+    # This should return a 200 as this is an overriden action!
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result, dict)
+    assert result["user"]["id"] == user_id
 
     response = authenticated_client.delete(f"/posts/{post_id}")
     assert response.status_code == status.HTTP_200_OK

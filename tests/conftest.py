@@ -4,7 +4,7 @@ from pytest import fixture, mark
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from httpx._models import Cookies
-from tests.helpers import BrowserTestClient
+from fastapi_cruddy_framework import BrowserTestClient
 
 logger = getLogger(__name__)
 
