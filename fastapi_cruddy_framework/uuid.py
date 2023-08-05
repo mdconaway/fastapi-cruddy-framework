@@ -53,7 +53,7 @@ class UUID(uuid.UUID):
                 # Set the version number.
                 int &= ~(0xF000 << 64)
                 int |= version << 76
-        super().__init__(int=int, is_safe=is_safe)
+            super().__init__(int=int, is_safe=is_safe)
 
     @property
     def subsec(self) -> int:
