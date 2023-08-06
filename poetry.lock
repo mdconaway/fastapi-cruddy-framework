@@ -2,14 +2,18 @@
 
 [[package]]
 name = "aiosqlite"
-version = "0.18.0"
+version = "0.19.0"
 description = "asyncio bridge to the standard sqlite3 module"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "aiosqlite-0.18.0-py3-none-any.whl", hash = "sha256:c3511b841e3a2c5614900ba1d179f366826857586f78abd75e7cbeb88e75a557"},
-    {file = "aiosqlite-0.18.0.tar.gz", hash = "sha256:faa843ef5fb08bafe9a9b3859012d3d9d6f77ce3637899de20606b7fc39aa213"},
+    {file = "aiosqlite-0.19.0-py3-none-any.whl", hash = "sha256:edba222e03453e094a3ce605db1b970c4b3376264e56f32e2a4959f948d66a96"},
+    {file = "aiosqlite-0.19.0.tar.gz", hash = "sha256:95ee77b91c8d2808bd08a59fbebf66270e9090c3d92ffbf260dc0db0b979577d"},
 ]
+
+[package.extras]
+dev = ["aiounittest (==1.4.1)", "attribution (==1.6.2)", "black (==23.3.0)", "coverage[toml] (==7.2.3)", "flake8 (==5.0.4)", "flake8-bugbear (==23.3.12)", "flit (==3.7.1)", "mypy (==1.2.0)", "ufmt (==2.1.0)", "usort (==1.0.6)"]
+docs = ["sphinx (==6.1.3)", "sphinx-mdinclude (==0.5.3)"]
 
 [[package]]
 name = "anyio"
@@ -303,13 +307,13 @@ test = ["pytest (>=6)"]
 
 [[package]]
 name = "fastapi"
-version = "0.97.0"
+version = "0.99.1"
 description = "FastAPI framework, high performance, easy to learn, fast to code, ready for production"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "fastapi-0.97.0-py3-none-any.whl", hash = "sha256:95d757511c596409930bd20673358d4a4d709004edb85c5d24d6ffc48fabcbf2"},
-    {file = "fastapi-0.97.0.tar.gz", hash = "sha256:b53248ee45f64f19bb7600953696e3edf94b0f7de94df1e5433fc5c6136fa986"},
+    {file = "fastapi-0.99.1-py3-none-any.whl", hash = "sha256:976df7bab51ac7beda9f68c4513b8c4490b5c1135c72aafd0a5ee4023ec5282e"},
+    {file = "fastapi-0.99.1.tar.gz", hash = "sha256:ac78f717cd80d657bd183f94d33b9bda84aa376a46a9dab513586b8eef1dc6fc"},
 ]
 
 [package.dependencies]
@@ -322,6 +326,7 @@ pydantic = ">=1.7.4,<1.8 || >1.8,<1.8.1 || >1.8.1,<2.0.0"
 python-multipart = {version = ">=0.0.5", optional = true, markers = "extra == \"all\""}
 pyyaml = {version = ">=5.3.1", optional = true, markers = "extra == \"all\""}
 starlette = ">=0.27.0,<0.28.0"
+typing-extensions = ">=4.5.0"
 ujson = {version = ">=4.0.1,<4.0.2 || >4.0.2,<4.1.0 || >4.1.0,<4.2.0 || >4.2.0,<4.3.0 || >4.3.0,<5.0.0 || >5.0.0,<5.1.0 || >5.1.0", optional = true, markers = "extra == \"all\""}
 uvicorn = {version = ">=0.12.0", extras = ["standard"], optional = true, markers = "extra == \"all\""}
 
@@ -516,13 +521,13 @@ files = [
 
 [[package]]
 name = "inflect"
-version = "6.2.0"
+version = "7.0.0"
 description = "Correctly generate plurals, singular nouns, ordinals, indefinite articles; convert numbers to words"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "inflect-6.2.0-py3-none-any.whl", hash = "sha256:5a005e0c9afe152cc95d552a59b8b0c19efc51823405b43d89e984f0c33bc243"},
-    {file = "inflect-6.2.0.tar.gz", hash = "sha256:518088ef414a4e15df70e6bcb40d021da4d423cc6c2fd4c0cad5500d39f86627"},
+    {file = "inflect-7.0.0-py3-none-any.whl", hash = "sha256:9544afed6182176e43955c44b1acdaed30f9b2b56c16d1fc5b222d98218b546e"},
+    {file = "inflect-7.0.0.tar.gz", hash = "sha256:63da9325ad29da81ec23e055b41225795ab793b4ecb483be5dc1fa363fd4717e"},
 ]
 
 [package.dependencies]
@@ -1109,13 +1114,13 @@ sqlcipher = ["sqlcipher3-binary"]
 
 [[package]]
 name = "sqlalchemy-utils"
-version = "0.38.3"
+version = "0.41.1"
 description = "Various utility functions for SQLAlchemy."
 optional = false
-python-versions = "~=3.6"
+python-versions = ">=3.6"
 files = [
-    {file = "SQLAlchemy-Utils-0.38.3.tar.gz", hash = "sha256:9f9afba607a40455cf703adfa9846584bf26168a0c5a60a70063b70d65051f4d"},
-    {file = "SQLAlchemy_Utils-0.38.3-py3-none-any.whl", hash = "sha256:5c13b5d08adfaa85f3d4e8ec09a75136216fad41346980d02974a70a77988bf9"},
+    {file = "SQLAlchemy-Utils-0.41.1.tar.gz", hash = "sha256:a2181bff01eeb84479e38571d2c0718eb52042f9afd8c194d0d02877e84b7d74"},
+    {file = "SQLAlchemy_Utils-0.41.1-py3-none-any.whl", hash = "sha256:6c96b0768ea3f15c0dc56b363d386138c562752b84f647fb8d31a2223aaab801"},
 ]
 
 [package.dependencies]
@@ -1130,8 +1135,8 @@ intervals = ["intervals (>=0.7.1)"]
 password = ["passlib (>=1.6,<2.0)"]
 pendulum = ["pendulum (>=2.0.5)"]
 phone = ["phonenumbers (>=5.9.2)"]
-test = ["Jinja2 (>=2.3)", "Pygments (>=1.2)", "backports.zoneinfo", "docutils (>=0.10)", "flake8 (>=2.4.0)", "flexmock (>=0.9.7)", "isort (>=4.2.2)", "pg8000 (>=1.12.4)", "psycopg2 (>=2.5.1)", "psycopg2cffi (>=2.8.1)", "pymysql", "pyodbc", "pytest (>=2.7.1)", "python-dateutil (>=2.6)", "pytz (>=2014.2)"]
-test-all = ["Babel (>=1.3)", "Jinja2 (>=2.3)", "Pygments (>=1.2)", "arrow (>=0.3.4)", "backports.zoneinfo", "colour (>=0.0.4)", "cryptography (>=0.6)", "docutils (>=0.10)", "flake8 (>=2.4.0)", "flexmock (>=0.9.7)", "furl (>=0.4.1)", "intervals (>=0.7.1)", "isort (>=4.2.2)", "passlib (>=1.6,<2.0)", "pendulum (>=2.0.5)", "pg8000 (>=1.12.4)", "phonenumbers (>=5.9.2)", "psycopg2 (>=2.5.1)", "psycopg2cffi (>=2.8.1)", "pymysql", "pyodbc", "pytest (>=2.7.1)", "python-dateutil", "python-dateutil (>=2.6)", "pytz (>=2014.2)"]
+test = ["Jinja2 (>=2.3)", "Pygments (>=1.2)", "backports.zoneinfo", "docutils (>=0.10)", "flake8 (>=2.4.0)", "flexmock (>=0.9.7)", "isort (>=4.2.2)", "pg8000 (>=1.12.4)", "psycopg (>=3.1.8)", "psycopg2 (>=2.5.1)", "psycopg2cffi (>=2.8.1)", "pymysql", "pyodbc", "pytest (>=2.7.1)", "python-dateutil (>=2.6)", "pytz (>=2014.2)"]
+test-all = ["Babel (>=1.3)", "Jinja2 (>=2.3)", "Pygments (>=1.2)", "arrow (>=0.3.4)", "backports.zoneinfo", "colour (>=0.0.4)", "cryptography (>=0.6)", "docutils (>=0.10)", "flake8 (>=2.4.0)", "flexmock (>=0.9.7)", "furl (>=0.4.1)", "intervals (>=0.7.1)", "isort (>=4.2.2)", "passlib (>=1.6,<2.0)", "pendulum (>=2.0.5)", "pg8000 (>=1.12.4)", "phonenumbers (>=5.9.2)", "psycopg (>=3.1.8)", "psycopg2 (>=2.5.1)", "psycopg2cffi (>=2.8.1)", "pymysql", "pyodbc", "pytest (>=2.7.1)", "python-dateutil", "python-dateutil (>=2.6)", "pytz (>=2014.2)"]
 timezone = ["python-dateutil"]
 url = ["furl (>=0.4.1)"]
 
@@ -1308,13 +1313,13 @@ files = [
 
 [[package]]
 name = "uvicorn"
-version = "0.20.0"
+version = "0.23.2"
 description = "The lightning-fast ASGI server."
 optional = false
-python-versions = ">=3.7"
+python-versions = ">=3.8"
 files = [
-    {file = "uvicorn-0.20.0-py3-none-any.whl", hash = "sha256:c3ed1598a5668208723f2bb49336f4509424ad198d6ab2615b7783db58d919fd"},
-    {file = "uvicorn-0.20.0.tar.gz", hash = "sha256:a4e12017b940247f836bc90b72e725d7dfd0c8ed1c51eb365f5ba30d9f5127d8"},
+    {file = "uvicorn-0.23.2-py3-none-any.whl", hash = "sha256:1f9be6558f01239d4fdf22ef8126c39cb1ad0addf76c40e760549d2c2f43ab53"},
+    {file = "uvicorn-0.23.2.tar.gz", hash = "sha256:4d3cc12d7727ba72b64d12d3cc7743124074c0a69f7b201512fc50c3e3f1569a"},
 ]
 
 [package.dependencies]
@@ -1324,6 +1329,7 @@ h11 = ">=0.8"
 httptools = {version = ">=0.5.0", optional = true, markers = "extra == \"standard\""}
 python-dotenv = {version = ">=0.13", optional = true, markers = "extra == \"standard\""}
 pyyaml = {version = ">=5.1", optional = true, markers = "extra == \"standard\""}
+typing-extensions = {version = ">=4.0", markers = "python_version < \"3.11\""}
 uvloop = {version = ">=0.14.0,<0.15.0 || >0.15.0,<0.15.1 || >0.15.1", optional = true, markers = "(sys_platform != \"win32\" and sys_platform != \"cygwin\") and platform_python_implementation != \"PyPy\" and extra == \"standard\""}
 watchfiles = {version = ">=0.13", optional = true, markers = "extra == \"standard\""}
 websockets = {version = ">=10.4", optional = true, markers = "extra == \"standard\""}
@@ -1575,4 +1581,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8,<4.0"
-content-hash = "79cf8a8f04b9b78e3b2f4c3ad465e18af72fff56bbc3281753e29f2f8d7b7e9c"
+content-hash = "faf196b3cda1a1d97cafca658013e8887b9046245ddb2b9aae343b196e8665a0"
