@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fastapi-cruddy-framework"
-version = "0.0.26"
+version = "0.0.27"
 description = "A holistic CRUD/MVC framework for FastAPI, with endpoint policies and relationships"
 authors = ["mdconaway <mdconaway@users.noreply.github.com>"]
 readme = "README.md"
@@ -23,7 +23,7 @@ include = [
 
 [tool.black]
 line-length = 88
-target-version = ['py37']
+target-version = ['py311']
 include = '\.pyi?$'
 # 'extend-exclude' excludes files or directories in addition to the defaults
 extend-exclude = '''
