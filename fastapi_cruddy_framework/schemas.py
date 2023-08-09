@@ -1,4 +1,5 @@
 from sqlalchemy.orm import declared_attr, RelationshipProperty
+from sqlalchemy.engine.row import Row
 from typing import Any, Type, TypeVar, Optional, Generic, Union, List, TYPE_CHECKING
 from pydantic.generics import GenericModel
 from sqlmodel import Field, SQLModel
@@ -39,7 +40,7 @@ class BulkDTO(CruddyGenericModel):
     total_records: int
     limit: int
     page: int
-    data: List
+    data: List[Row]
 
 
 class ResponseSchema(CruddyGenericModel):
