@@ -42,6 +42,9 @@ class BulkDTO(CruddyGenericModel):
     page: int
     data: List[Row]
 
+    class Config:
+        arbitrary_types_allowed = True
+
 
 class ResponseSchema(CruddyGenericModel):
     # The response for a single object return
