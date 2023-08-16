@@ -11,7 +11,7 @@ post_id = None
 @mark.dependency()
 async def test_create_group(authenticated_client: BrowserTestClient):
     global group_id
-    response = authenticated_client.post(
+    response = await authenticated_client.post(
         f"/groups",
         json={"group": {"name": "Hobbits Anonymous"}},
     )
@@ -26,7 +26,7 @@ async def test_create_group(authenticated_client: BrowserTestClient):
 async def test_create_user(authenticated_client: BrowserTestClient):
     global group_id
     global user_id
-    response = authenticated_client.post(
+    response = await authenticated_client.post(
         f"/users",
         json={
             "user": {
@@ -56,7 +56,7 @@ async def test_create_user(authenticated_client: BrowserTestClient):
 async def test_create_post(authenticated_client: BrowserTestClient):
     global user_id
     global post_id
-    response = authenticated_client.post(
+    response = await authenticated_client.post(
         f"/posts",
         json={
             "post": {
@@ -80,24 +80,24 @@ async def test_cleanup(authenticated_client: BrowserTestClient):
     global post_id
     global group_id
 
-    response = authenticated_client.delete(f"/users/{user_id}")
+    response = await authenticated_client.delete(f"/users/{user_id}")
     # This should return a 405 as delete-user is blocked using a framework feature!
     assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
 
-    response = authenticated_client.delete(f"/users/purge/{user_id}?confirm=Y")
+    response = await authenticated_client.delete(f"/users/purge/{user_id}?confirm=Y")
     # This should return a 200 as this is an overriden action!
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert isinstance(result, dict)
     assert result["user"]["id"] == user_id
 
-    response = authenticated_client.delete(f"/posts/{post_id}")
+    response = await authenticated_client.delete(f"/posts/{post_id}")
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert isinstance(result, dict)
     assert result["post"]["id"] == post_id
 
-    response = authenticated_client.delete(f"/groups/{group_id}")
+    response = await authenticated_client.delete(f"/groups/{group_id}")
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert isinstance(result, dict)

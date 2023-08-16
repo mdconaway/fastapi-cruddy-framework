@@ -27,5 +27,7 @@ from .resource import Resource, ResourceRegistry, CruddyResourceRegistry
 from .router import getModuleDir, getDirectoryModules, CreateRouterFromResources
 from .util import get_pk, possible_id_types, lifecycle_types
 from .test_helpers import BrowserTestClient
+from async_asgi_testclient import TestClient
+from async_asgi_testclient.websocket import WebSocketSession
 
 # -----------------------------------------------------------------

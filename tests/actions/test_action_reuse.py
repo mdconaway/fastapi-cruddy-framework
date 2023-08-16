@@ -11,7 +11,7 @@ user_id = None
 async def test_setup(authenticated_client: BrowserTestClient):
     global user_id
 
-    response = authenticated_client.post(
+    response = await authenticated_client.post(
         f"/users",
         json={
             "user": {
@@ -42,7 +42,7 @@ async def test_get_users_remapped_actions(authenticated_client: BrowserTestClien
     global user_id
 
     where = dumps({"first_name": {"*eq": "Meriadoc"}})
-    response1 = authenticated_client.get(f"/users?where={where}")
+    response1 = await authenticated_client.get(f"/users?where={where}")
     assert response1.status_code == status.HTTP_200_OK
     result1 = response1.json()
     assert len(result1["users"]) is 1
@@ -52,7 +52,7 @@ async def test_get_users_remapped_actions(authenticated_client: BrowserTestClien
     assert result1["meta"]["pages"] is 1
     assert result1["meta"]["records"] is 1
 
-    response2 = authenticated_client.get(f"/users/all?where={where}")
+    response2 = await authenticated_client.get(f"/users/all?where={where}")
     assert response2.status_code == status.HTTP_200_OK
     result2 = response2.json()
     assert len(result2["users"]) is 1
@@ -62,7 +62,7 @@ async def test_get_users_remapped_actions(authenticated_client: BrowserTestClien
     assert result2["meta"]["pages"] is 1
     assert result2["meta"]["records"] is 1
 
-    response3 = authenticated_client.get(f"/users/everything?where={where}")
+    response3 = await authenticated_client.get(f"/users/everything?where={where}")
     assert response3.status_code == status.HTTP_200_OK
     result3 = response3.json()
     assert len(result2["users"]) is 1
@@ -83,11 +83,11 @@ async def test_get_users_remapped_actions(authenticated_client: BrowserTestClien
 async def test_cleanup(authenticated_client: BrowserTestClient):
     global user_id
 
-    response = authenticated_client.delete(f"/users/{user_id}")
+    response = await authenticated_client.delete(f"/users/{user_id}")
     # This should return a 405 as delete-user is blocked using a framework feature!
     assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
 
-    response = authenticated_client.delete(f"/users/purge/{user_id}?confirm=Y")
+    response = await authenticated_client.delete(f"/users/purge/{user_id}?confirm=Y")
     # This should return a 200 as this is an overriden action!
     assert response.status_code == status.HTTP_200_OK
     result = response.json()

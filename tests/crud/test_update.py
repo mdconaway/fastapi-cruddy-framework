@@ -14,7 +14,7 @@ async def test_setup(authenticated_client: BrowserTestClient):
     global user_id
     global post_id
 
-    response = authenticated_client.post(
+    response = await authenticated_client.post(
         f"/groups",
         json={"group": {"name": "Supporting Characters Anonymous"}},
     )
@@ -23,7 +23,7 @@ async def test_setup(authenticated_client: BrowserTestClient):
     assert isinstance(result["group"], dict)
     group_id = result["group"]["id"]
 
-    response = authenticated_client.post(
+    response = await authenticated_client.post(
         f"/users",
         json={
             "user": {
@@ -47,7 +47,7 @@ async def test_setup(authenticated_client: BrowserTestClient):
     assert isinstance(result["user"], dict)
     user_id = result["user"]["id"]
 
-    response = authenticated_client.post(
+    response = await authenticated_client.post(
         f"/posts",
         json={
             "post": {
@@ -67,7 +67,7 @@ async def test_setup(authenticated_client: BrowserTestClient):
 @mark.dependency(depends=["test_setup"])
 async def test_update_group(authenticated_client: BrowserTestClient):
     global group_id
-    response = authenticated_client.patch(
+    response = await authenticated_client.patch(
         f"/groups/{group_id}",
         json={"group": {"id": "woopsie", "name": "Forgotten Characters Anonymous"}},
     )
@@ -81,7 +81,7 @@ async def test_update_group(authenticated_client: BrowserTestClient):
 @mark.dependency(depends=["test_update_group"])
 async def test_update_user(authenticated_client: BrowserTestClient):
     global user_id
-    response = authenticated_client.patch(
+    response = await authenticated_client.patch(
         f"/users/{user_id}",
         json={
             "user": {
@@ -111,7 +111,7 @@ async def test_update_user(authenticated_client: BrowserTestClient):
 async def test_update_post(authenticated_client: BrowserTestClient):
     global user_id
     global post_id
-    response = authenticated_client.patch(
+    response = await authenticated_client.patch(
         f"/posts/{post_id}",
         json={
             "post": {
@@ -139,24 +139,24 @@ async def test_cleanup(authenticated_client: BrowserTestClient):
     global post_id
     global group_id
 
-    response = authenticated_client.delete(f"/users/{user_id}")
+    response = await authenticated_client.delete(f"/users/{user_id}")
     # This should return a 405 as delete-user is blocked using a framework feature!
     assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
 
-    response = authenticated_client.delete(f"/users/purge/{user_id}?confirm=Y")
+    response = await authenticated_client.delete(f"/users/purge/{user_id}?confirm=Y")
     # This should return a 200 as this is an overriden action!
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert isinstance(result, dict)
     assert result["user"]["id"] == user_id
 
-    response = authenticated_client.delete(f"/posts/{post_id}")
+    response = await authenticated_client.delete(f"/posts/{post_id}")
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert isinstance(result, dict)
     assert result["post"]["id"] == post_id
 
-    response = authenticated_client.delete(f"/groups/{group_id}")
+    response = await authenticated_client.delete(f"/groups/{group_id}")
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert isinstance(result, dict)

@@ -1,305 +1,355 @@
-from httpx import Response
-from typing import Any, Dict, Iterable, Mapping, Optional, Sequence, Union
-from httpx._types import (
-    AuthTypes,
-    CookieTypes,
-    HeaderTypes,
-    RequestContent,
-    RequestFiles,
-    URLTypes,
-    QueryParamTypes,
-)
-from httpx._client import UseClientDefault, USE_CLIENT_DEFAULT
-from httpx._types import TimeoutTypes
-from httpx._models import Cookies
-from fastapi.testclient import TestClient
-
-_RequestData = Mapping[str, Union[str, Iterable[str]]]
+from typing import Any, Optional, Union
+from requests.cookies import RequestsCookieJar
+from async_asgi_testclient.response import Response
+from async_asgi_testclient.testing import SimpleCookie, CIMultiDict, sentinel
+from async_asgi_testclient.websocket import WebSocketSession
+from async_asgi_testclient import TestClient
 
 
 class BrowserTestClient:
     def __init__(
         self,
         client: TestClient,
-        cookies: Union[Cookies, None] = None,
-        headers: Union[HeaderTypes, None] = None,
-        ws_headers: Union[Dict, None] = None,
+        cookies: Union[RequestsCookieJar, SimpleCookie, dict, None] = None,
+        headers: Union[CIMultiDict, dict, None] = None,
     ):
         self.client = client
         self.cookies = cookies
         self.headers = headers
-        self.ws_headers = ws_headers
-        self.client.cookies = Cookies()
+        self.client.cookie_jar = SimpleCookie()
 
+    def _format_cookies(self, cookies: RequestsCookieJar):
+        cookie_dictionary: dict = cookies.get_dict()
+        new_dict = {}
+        # Prune all falsy cookies, as the server wants the browser to remove them
+        for k, v in cookie_dictionary.items():
+            if v is not None and v != "null" and v is not False:
+                new_dict[k] = v
+        return new_dict
+
+    # _process_cookies allows each BrowserTestClient to maintain its own
+    # internal "cookie" store, so app builders can pretend to be multiple
+    # simultaneous users with different session values
     def _process_cookies(self, result: Response) -> Response:
-        self.cookies = result.cookies
-        self.client.cookies = Cookies()
+        self.cookies = self._format_cookies(result.cookies)
+        self.client.cookie_jar = SimpleCookie()
         return result
 
-    def request(  # type: ignore[override]
+    async def open(
         self,
-        method: str,
-        url: URLTypes,
+        url: str,
         *,
-        content: Optional[RequestContent] = None,
-        data: Optional[_RequestData] = None,
-        files: Optional[RequestFiles] = None,
+        method: str = "GET",
+        headers: Optional[Union[dict, CIMultiDict]] = None,
+        data: Any = None,
+        form: Optional[dict] = None,
+        files: Optional[dict] = None,
+        query_string: Optional[dict] = None,
         json: Any = None,
-        params: Optional[QueryParamTypes] = None,
-        headers: Optional[HeaderTypes] = None,
-        cookies: Optional[CookieTypes] = None,
-        auth: Union[AuthTypes, UseClientDefault] = USE_CLIENT_DEFAULT,
-        follow_redirects: Optional[bool] = None,
-        allow_redirects: Optional[bool] = None,
-        timeout: Union[TimeoutTypes, UseClientDefault] = USE_CLIENT_DEFAULT,
-        extensions: Optional[Dict[str, Any]] = None,
-    ) -> Response:
-        use_cookies = self.cookies if self.cookies else cookies
-        use_headers = self.headers if self.headers else headers
-        result = self.client.request(
-            method,
+        scheme: str = "http",
+        cookies: Union[RequestsCookieJar, SimpleCookie, dict, None] = None,
+        stream: bool = False,
+        allow_redirects: bool = True,
+    ):
+        use_cookies = cookies if cookies else self.cookies
+        use_headers = headers if headers else self.headers
+        if isinstance(use_cookies, RequestsCookieJar):
+            use_cookies = use_cookies.get_dict()
+        if isinstance(use_cookies, SimpleCookie):
+            new_dict = {}
+            for k, v in use_cookies.items():
+                new_dict[k] = v.value
+            use_cookies = new_dict
+        result = await self.client.open(
             url,
-            content=content,
+            method=method,
+            headers=use_headers,
             data=data,
+            form=form,
             files=files,
-            json=json,
-            params=params,
-            headers=use_headers,
+            query_string=query_string,
+            json=sentinel if json is None else json,
+            scheme=scheme,
             cookies=use_cookies,
-            auth=auth,
+            stream=stream,
             allow_redirects=allow_redirects,
-            follow_redirects=follow_redirects,
-            timeout=timeout,
-            extensions=extensions,
         )
         return self._process_cookies(result)
 
-    def get(  # type: ignore[override]
+    async def request(
         self,
-        url: URLTypes,
+        url: str,
         *,
-        params: Optional[QueryParamTypes] = None,
-        headers: Optional[HeaderTypes] = None,
-        cookies: Optional[CookieTypes] = None,
-        auth: Union[AuthTypes, UseClientDefault] = USE_CLIENT_DEFAULT,
-        follow_redirects: Optional[bool] = None,
-        allow_redirects: Optional[bool] = None,
-        timeout: Union[TimeoutTypes, UseClientDefault] = USE_CLIENT_DEFAULT,
-        extensions: Optional[Dict[str, Any]] = None,
-    ) -> Response:
-        use_cookies = self.cookies if self.cookies else cookies
-        use_headers = self.headers if self.headers else headers
-        result = self.client.get(
-            url,
-            params=params,
-            headers=use_headers,
-            cookies=use_cookies,
-            auth=auth,
-            follow_redirects=follow_redirects,
-            allow_redirects=allow_redirects,
-            timeout=timeout,
-            extensions=extensions,
-        )
-        return self._process_cookies(result)
-
-    def options(  # type: ignore[override]
-        self,
-        url: URLTypes,
-        *,
-        params: Optional[QueryParamTypes] = None,
-        headers: Optional[HeaderTypes] = None,
-        cookies: Optional[CookieTypes] = None,
-        auth: Union[AuthTypes, UseClientDefault] = USE_CLIENT_DEFAULT,
-        follow_redirects: Optional[bool] = None,
-        allow_redirects: Optional[bool] = None,
-        timeout: Union[TimeoutTypes, UseClientDefault] = USE_CLIENT_DEFAULT,
-        extensions: Optional[Dict[str, Any]] = None,
-    ) -> Response:
-        use_cookies = self.cookies if self.cookies else cookies
-        use_headers = self.headers if self.headers else headers
-        result = self.client.options(
-            url,
-            params=params,
-            headers=use_headers,
-            cookies=use_cookies,
-            auth=auth,
-            follow_redirects=follow_redirects,
-            allow_redirects=allow_redirects,
-            timeout=timeout,
-            extensions=extensions,
-        )
-        return self._process_cookies(result)
-
-    def head(  # type: ignore[override]
-        self,
-        url: URLTypes,
-        *,
-        params: Optional[QueryParamTypes] = None,
-        headers: Optional[HeaderTypes] = None,
-        cookies: Optional[CookieTypes] = None,
-        auth: Union[AuthTypes, UseClientDefault] = USE_CLIENT_DEFAULT,
-        follow_redirects: Optional[bool] = None,
-        allow_redirects: Optional[bool] = None,
-        timeout: Union[TimeoutTypes, UseClientDefault] = USE_CLIENT_DEFAULT,
-        extensions: Optional[Dict[str, Any]] = None,
-    ) -> Response:
-        use_cookies = self.cookies if self.cookies else cookies
-        use_headers = self.headers if self.headers else headers
-        result = self.client.head(
-            url,
-            params=params,
-            headers=use_headers,
-            cookies=use_cookies,
-            auth=auth,
-            follow_redirects=follow_redirects,
-            allow_redirects=allow_redirects,
-            timeout=timeout,
-            extensions=extensions,
-        )
-        return self._process_cookies(result)
-
-    def post(  # type: ignore[override]
-        self,
-        url: URLTypes,
-        *,
-        content: Optional[RequestContent] = None,
-        data: Optional[_RequestData] = None,
-        files: Optional[RequestFiles] = None,
+        method: str = "GET",
+        headers: Optional[Union[dict, CIMultiDict]] = None,
+        data: Any = None,
+        form: Optional[dict] = None,
+        files: Optional[dict] = None,
+        query_string: Optional[dict] = None,
         json: Any = None,
-        params: Optional[QueryParamTypes] = None,
-        headers: Optional[HeaderTypes] = None,
-        cookies: Optional[CookieTypes] = None,
-        auth: Union[AuthTypes, UseClientDefault] = USE_CLIENT_DEFAULT,
-        follow_redirects: Optional[bool] = None,
-        allow_redirects: Optional[bool] = None,
-        timeout: Union[TimeoutTypes, UseClientDefault] = USE_CLIENT_DEFAULT,
-        extensions: Optional[Dict[str, Any]] = None,
+        scheme: str = "http",
+        cookies: Union[RequestsCookieJar, SimpleCookie, dict, None] = None,
+        stream: bool = False,
+        allow_redirects: bool = True,
     ) -> Response:
-        use_cookies = self.cookies if self.cookies else cookies
-        use_headers = self.headers if self.headers else headers
-        result = self.client.post(
-            url,
-            content=content,
-            data=data,  # type: ignore[arg-type]
+        return await self.open(
+            url=url,
+            method=method,
+            headers=headers,
+            data=data,
+            form=form,
             files=files,
+            query_string=query_string,
             json=json,
-            params=params,
-            headers=use_headers,
-            cookies=use_cookies,
-            auth=auth,
-            follow_redirects=follow_redirects,
+            scheme=scheme,
+            cookies=cookies,
+            stream=stream,
             allow_redirects=allow_redirects,
-            timeout=timeout,
-            extensions=extensions,
         )
-        return self._process_cookies(result)
 
-    def put(  # type: ignore[override]
+    async def get(  # type: ignore[override]
         self,
-        url: URLTypes,
+        url: str,
         *,
-        content: Optional[RequestContent] = None,
-        data: Optional[_RequestData] = None,
-        files: Optional[RequestFiles] = None,
+        headers: Optional[Union[dict, CIMultiDict]] = None,
+        data: Any = None,
+        form: Optional[dict] = None,
+        files: Optional[dict] = None,
+        query_string: Optional[dict] = None,
         json: Any = None,
-        params: Optional[QueryParamTypes] = None,
-        headers: Optional[HeaderTypes] = None,
-        cookies: Optional[CookieTypes] = None,
-        auth: Union[AuthTypes, UseClientDefault] = USE_CLIENT_DEFAULT,
-        follow_redirects: Optional[bool] = None,
-        allow_redirects: Optional[bool] = None,
-        timeout: Union[TimeoutTypes, UseClientDefault] = USE_CLIENT_DEFAULT,
-        extensions: Optional[Dict[str, Any]] = None,
+        scheme: str = "http",
+        cookies: Union[RequestsCookieJar, SimpleCookie, dict, None] = None,
+        stream: bool = False,
+        allow_redirects: bool = True,
     ) -> Response:
-        use_cookies = self.cookies if self.cookies else cookies
-        use_headers = self.headers if self.headers else headers
-        result = self.client.put(
-            url,
-            content=content,
-            data=data,  # type: ignore[arg-type]
+        return await self.request(
+            url=url,
+            method="GET",
+            headers=headers,
+            data=data,
+            form=form,
             files=files,
+            query_string=query_string,
             json=json,
-            params=params,
-            headers=use_headers,
-            cookies=use_cookies,
-            auth=auth,
-            follow_redirects=follow_redirects,
+            scheme=scheme,
+            cookies=cookies,
+            stream=stream,
             allow_redirects=allow_redirects,
-            timeout=timeout,
-            extensions=extensions,
         )
-        return self._process_cookies(result)
 
-    def patch(  # type: ignore[override]
+    async def options(  # type: ignore[override]
         self,
-        url: URLTypes,
+        url: str,
         *,
-        content: Optional[RequestContent] = None,
-        data: Optional[_RequestData] = None,
-        files: Optional[RequestFiles] = None,
+        headers: Optional[Union[dict, CIMultiDict]] = None,
+        data: Any = None,
+        form: Optional[dict] = None,
+        files: Optional[dict] = None,
+        query_string: Optional[dict] = None,
         json: Any = None,
-        params: Optional[QueryParamTypes] = None,
-        headers: Optional[HeaderTypes] = None,
-        cookies: Optional[CookieTypes] = None,
-        auth: Union[AuthTypes, UseClientDefault] = USE_CLIENT_DEFAULT,
-        follow_redirects: Optional[bool] = None,
-        allow_redirects: Optional[bool] = None,
-        timeout: Union[TimeoutTypes, UseClientDefault] = USE_CLIENT_DEFAULT,
-        extensions: Optional[Dict[str, Any]] = None,
+        scheme: str = "http",
+        cookies: Union[RequestsCookieJar, SimpleCookie, dict, None] = None,
+        stream: bool = False,
+        allow_redirects: bool = True,
     ) -> Response:
-        use_cookies = self.cookies if self.cookies else cookies
-        use_headers = self.headers if self.headers else headers
-        result = self.client.patch(
-            url,
-            content=content,
-            data=data,  # type: ignore[arg-type]
+        return await self.request(
+            url=url,
+            method="OPTIONS",
+            headers=headers,
+            data=data,
+            form=form,
             files=files,
+            query_string=query_string,
             json=json,
-            params=params,
-            headers=use_headers,
-            cookies=use_cookies,
-            auth=auth,
-            follow_redirects=follow_redirects,
+            scheme=scheme,
+            cookies=cookies,
+            stream=stream,
             allow_redirects=allow_redirects,
-            timeout=timeout,
-            extensions=extensions,
         )
-        return self._process_cookies(result)
 
-    def delete(  # type: ignore[override]
+    async def head(  # type: ignore[override]
         self,
-        url: URLTypes,
+        url: str,
         *,
-        params: Optional[QueryParamTypes] = None,
-        headers: Optional[HeaderTypes] = None,
-        cookies: Optional[CookieTypes] = None,
-        auth: Union[AuthTypes, UseClientDefault] = USE_CLIENT_DEFAULT,
-        follow_redirects: Optional[bool] = None,
-        allow_redirects: Optional[bool] = None,
-        timeout: Union[TimeoutTypes, UseClientDefault] = USE_CLIENT_DEFAULT,
-        extensions: Optional[Dict[str, Any]] = None,
+        headers: Optional[Union[dict, CIMultiDict]] = None,
+        data: Any = None,
+        form: Optional[dict] = None,
+        files: Optional[dict] = None,
+        query_string: Optional[dict] = None,
+        json: Any = None,
+        scheme: str = "http",
+        cookies: Union[RequestsCookieJar, SimpleCookie, dict, None] = None,
+        stream: bool = False,
+        allow_redirects: bool = True,
     ) -> Response:
-        use_cookies = self.cookies if self.cookies else cookies
-        use_headers = self.headers if self.headers else headers
-        result = self.client.delete(
-            url,
-            params=params,
-            headers=use_headers,
-            cookies=use_cookies,
-            auth=auth,
-            follow_redirects=follow_redirects,
+        return await self.request(
+            url=url,
+            method="HEAD",
+            headers=headers,
+            data=data,
+            form=form,
+            files=files,
+            query_string=query_string,
+            json=json,
+            scheme=scheme,
+            cookies=cookies,
+            stream=stream,
             allow_redirects=allow_redirects,
-            timeout=timeout,
-            extensions=extensions,
         )
-        return self._process_cookies(result)
 
-    def websocket_connect(
-        self, url: str, subprotocols: Union[Sequence[str], None] = None, **kwargs: Any
-    ) -> Any:
-        # use cookies as headers?
-        if self.ws_headers:
-            kwargs["headers"] = {**self.ws_headers}
-        return self.client.websocket_connect(
-            url=url, subprotocols=subprotocols, **kwargs  # type: ignore
+    async def post(  # type: ignore[override]
+        self,
+        url: str,
+        *,
+        headers: Optional[Union[dict, CIMultiDict]] = None,
+        data: Any = None,
+        form: Optional[dict] = None,
+        files: Optional[dict] = None,
+        query_string: Optional[dict] = None,
+        json: Any = None,
+        scheme: str = "http",
+        cookies: Union[RequestsCookieJar, SimpleCookie, dict, None] = None,
+        stream: bool = False,
+        allow_redirects: bool = True,
+    ) -> Response:
+        return await self.request(
+            url=url,
+            method="POST",
+            headers=headers,
+            data=data,
+            form=form,
+            files=files,
+            query_string=query_string,
+            json=json,
+            scheme=scheme,
+            cookies=cookies,
+            stream=stream,
+            allow_redirects=allow_redirects,
         )
+
+    async def put(  # type: ignore[override]
+        self,
+        url: str,
+        *,
+        headers: Optional[Union[dict, CIMultiDict]] = None,
+        data: Any = None,
+        form: Optional[dict] = None,
+        files: Optional[dict] = None,
+        query_string: Optional[dict] = None,
+        json: Any = None,
+        scheme: str = "http",
+        cookies: Union[RequestsCookieJar, SimpleCookie, dict, None] = None,
+        stream: bool = False,
+        allow_redirects: bool = True,
+    ) -> Response:
+        return await self.request(
+            url=url,
+            method="PUT",
+            headers=headers,
+            data=data,
+            form=form,
+            files=files,
+            query_string=query_string,
+            json=json,
+            scheme=scheme,
+            cookies=cookies,
+            stream=stream,
+            allow_redirects=allow_redirects,
+        )
+
+    async def patch(  # type: ignore[override]
+        self,
+        url: str,
+        *,
+        headers: Optional[Union[dict, CIMultiDict]] = None,
+        data: Any = None,
+        form: Optional[dict] = None,
+        files: Optional[dict] = None,
+        query_string: Optional[dict] = None,
+        json: Any = None,
+        scheme: str = "http",
+        cookies: Union[RequestsCookieJar, SimpleCookie, dict, None] = None,
+        stream: bool = False,
+        allow_redirects: bool = True,
+    ) -> Response:
+        return await self.request(
+            url=url,
+            method="PATCH",
+            headers=headers,
+            data=data,
+            form=form,
+            files=files,
+            query_string=query_string,
+            json=json,
+            scheme=scheme,
+            cookies=cookies,
+            stream=stream,
+            allow_redirects=allow_redirects,
+        )
+
+    async def delete(  # type: ignore[override]
+        self,
+        url: str,
+        *,
+        headers: Optional[Union[dict, CIMultiDict]] = None,
+        data: Any = None,
+        form: Optional[dict] = None,
+        files: Optional[dict] = None,
+        query_string: Optional[dict] = None,
+        json: Any = None,
+        scheme: str = "http",
+        cookies: Union[RequestsCookieJar, SimpleCookie, dict, None] = None,
+        stream: bool = False,
+        allow_redirects: bool = True,
+    ) -> Response:
+        return await self.request(
+            url=url,
+            method="DELETE",
+            headers=headers,
+            data=data,
+            form=form,
+            files=files,
+            query_string=query_string,
+            json=json,
+            scheme=scheme,
+            cookies=cookies,
+            stream=stream,
+            allow_redirects=allow_redirects,
+        )
+
+    async def trace(  # type: ignore[override]
+        self,
+        url: str,
+        *,
+        headers: Optional[Union[dict, CIMultiDict]] = None,
+        data: Any = None,
+        form: Optional[dict] = None,
+        files: Optional[dict] = None,
+        query_string: Optional[dict] = None,
+        json: Any = None,
+        scheme: str = "http",
+        cookies: Union[RequestsCookieJar, SimpleCookie, dict, None] = None,
+        stream: bool = False,
+        allow_redirects: bool = True,
+    ) -> Response:
+        return await self.request(
+            url=url,
+            method="TRACE",
+            headers=headers,
+            data=data,
+            form=form,
+            files=files,
+            query_string=query_string,
+            json=json,
+            scheme=scheme,
+            cookies=cookies,
+            stream=stream,
+            allow_redirects=allow_redirects,
+        )
+
+    def websocket_connect(self, url: str, *args, **kwargs: Any) -> WebSocketSession:
+        # use cookies too?
+        incoming_headers = kwargs.get("headers", None)
+        if incoming_headers is None and self.headers:
+            kwargs["headers"] = {**self.headers}
+        return self.client.websocket_connect(path=url, *args, **kwargs)

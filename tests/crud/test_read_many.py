@@ -12,7 +12,7 @@ post_id = None
 @mark.asyncio
 @mark.dependency()
 async def test_get_groups(authenticated_client: BrowserTestClient):
-    response = authenticated_client.get("/groups")
+    response = await authenticated_client.get("/groups")
     assert response.status_code == status.HTTP_200_OK
     response_obj = response.json()
     assert isinstance(response_obj["groups"], list)
@@ -26,7 +26,7 @@ async def test_get_groups(authenticated_client: BrowserTestClient):
 @mark.asyncio
 @mark.dependency(depends=["test_get_groups"])
 async def test_get_groups_where_list_simple(authenticated_client: BrowserTestClient):
-    response = authenticated_client.get("/groups?where=[]")
+    response = await authenticated_client.get("/groups?where=[]")
     assert response.status_code == status.HTTP_200_OK
 
 
@@ -38,7 +38,7 @@ async def test_setup(authenticated_client: BrowserTestClient):
     global user_id
     global post_id
 
-    response = authenticated_client.post(
+    response = await authenticated_client.post(
         f"/groups",
         json={"group": {"name": "Elves Anonymous"}},
     )
@@ -47,7 +47,7 @@ async def test_setup(authenticated_client: BrowserTestClient):
     assert isinstance(result["group"], dict)
     elves_group_id = result["group"]["id"]
 
-    response = authenticated_client.post(
+    response = await authenticated_client.post(
         f"/groups",
         json={"group": {"name": "Orcs Anonymous"}},
     )
@@ -56,7 +56,7 @@ async def test_setup(authenticated_client: BrowserTestClient):
     assert isinstance(result["group"], dict)
     orcs_group_id = result["group"]["id"]
 
-    response = authenticated_client.post(
+    response = await authenticated_client.post(
         f"/users",
         json={
             "user": {
@@ -80,7 +80,7 @@ async def test_setup(authenticated_client: BrowserTestClient):
     assert isinstance(result["user"], dict)
     user_id = result["user"]["id"]
 
-    response = authenticated_client.post(
+    response = await authenticated_client.post(
         f"/posts",
         json={
             "post": {
@@ -101,11 +101,11 @@ async def test_setup(authenticated_client: BrowserTestClient):
 async def test_get_posts_json_notation(authenticated_client: BrowserTestClient):
     global post_id
 
-    response = authenticated_client.get(f"/posts")
+    response = await authenticated_client.get(f"/posts")
     result = response.json()
 
     where = dumps({"tags.categories": {"*eq": ["rant"]}})
-    response = authenticated_client.get(f"/posts?where={where}")
+    response = await authenticated_client.get(f"/posts?where={where}")
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert len(result["posts"]) is 1
@@ -116,7 +116,7 @@ async def test_get_posts_json_notation(authenticated_client: BrowserTestClient):
     assert result["meta"]["records"] is 1
 
     where = dumps({"tags.categories": {"*eq": ["blog"]}})
-    response = authenticated_client.get(f"/posts?where={where}")
+    response = await authenticated_client.get(f"/posts?where={where}")
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert isinstance(result["posts"], list)
@@ -130,7 +130,7 @@ async def test_get_groups_no_results(authenticated_client: BrowserTestClient):
     global orcs_group_id
 
     where = dumps({"name": "I'm not real"})
-    response = authenticated_client.get(f"/groups?where={where}")
+    response = await authenticated_client.get(f"/groups?where={where}")
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert len(result["groups"]) is 0
@@ -146,7 +146,7 @@ async def test_get_groups_where_list_complex(authenticated_client: BrowserTestCl
     where = dumps(
         [{"name": {"*contains": "Elves"}}, {"name": {"*contains": "Anonymous"}}]
     )
-    response = authenticated_client.get(f"/groups?where={where}")
+    response = await authenticated_client.get(f"/groups?where={where}")
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert len(result["groups"]) is 1
@@ -164,7 +164,7 @@ async def test_get_group_where_dict_simple(authenticated_client: BrowserTestClie
     global orcs_group_id
 
     where = dumps({"name": "Elves Anonymous"})
-    response = authenticated_client.get(f"/groups?where={where}")
+    response = await authenticated_client.get(f"/groups?where={where}")
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert len(result["groups"]) is 1
@@ -175,7 +175,7 @@ async def test_get_group_where_dict_simple(authenticated_client: BrowserTestClie
     assert result["meta"]["records"] is 1
 
     where = dumps({"name": "Orcs Anonymous"})
-    response = authenticated_client.get(f"/groups?where={where}")
+    response = await authenticated_client.get(f"/groups?where={where}")
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert len(result["groups"]) is 1
@@ -193,7 +193,7 @@ async def test_get_group_where_dict_complex(authenticated_client: BrowserTestCli
     global orcs_group_id
 
     where = dumps({"*or": [{"name": "Orcs Anonymous"}, {"name": "Elves Anonymous"}]})
-    response = authenticated_client.get(f"/groups?where={where}&sort=name asc")
+    response = await authenticated_client.get(f"/groups?where={where}&sort=name asc")
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert len(result["groups"]) is 2
@@ -207,7 +207,7 @@ async def test_get_group_where_dict_complex(authenticated_client: BrowserTestCli
     where = dumps(
         {"*or": [{"name": {"*contains": "Orcs"}}, {"name": {"*contains": "Elves"}}]}
     )
-    response = authenticated_client.get(f"/groups?where={where}&sort=name desc")
+    response = await authenticated_client.get(f"/groups?where={where}&sort=name desc")
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert len(result["groups"]) is 2
@@ -229,7 +229,9 @@ async def test_get_group_where_dict_complex_limit(
     where = dumps(
         {"*or": [{"name": {"*contains": "Orcs"}}, {"name": {"*contains": "Elves"}}]}
     )
-    response = authenticated_client.get(f"/groups?where={where}&sort=name desc&limit=1")
+    response = await authenticated_client.get(
+        f"/groups?where={where}&sort=name desc&limit=1"
+    )
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert len(result["groups"]) is 1
@@ -250,7 +252,7 @@ async def test_get_group_where_dict_complex_column_clip(
     where = dumps(
         {"*or": [{"name": {"*contains": "Orcs"}}, {"name": {"*contains": "Elves"}}]}
     )
-    response = authenticated_client.get(
+    response = await authenticated_client.get(
         f"/groups?where={where}&sort=name desc&columns=name"
     )
     assert response.status_code == status.HTTP_200_OK
@@ -283,7 +285,9 @@ async def test_get_group_where_dict_validate_links(
     where = dumps(
         {"*or": [{"name": {"*contains": "Orcs"}}, {"name": {"*contains": "Elves"}}]}
     )
-    response = authenticated_client.get(f"/groups?where={where}&sort=name desc&limit=1")
+    response = await authenticated_client.get(
+        f"/groups?where={where}&sort=name desc&limit=1"
+    )
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert len(result["groups"]) is 1
@@ -303,30 +307,30 @@ async def test_cleanup(authenticated_client: BrowserTestClient):
     global user_id
     global post_id
 
-    response = authenticated_client.delete(f"/groups/{elves_group_id}")
+    response = await authenticated_client.delete(f"/groups/{elves_group_id}")
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert isinstance(result, dict)
     assert result["group"]["id"] == elves_group_id
 
-    response = authenticated_client.delete(f"/groups/{orcs_group_id}")
+    response = await authenticated_client.delete(f"/groups/{orcs_group_id}")
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert isinstance(result, dict)
     assert result["group"]["id"] == orcs_group_id
 
-    response = authenticated_client.delete(f"/users/{user_id}")
+    response = await authenticated_client.delete(f"/users/{user_id}")
     # This should return a 405 as delete-user is blocked using a framework feature!
     assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
 
-    response = authenticated_client.delete(f"/users/purge/{user_id}?confirm=Y")
+    response = await authenticated_client.delete(f"/users/purge/{user_id}?confirm=Y")
     # This should return a 200 as this is an overriden action!
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert isinstance(result, dict)
     assert result["user"]["id"] == user_id
 
-    response = authenticated_client.delete(f"/posts/{post_id}")
+    response = await authenticated_client.delete(f"/posts/{post_id}")
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert isinstance(result, dict)

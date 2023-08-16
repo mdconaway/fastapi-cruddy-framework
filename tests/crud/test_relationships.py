@@ -21,7 +21,7 @@ async def test_setup(authenticated_client: BrowserTestClient):
     global alt_user_id
     global post_id
 
-    response = authenticated_client.post(
+    response = await authenticated_client.post(
         f"/groups",
         json={"group": {"name": "Shire Lovers Anonymous"}},
     )
@@ -30,7 +30,7 @@ async def test_setup(authenticated_client: BrowserTestClient):
     assert isinstance(result["group"], dict)
     group_id = result["group"]["id"]
 
-    response = authenticated_client.post(
+    response = await authenticated_client.post(
         f"/groups",
         json={"group": {"name": "Shire Haters Anonymous"}},
     )
@@ -39,7 +39,7 @@ async def test_setup(authenticated_client: BrowserTestClient):
     assert isinstance(result["group"], dict)
     alt_group_id = result["group"]["id"]
 
-    response = authenticated_client.post(
+    response = await authenticated_client.post(
         f"/users",
         json={
             "user": {
@@ -63,7 +63,7 @@ async def test_setup(authenticated_client: BrowserTestClient):
     assert isinstance(result["user"], dict)
     user_id = result["user"]["id"]
 
-    response = authenticated_client.post(
+    response = await authenticated_client.post(
         f"/users",
         json={
             "user": {
@@ -87,7 +87,7 @@ async def test_setup(authenticated_client: BrowserTestClient):
     assert isinstance(result["user"], dict)
     alt_user_id = result["user"]["id"]
 
-    response = authenticated_client.post(
+    response = await authenticated_client.post(
         f"/groups",
         json={
             "group": {
@@ -101,7 +101,7 @@ async def test_setup(authenticated_client: BrowserTestClient):
     assert isinstance(result["group"], dict)
     tertiary_group_id = result["group"]["id"]
 
-    response = authenticated_client.post(
+    response = await authenticated_client.post(
         f"/posts",
         json={
             "post": {
@@ -122,7 +122,7 @@ async def test_setup(authenticated_client: BrowserTestClient):
 async def test_get_groups_through_user(authenticated_client: BrowserTestClient):
     global user_id
     global group_id
-    response = authenticated_client.get(f"/users/{user_id}/groups")
+    response = await authenticated_client.get(f"/users/{user_id}/groups")
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert len(result["groups"]) is 2
@@ -138,7 +138,7 @@ async def test_get_groups_through_user(authenticated_client: BrowserTestClient):
 async def test_get_posts_through_user(authenticated_client: BrowserTestClient):
     global user_id
     global post_id
-    response = authenticated_client.get(f"/users/{user_id}/posts")
+    response = await authenticated_client.get(f"/users/{user_id}/posts")
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert result["posts"][0]["id"] == post_id
@@ -154,7 +154,7 @@ async def test_get_posts_through_user(authenticated_client: BrowserTestClient):
 async def test_get_user_through_post(authenticated_client: BrowserTestClient):
     global user_id
     global post_id
-    response = authenticated_client.get(f"/posts/{post_id}/user")
+    response = await authenticated_client.get(f"/posts/{post_id}/user")
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert isinstance(result["user"], dict)
@@ -166,7 +166,7 @@ async def test_get_user_through_post(authenticated_client: BrowserTestClient):
 async def test_get_users_through_group(authenticated_client: BrowserTestClient):
     global user_id
     global group_id
-    response = authenticated_client.get(f"/groups/{group_id}/users")
+    response = await authenticated_client.get(f"/groups/{group_id}/users")
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert len(result["users"]) is 1
@@ -183,7 +183,7 @@ async def test_alter_users_in_group(authenticated_client: BrowserTestClient):
     global group_id
     global user_id
     global alt_user_id
-    response = authenticated_client.patch(
+    response = await authenticated_client.patch(
         f"/groups/{group_id}",
         json={
             "group": {
@@ -195,7 +195,9 @@ async def test_alter_users_in_group(authenticated_client: BrowserTestClient):
     )
     assert response.status_code == status.HTTP_200_OK
 
-    response = authenticated_client.get(f"/groups/{group_id}/users?sort=first_name asc")
+    response = await authenticated_client.get(
+        f"/groups/{group_id}/users?sort=first_name asc"
+    )
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert len(result["users"]) is 2
@@ -214,13 +216,13 @@ async def test_filter_users_in_group(authenticated_client: BrowserTestClient):
     global alt_user_id
     global tertiary_group_id
 
-    response = authenticated_client.get(f"/groups/{tertiary_group_id}/users")
+    response = await authenticated_client.get(f"/groups/{tertiary_group_id}/users")
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert len(result["users"]) is 2
 
     where = dumps({"id": alt_user_id})
-    response = authenticated_client.get(
+    response = await authenticated_client.get(
         f"/groups/{tertiary_group_id}/users?where={where}"
     )
     assert response.status_code == status.HTTP_200_OK
@@ -229,7 +231,7 @@ async def test_filter_users_in_group(authenticated_client: BrowserTestClient):
     assert result["users"][0]["id"] == alt_user_id
 
     where = dumps({"id": user_id})
-    response = authenticated_client.get(
+    response = await authenticated_client.get(
         f"/groups/{tertiary_group_id}/users?where={where}"
     )
     assert response.status_code == status.HTTP_200_OK
@@ -238,7 +240,7 @@ async def test_filter_users_in_group(authenticated_client: BrowserTestClient):
     assert result["users"][0]["id"] == user_id
 
     where = dumps({"*or": [{"id": user_id}, {"id": alt_user_id}]})
-    response = authenticated_client.get(
+    response = await authenticated_client.get(
         f"/groups/{tertiary_group_id}/users?where={where}&sort=first_name asc"
     )
     assert response.status_code == status.HTTP_200_OK
@@ -255,7 +257,7 @@ async def test_filter_users_in_group(authenticated_client: BrowserTestClient):
             ]
         }
     )
-    response = authenticated_client.get(
+    response = await authenticated_client.get(
         f"/groups/{tertiary_group_id}/users?where={where}&sort=first_name desc"
     )
     assert response.status_code == status.HTTP_200_OK
@@ -272,7 +274,7 @@ async def test_filter_users_in_group(authenticated_client: BrowserTestClient):
             ]
         }
     )
-    response = authenticated_client.get(
+    response = await authenticated_client.get(
         f"/groups/{tertiary_group_id}/users?where={where}&columns=first_name"
     )
     assert response.status_code == status.HTTP_200_OK
@@ -295,7 +297,7 @@ async def test_filter_users_in_group(authenticated_client: BrowserTestClient):
             ]
         }
     )
-    response = authenticated_client.get(
+    response = await authenticated_client.get(
         f"/groups/{tertiary_group_id}/users?where={where}&sort=first_name asc&limit=1"
     )
     assert response.status_code == status.HTTP_200_OK
@@ -314,12 +316,12 @@ async def test_remove_from_all_groups(authenticated_client: BrowserTestClient):
     global alt_user_id
     global alt_group_id
 
-    response = authenticated_client.get(f"/users/{alt_user_id}/groups")
+    response = await authenticated_client.get(f"/users/{alt_user_id}/groups")
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert len(result["groups"]) is 3
 
-    response = authenticated_client.patch(
+    response = await authenticated_client.patch(
         f"/users/{alt_user_id}",
         json={
             "user": {
@@ -341,12 +343,12 @@ async def test_remove_from_all_groups(authenticated_client: BrowserTestClient):
     )
     assert response.status_code == status.HTTP_200_OK
 
-    response = authenticated_client.get(f"/users/{alt_user_id}/groups")
+    response = await authenticated_client.get(f"/users/{alt_user_id}/groups")
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert len(result["groups"]) is 0
 
-    response = authenticated_client.get(f"/groups/{alt_group_id}/users")
+    response = await authenticated_client.get(f"/groups/{alt_group_id}/users")
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert len(result["users"]) is 0
@@ -359,7 +361,7 @@ async def test_guarded_relationship(authenticated_client: BrowserTestClient):
     global user_id
     global alt_user_id
 
-    response = authenticated_client.patch(
+    response = await authenticated_client.patch(
         f"/posts/{post_id}",
         json={
             "post": {
@@ -374,7 +376,7 @@ async def test_guarded_relationship(authenticated_client: BrowserTestClient):
     result = response.json()
     assert result["post"]["user_id"] == user_id
 
-    response = authenticated_client.patch(
+    response = await authenticated_client.patch(
         f"/users/{alt_user_id}",
         json={
             "user": {
@@ -396,7 +398,7 @@ async def test_guarded_relationship(authenticated_client: BrowserTestClient):
     )
     assert response.status_code == status.HTTP_200_OK
 
-    response = authenticated_client.get(f"/posts/{post_id}")
+    response = await authenticated_client.get(f"/posts/{post_id}")
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert result["post"]["user_id"] == user_id
@@ -413,40 +415,40 @@ async def test_cleanup(authenticated_client: BrowserTestClient):
     global alt_group_id
     global tertiary_group_id
 
-    response = authenticated_client.delete(f"/users/{user_id}")
+    response = await authenticated_client.delete(f"/users/{user_id}")
     # This should return a 405 as delete-user is blocked using a framework feature!
     assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
 
-    response = authenticated_client.delete(f"/users/{alt_user_id}")
+    response = await authenticated_client.delete(f"/users/{alt_user_id}")
     # This should return a 405 as delete-user is blocked using a framework feature!
     assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
 
-    response = authenticated_client.delete(f"/users/purge/{user_id}?confirm=Y")
+    response = await authenticated_client.delete(f"/users/purge/{user_id}?confirm=Y")
     # This should return a 200 as this is an overriden action!
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert isinstance(result, dict)
     assert result["user"]["id"] == user_id
 
-    response = authenticated_client.delete(f"/posts/{post_id}")
+    response = await authenticated_client.delete(f"/posts/{post_id}")
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert isinstance(result, dict)
     assert result["post"]["id"] == post_id
 
-    response = authenticated_client.delete(f"/groups/{group_id}")
+    response = await authenticated_client.delete(f"/groups/{group_id}")
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert isinstance(result, dict)
     assert result["group"]["id"] == group_id
 
-    response = authenticated_client.delete(f"/groups/{alt_group_id}")
+    response = await authenticated_client.delete(f"/groups/{alt_group_id}")
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert isinstance(result, dict)
     assert result["group"]["id"] == alt_group_id
 
-    response = authenticated_client.delete(f"/groups/{tertiary_group_id}")
+    response = await authenticated_client.delete(f"/groups/{tertiary_group_id}")
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert isinstance(result, dict)
