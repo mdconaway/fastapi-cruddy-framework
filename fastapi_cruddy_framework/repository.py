@@ -1,4 +1,5 @@
 import math
+from typing import Any
 from dateutil.parser import parse
 from dateutil.tz import UTC
 from asyncio import gather
@@ -11,11 +12,11 @@ from sqlalchemy import (
     not_,
     func,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSONB, array
 from sqlalchemy.engine import Result
 from sqlalchemy.sql import select, update
 from sqlalchemy.sql.schema import Table, Column
-from sqlalchemy.types import ARRAY, JSON, VARCHAR
+from sqlalchemy.types import JSON, VARCHAR  # ARRAY, CHAR
 from sqlalchemy.orm import RelationshipProperty, ONETOMANY, MANYTOMANY
 from sqlmodel import cast, inspect
 from typing import Type, Union, List, Dict
@@ -31,18 +32,21 @@ from .util import get_pk, possible_id_types, possible_id_values, lifecycle_types
 JSON_COLUMNS = (JSON, JSONB)
 # The CAST MAP provides composite keys (lhs comparator|rhs value type) which map to a DB cast function
 # An empty rhs value type means "all explicitly untracked" types should be cast as this
+# def get_cast_type(v: Any):
+
 QUERY_FORGE_CAST_MAP = {
     "*contains:dict": lambda v, model_attr: cast(v, model_attr.type),
     "*contains:list": lambda v, model_attr: cast(v, model_attr.type),
-    "*contains:": lambda v, model_attr: cast([v], model_attr.type),  # type: ignore
+    "*contains:": lambda v, model_attr: cast(v, model_attr.type),
     "*contained_by:dict": lambda v, model_attr: cast(v, model_attr.type),
     "*contained_by:list": lambda v, model_attr: cast(v, model_attr.type),
     "*contained_by:": lambda v, model_attr: cast([v], model_attr.type),  # type: ignore
-    "*has_all:": lambda v, *args: cast([v], ARRAY),  # type: ignore
-    "*has_all:list": lambda v, *args: cast(v, ARRAY),
-    "*has_any:": lambda v, *args: cast([v], ARRAY),  # type: ignore
-    "*has_any:list": lambda v, *args: cast(v, ARRAY),
     "*has_key:": lambda v, *args: cast(v, VARCHAR),
+    # The following are only supported by postgres... for now
+    "*has_all:": lambda v, *args: array([v]),  # cast([v], ARRAY),  # type: ignore
+    "*has_all:list": lambda v, *args: array(v),  # cast(v, ARRAY),
+    "*has_any:": lambda v, *args: array([v]),  # cast([v], ARRAY),  # type: ignore
+    "*has_any:list": lambda v, *args: array(v),  # cast(v, ARRAY),
 }
 QUERY_FORGE_COMMON = ("*eq", "*neq", "*gt", "*gte", "*lt", "*lte")
 UNSUPPORTED_LIKE_COLUMNS = [
