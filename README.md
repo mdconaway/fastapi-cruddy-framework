@@ -687,7 +687,7 @@ Generally, these functions do about what you would expect them to do. More docum
 
 ## BrowserTestClient
 
-The `BrowserTestClient` is a useful helper class to enable test suites to "boot" a Cruddy based app, and then use different virtual "browsers" to execute API tests against the app at the same time, against the same app instance. For usage examples, see `tests/conftest.py` and `tests/crud/*.py`. `BrowserTestClient` is designed to use the async ASGI server runner `TestClient`, which is re-exported from (async-asgi-testclient)[https://github.com/vinissimus/async-asgi-testclient]. Assuming your app has some level of authentication present you could setup your own conftest.py to look like:
+The `BrowserTestClient` is a useful helper class to enable test suites to "boot" a Cruddy based app, and then use different virtual "browsers" to execute API tests against the app at the same time, against the same app instance. For usage examples, see `tests/conftest.py` and `tests/crud/*.py`. `BrowserTestClient` is designed to use the async ASGI server runner `TestClient`, which is re-exported from [async-asgi-testclient](https://github.com/vinissimus/async-asgi-testclient). Assuming your app has some level of authentication present you could setup your own conftest.py to look like:
 
 ```python
 from logging import getLogger
