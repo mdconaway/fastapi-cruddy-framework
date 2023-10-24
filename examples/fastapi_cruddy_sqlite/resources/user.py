@@ -26,4 +26,5 @@ resource = Resource(
     policies_create=[auth_user_session, hash_user_password],
     disable_delete=True,
     controller_extension=UserController,
+    artificial_relationship_paths=["others"],
 )

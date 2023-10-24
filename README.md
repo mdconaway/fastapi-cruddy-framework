@@ -292,6 +292,14 @@ response_meta_schema: CruddyGenericModel = MetaObject,
 # to manage creating or changing protected relationships elsewhere in your application.
 # Protected relationships will still be viewable at their designated GET routes.
 protected_relationships: List[str] = [],
+# 'artificial_relationship_paths' will add an arbitrary list of sub-paths to each CRUD object's
+# relationship "links" attribute. For example, adding "artificial_relationship_paths": ["fake"]
+# would cause each object's "links" attribute to contain a key-value pair of:
+# "fake": "<link_prefix>/<model>/{id}/fake"
+# within its links object. This can be used to create arbitrarily complicated controller GET
+# actions (that can handle nested or complex relationships) and then have those actions
+# successfully mapped into the RestAdapter compliant links specification for each object instance.
+artificial_relationship_paths: List[str] = [],
 # The following options allow you to pass in your Sails.js-like policy chains, which will
 # run before all of your endpoints (in the case of universal), or in front of only specific
 # endpoints that match the action specified. These policies can be used for nearly any purpose,

@@ -91,6 +91,7 @@ class Resource:
         path: Union[str, None] = None,
         tags: Union[List[Union[str, Enum]], None] = None,
         protected_relationships: List[str] = [],
+        artificial_relationship_paths: List[str] = [],
         policies_universal: List[Callable] = [],
         policies_create: List[Callable] = [],
         policies_update: List[Callable] = [],
@@ -129,6 +130,7 @@ class Resource:
         self._id_type = id_type
         self._relations = {}
         self._protected_relationships = protected_relationships
+        self._artificial_relationship_paths = artificial_relationship_paths
 
         self.policies = {
             "universal": policies_universal,
@@ -248,6 +250,15 @@ class Resource:
                 or v.orm_relationship.direction == ONETOMANY
             ) and k not in self._protected_relationships:
                 false_attrs[k] = (Optional[List[v.foreign_resource._id_type]], None)
+        for item in self._artificial_relationship_paths:
+            link_object[item] = (
+                str,
+                Field(
+                    schema_extra={
+                        "example": self._single_link(id=example_id, relationship=item)
+                    }
+                ),
+            )
         link_object["__base__"] = CruddyModel
 
         LinkModel = create_model(f"{resource_model_name}Links", **link_object)
@@ -374,6 +385,8 @@ class Resource:
         new_link_object = {}
         for k, v in self._relations.items():
             new_link_object[k] = self._single_link(id=id, relationship=k)
+        for item in self._artificial_relationship_paths:
+            new_link_object[item] = self._single_link(id=id, relationship=item)
         return new_link_object
 
     def _single_link(self, id: possible_id_values = "", relationship: str = ""):

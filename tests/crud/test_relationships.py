@@ -135,6 +135,18 @@ async def test_get_groups_through_user(authenticated_client: BrowserTestClient):
 
 @mark.asyncio
 @mark.dependency(depends=["test_get_groups_through_user"])
+async def test_inspect_artificial_relationship(authenticated_client: BrowserTestClient):
+    global user_id
+    response = await authenticated_client.get(f"/users/{user_id}")
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert result["user"]["id"] == user_id
+    assert len(result["user"]["links"]) > 1
+    assert result["user"]["links"]["others"] == f"/users/{user_id}/others"
+
+
+@mark.asyncio
+@mark.dependency(depends=["test_inspect_artificial_relationship"])
 async def test_get_posts_through_user(authenticated_client: BrowserTestClient):
     global user_id
     global post_id

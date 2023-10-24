@@ -92,3 +92,36 @@ class UserController(CruddyController):
             return await self.actions.get_all(
                 page=page, limit=limit, columns=columns, sort=sort, where=where
             )
+
+        @self.controller.get(
+            "/{id}/others",
+            description="A fake relationship to everyone but self",
+            response_model=many_schema,
+            response_model_exclude_none=True,
+            dependencies=dependency_list(verify_session),
+        )
+        async def get_fake_relationship(
+            id: id_type = Path(..., alias="id"),
+            page: int = 1,
+            limit: int = 10,
+            columns: list[str] = Query(None, alias="columns"),
+            sort: list[str] = Query(None, alias="sort"),
+            where: Json = Query(None, alias="where"),
+        ):
+            if where is None:
+                where = []
+            if isinstance(where, dict) and len(where) > 0:
+                new_where_query = [where]
+            elif isinstance(where, list):
+                new_where_query = where
+            else:
+                new_where_query = []
+            new_where_query.append({"id": {"*neq": str(id)}})
+            # You can do any pre-action logic required here, like persisting a file!
+            return await self.actions.get_all(
+                page=page,
+                limit=limit,
+                columns=columns,
+                sort=sort,
+                where=new_where_query,
+            )
