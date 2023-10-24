@@ -14,11 +14,12 @@ from .schemas import CruddyModel
 class BaseAdapter:
     engine: AsyncEngine
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.engine = create_async_engine(
             "sqlite+aiosqlite:///file:temp.db?mode=memory&cache=shared&uri=true",
             echo=True,
             future=True,
+            **kwargs,
         )
 
     async def __call__(self) -> AsyncIterator[AsyncSession]:
@@ -81,7 +82,7 @@ class MysqlAdapter(BaseAdapter):
     connection_uri: str
     engine: AsyncEngine
 
-    def __init__(self, connection_uri="", pool_size=4, max_overflow=64):
+    def __init__(self, connection_uri="", pool_size=4, max_overflow=64, **kwargs):
         self.connection_uri = connection_uri
         self.engine = create_async_engine(
             self.connection_uri,
@@ -89,6 +90,7 @@ class MysqlAdapter(BaseAdapter):
             future=True,
             pool_size=pool_size,
             max_overflow=max_overflow,
+            **kwargs,
         )
 
 
@@ -115,7 +117,9 @@ class SqliteAdapter(BaseAdapter):
     connection_uri: str
     engine: AsyncEngine
 
-    def __init__(self, db_path="temp.db", mode: Literal["memory", "file"] = "memory"):
+    def __init__(
+        self, db_path="temp.db", mode: Literal["memory", "file"] = "memory", **kwargs
+    ):
         if mode == "memory":
             self.connection_uri = f"{self.SQLITE_ASYNC_URL_PREFIX}{self.MEMORY_LOCATION_START}{db_path}{self.MEMORY_LOCATION_END}"
         else:
@@ -126,4 +130,5 @@ class SqliteAdapter(BaseAdapter):
             poolclass=StaticPool,
             echo=True,
             future=True,
+            **kwargs,
         )

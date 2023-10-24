@@ -1,5 +1,4 @@
 import math
-from typing import Any
 from dateutil.parser import parse
 from dateutil.tz import UTC
 from asyncio import gather
