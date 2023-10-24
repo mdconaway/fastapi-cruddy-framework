@@ -23,8 +23,8 @@ class RelationshipConfig:
 
     def __init__(
         self,
-        orm_relationship: RelationshipProperty = ...,
-        foreign_resource: "Resource" = ...,
+        orm_relationship: RelationshipProperty,
+        foreign_resource: "Resource",
     ):
         self.orm_relationship = orm_relationship
         self.foreign_resource = foreign_resource

@@ -363,7 +363,7 @@ class Resource:
             "update_relations": SingleUpdateSchema,
         }
 
-    def _link_builder(self, id: possible_id_values = ...):
+    def _link_builder(self, id: possible_id_values):
         # During "many" lookups, and depending on DB type, the id value return is a mapping
         # from the DB, so the id value is not properly "dasherized" into UUID format. This
         # REGEX fixes the issue without adding the CPU overhead of transforming each row
@@ -472,7 +472,7 @@ class Resource:
             self._on_resolution()
 
     @staticmethod
-    def _set_registry(reg: "ResourceRegistry" = ...):
+    def _set_registry(reg: "ResourceRegistry"):
         Resource._registry = reg
 
     @staticmethod
@@ -538,7 +538,7 @@ class ResourceRegistry:
     # needed to efficiently search between models to conduct relational
     # joins and controller expansion. Is invoked by each resource as it
     # is created.
-    def register(self, res: Resource = ...):
+    def register(self, res: Resource):
         base_model = res.repository.model
         map_name = base_model.__name__
         self._base_models[map_name] = base_model

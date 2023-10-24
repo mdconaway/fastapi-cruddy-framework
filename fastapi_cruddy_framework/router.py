@@ -15,9 +15,7 @@ def getModuleDir(application_module) -> str:
     return path.dirname(os.path.abspath(application_module.__file__))
 
 
-def getDirectoryModules(
-    application_module: ModuleType = ..., sub_module_path="resources"
-):
+def getDirectoryModules(application_module: ModuleType, sub_module_path="resources"):
     app_root = getModuleDir(application_module)
     app_root_name = path.split(app_root)[1]
     normalized_sub_path = os.path.normpath(sub_module_path)
@@ -42,7 +40,7 @@ def getDirectoryModules(
 
 
 def CreateRouterFromResources(
-    application_module: ModuleType = ...,
+    application_module: ModuleType,
     resource_path: str = "resources",
     common_resource_name: str = "resource",
 ) -> APIRouter:

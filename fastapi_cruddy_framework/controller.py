@@ -46,10 +46,10 @@ def GetRelationships(
 
 
 async def SaveRelationships(
-    id: possible_id_values = ...,
-    record: Type[CruddyModel] = ...,
-    relation_config_map: Dict[str, RelationshipConfig] = ...,
-    repository: "AbstractRepository" = ...,
+    id: possible_id_values,
+    record: Type[CruddyModel],
+    relation_config_map: Dict[str, RelationshipConfig],
+    repository: "AbstractRepository",
 ):
     relationship_lists = GetRelationships(record, relation_config_map)
     modified_records = 0
@@ -202,13 +202,13 @@ class CruddyController:
 
     def __init__(
         self,
-        actions: Actions = ...,
-        controller: APIRouter = ...,
-        repository: "AbstractRepository" = ...,
-        resource: "Resource" = ...,
+        actions: Actions,
+        controller: APIRouter,
+        repository: "AbstractRepository",
+        resource: "Resource",
         adapter: Union[
             "BaseAdapter", "MysqlAdapter", "PostgresqlAdapter", "SqliteAdapter"
-        ] = ...,
+        ],
     ):
         self.actions = actions
         self.controller = controller
@@ -238,13 +238,13 @@ def assemblePolicies(*args: (List)):
 
 
 def _ControllerConfigManyToOne(
-    controller: APIRouter = ...,
-    repository: "AbstractRepository" = ...,
-    id_type: possible_id_types = ...,
-    relationship_prop: str = ...,
-    config: RelationshipConfig = ...,
-    policies_universal: List = ...,
-    policies_get_one: List = ...,
+    controller: APIRouter,
+    repository: "AbstractRepository",
+    id_type: possible_id_types,
+    relationship_prop: str,
+    config: RelationshipConfig,
+    policies_universal: List,
+    policies_get_one: List,
 ):
     col: Column = next(iter(config.orm_relationship.local_columns))
     far_side: ForeignKey = next(iter(col.foreign_keys))
@@ -336,14 +336,14 @@ def _ControllerConfigManyToOne(
 
 
 def _ControllerConfigOneToMany(
-    controller: APIRouter = ...,
-    repository: "AbstractRepository" = ...,
-    id_type: possible_id_types = ...,
-    relationship_prop: str = ...,
-    config: RelationshipConfig = ...,
+    controller: APIRouter,
+    repository: "AbstractRepository",
+    id_type: possible_id_types,
+    relationship_prop: str,
+    config: RelationshipConfig,
     meta_schema: Union[Type[CruddyModel], Type[CruddyGenericModel]] = MetaObject,
-    policies_universal: List = ...,
-    policies_get_one: List = ...,
+    policies_universal: List = [],
+    policies_get_one: List = [],
 ):
     far_col: Column = next(iter(config.orm_relationship.remote_side))
     col: Column = next(iter(config.orm_relationship.local_columns))
@@ -437,14 +437,14 @@ def _ControllerConfigOneToMany(
 
 
 def _ControllerConfigManyToMany(
-    controller: APIRouter = ...,
-    repository: "AbstractRepository" = ...,
-    id_type: possible_id_types = ...,
-    relationship_prop: str = ...,
-    config: RelationshipConfig = ...,
+    controller: APIRouter,
+    repository: "AbstractRepository",
+    id_type: possible_id_types,
+    relationship_prop: str,
+    config: RelationshipConfig,
     meta_schema: Union[Type[CruddyModel], Type[CruddyGenericModel]] = MetaObject,
-    policies_universal: List = ...,
-    policies_get_one: List = ...,
+    policies_universal: List = [],
+    policies_get_one: List = [],
 ):
     far_model: Type[CruddyModel] = config.foreign_resource.repository.model
     resource_model_name = f"{repository.model.__name__}".lower()
@@ -518,16 +518,16 @@ def _ControllerConfigManyToMany(
 
 
 def ControllerConfigurator(
-    controller: APIRouter = ...,
-    repository: "AbstractRepository" = ...,
+    controller: APIRouter,
+    repository: "AbstractRepository",
+    single_name: str,
+    plural_name: str,
+    actions: Actions,
+    relations: Dict[str, RelationshipConfig],
     id_type: possible_id_types = int,
-    single_name: str = ...,
-    plural_name: str = ...,
     single_schema: Type[CruddyGenericModel] = ResponseSchema,
     many_schema: Type[CruddyGenericModel] = PageResponse,
     meta_schema: Union[Type[CruddyModel], Type[CruddyGenericModel]] = MetaObject,
-    relations: Dict[str, RelationshipConfig] = ...,
-    actions: Actions = ...,
     policies_universal=[],
     policies_create=[],
     policies_update=[],

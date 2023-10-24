@@ -103,12 +103,10 @@ class AbstractRepository:
 
     def __init__(
         self,
-        adapter: Union[
-            BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter
-        ] = ...,
-        update_model: Type[CruddyModel] = ...,
-        create_model: Type[CruddyModel] = ...,
-        model: Type[CruddyModel] = ...,
+        adapter: Union[BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter],
+        update_model: Type[CruddyModel],
+        create_model: Type[CruddyModel],
+        model: Type[CruddyModel],
         id_type: possible_id_types = int,
         lifecycle_before_create: lifecycle_types = None,
         lifecycle_after_create: lifecycle_types = None,
@@ -326,9 +324,9 @@ class AbstractRepository:
 
     async def get_all_relations(
         self,
-        id: possible_id_values = ...,
-        relation: str = ...,
-        relation_model: Type[CruddyModel] = ...,
+        id: possible_id_values,
+        relation: str,
+        relation_model: Type[CruddyModel],
         page: int = 1,
         limit: int = 10,
         columns: Union[List[str], None] = None,
@@ -431,8 +429,8 @@ class AbstractRepository:
     async def set_many_many_relations(
         self,
         id: possible_id_values,
-        relation: str = ...,
-        relations: List[possible_id_values] = ...,
+        relation: str,
+        relations: List[possible_id_values],
     ):
         relation_conf = {"id": id, "relation": relation, "relations": relations}
 
@@ -541,8 +539,8 @@ class AbstractRepository:
     async def set_one_many_relations(
         self,
         id: possible_id_values,
-        relation: str = ...,
-        relations: List[possible_id_values] = ...,
+        relation: str,
+        relations: List[possible_id_values],
     ):
         relation_conf = {"id": id, "relation": relation, "relations": relations}
 
