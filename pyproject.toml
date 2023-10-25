@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fastapi-cruddy-framework"
-version = "0.1.3"
+version = "0.1.4"
 description = "A holistic CRUD/MVC framework for FastAPI, with endpoint policies and relationships"
 authors = ["mdconaway <mdconaway@users.noreply.github.com>"]
 readme = "README.md"
@@ -39,23 +39,23 @@ extend-exclude = '''
 python = ">=3.8,<4.0"
 fastapi = {extras = ["all"], version = "^0.99.1"}
 SQLAlchemy-Utils = "^0.41.1"
-SQLAlchemy = { extras = ["asyncio"], version = "^1.4.41" }
-sqlmodel = "^0.0.8"
+SQLAlchemy = { extras = ["asyncio"], version = "^1.4.49" }
+sqlmodel = "^0.0.9"
 inflect = "^7.0.0"
 python-dateutil = "^2.8.2"
 async-asgi-testclient = "^1.4.11"
 
 [tool.poetry.group.dev.dependencies]
-black = "^23.7.0"
+black = "^23.10.1"
 uvicorn = "^0.23.2"
 starlette-session = "^0.4.3"
 aiosqlite = "^0.19.0"
 bcrypt = "^4.0.1"
 pytest = "^7.4.0"
-pylint = "^2.17.5"
+pylint = "^2.17.7"
 pytest-asyncio = "^0.21.1"
 pytest-dependency = "^0.5.1"
-coverage = "^7.3.0"
+coverage = "^7.3.2"
 
 [tool.poetry.scripts]
 start_sqlite = "examples.fastapi_cruddy_sqlite.bootloader:start"
