@@ -57,6 +57,8 @@ class Resource:
     _model_name_single: str
     _model_name_plural: str
     _on_resolution: Union[Callable, None] = None
+    _artificial_relationship_paths: List[str]
+    _default_limit: int
     adapter: Union[BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter]
     actions: Actions
     repository: AbstractRepository
@@ -103,6 +105,7 @@ class Resource:
         disable_delete: bool = False,
         disable_get_one: bool = False,
         disable_get_many: bool = False,
+        default_limit: int = 10,
         lifecycle_before_create: lifecycle_types = None,
         lifecycle_after_create: lifecycle_types = None,
         lifecycle_before_update: lifecycle_types = None,
@@ -131,6 +134,7 @@ class Resource:
         self._relations = {}
         self._protected_relationships = protected_relationships
         self._artificial_relationship_paths = artificial_relationship_paths
+        self._default_limit = default_limit
 
         self.policies = {
             "universal": policies_universal,
@@ -444,6 +448,7 @@ class Resource:
             many_schema=self.schemas["many"],
             meta_schema=self._meta_schema,
             relations=self._relations,
+            default_limit=self._default_limit,
         )
 
         if self.controller_extension != None and issubclass(

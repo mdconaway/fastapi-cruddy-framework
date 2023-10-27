@@ -6,6 +6,7 @@ from fastapi_cruddy_framework import CruddyController
 from examples.fastapi_cruddy_sqlite.policies.verify_session import verify_session
 from examples.fastapi_cruddy_sqlite.policies.naive_auth import auth_user_session
 from examples.fastapi_cruddy_sqlite.utils.dependency_list import dependency_list
+from examples.fastapi_cruddy_sqlite.config.general import general
 
 
 class UserController(CruddyController):
@@ -83,7 +84,7 @@ class UserController(CruddyController):
         )
         async def get_all_again(
             page: int = 1,
-            limit: int = 10,
+            limit: int = general.DEFAULT_LIMIT,
             columns: list[str] = Query(None, alias="columns"),
             sort: list[str] = Query(None, alias="sort"),
             where: Json = Query(None, alias="where"),
@@ -103,7 +104,7 @@ class UserController(CruddyController):
         async def get_fake_relationship(
             id: id_type = Path(..., alias="id"),
             page: int = 1,
-            limit: int = 10,
+            limit: int = general.DEFAULT_LIMIT,
             columns: list[str] = Query(None, alias="columns"),
             sort: list[str] = Query(None, alias="sort"),
             where: Json = Query(None, alias="where"),

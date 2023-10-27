@@ -12,6 +12,7 @@ from examples.fastapi_cruddy_sqlite.policies.naive_auth import auth_user_session
 from examples.fastapi_cruddy_sqlite.policies.hash_user_password import (
     hash_user_password,
 )
+from examples.fastapi_cruddy_sqlite.config.general import general
 
 
 resource = Resource(
@@ -27,4 +28,5 @@ resource = Resource(
     disable_delete=True,
     controller_extension=UserController,
     artificial_relationship_paths=["others"],
+    default_limit=general.DEFAULT_LIMIT,
 )

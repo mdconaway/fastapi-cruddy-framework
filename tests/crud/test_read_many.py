@@ -2,6 +2,7 @@ from json import dumps
 from pytest import mark
 from fastapi import status
 from fastapi_cruddy_framework import BrowserTestClient
+from examples.fastapi_cruddy_sqlite.config.general import general
 
 elves_group_id = None
 orcs_group_id = None
@@ -111,7 +112,7 @@ async def test_get_posts_json_notation(authenticated_client: BrowserTestClient):
     assert len(result["posts"]) is 1
     assert result["posts"][0]["id"] == post_id
     assert result["meta"]["page"] is 1
-    assert result["meta"]["limit"] is 10
+    assert result["meta"]["limit"] is general.DEFAULT_LIMIT
     assert result["meta"]["pages"] is 1
     assert result["meta"]["records"] is 1
 
@@ -135,7 +136,7 @@ async def test_get_groups_no_results(authenticated_client: BrowserTestClient):
     result = response.json()
     assert len(result["groups"]) is 0
     assert result["meta"]["page"] is 1
-    assert result["meta"]["limit"] is 10
+    assert result["meta"]["limit"] is general.DEFAULT_LIMIT
     assert result["meta"]["pages"] is 0
     assert result["meta"]["records"] is 0
 
@@ -152,7 +153,7 @@ async def test_get_groups_where_list_complex(authenticated_client: BrowserTestCl
     assert len(result["groups"]) is 1
     assert result["groups"][0]["id"] == elves_group_id
     assert result["meta"]["page"] is 1
-    assert result["meta"]["limit"] is 10
+    assert result["meta"]["limit"] is general.DEFAULT_LIMIT
     assert result["meta"]["pages"] is 1
     assert result["meta"]["records"] is 1
 
@@ -170,7 +171,7 @@ async def test_get_group_where_dict_simple(authenticated_client: BrowserTestClie
     assert len(result["groups"]) is 1
     assert result["groups"][0]["id"] == elves_group_id
     assert result["meta"]["page"] is 1
-    assert result["meta"]["limit"] is 10
+    assert result["meta"]["limit"] is general.DEFAULT_LIMIT
     assert result["meta"]["pages"] is 1
     assert result["meta"]["records"] is 1
 
@@ -181,7 +182,7 @@ async def test_get_group_where_dict_simple(authenticated_client: BrowserTestClie
     assert len(result["groups"]) is 1
     assert result["groups"][0]["id"] == orcs_group_id
     assert result["meta"]["page"] is 1
-    assert result["meta"]["limit"] is 10
+    assert result["meta"]["limit"] is general.DEFAULT_LIMIT
     assert result["meta"]["pages"] is 1
     assert result["meta"]["records"] is 1
 
@@ -200,7 +201,7 @@ async def test_get_group_where_dict_complex(authenticated_client: BrowserTestCli
     assert result["groups"][0]["id"] == elves_group_id
     assert result["groups"][1]["id"] == orcs_group_id
     assert result["meta"]["page"] is 1
-    assert result["meta"]["limit"] is 10
+    assert result["meta"]["limit"] is general.DEFAULT_LIMIT
     assert result["meta"]["pages"] is 1
     assert result["meta"]["records"] is 2
 
@@ -214,7 +215,7 @@ async def test_get_group_where_dict_complex(authenticated_client: BrowserTestCli
     assert result["groups"][0]["id"] == orcs_group_id
     assert result["groups"][1]["id"] == elves_group_id
     assert result["meta"]["page"] is 1
-    assert result["meta"]["limit"] is 10
+    assert result["meta"]["limit"] is general.DEFAULT_LIMIT
     assert result["meta"]["pages"] is 1
     assert result["meta"]["records"] is 2
 
@@ -271,7 +272,7 @@ async def test_get_group_where_dict_complex_column_clip(
     assert "name" in result["groups"][1].keys()
     assert "links" in result["groups"][1].keys()
     assert result["meta"]["page"] is 1
-    assert result["meta"]["limit"] is 10
+    assert result["meta"]["limit"] is general.DEFAULT_LIMIT
     assert result["meta"]["pages"] is 1
     assert result["meta"]["records"] is 2
 

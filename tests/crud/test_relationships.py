@@ -2,6 +2,7 @@ from json import dumps
 from pytest import mark
 from fastapi import status
 from fastapi_cruddy_framework import BrowserTestClient
+from examples.fastapi_cruddy_sqlite.config.general import general
 
 group_id = None
 alt_group_id = None
@@ -128,7 +129,7 @@ async def test_get_groups_through_user(authenticated_client: BrowserTestClient):
     assert len(result["groups"]) is 2
     assert result["groups"][0]["id"] == group_id
     assert result["meta"]["page"] is 1
-    assert result["meta"]["limit"] is 10
+    assert result["meta"]["limit"] is general.DEFAULT_LIMIT
     assert result["meta"]["pages"] is 1
     assert result["meta"]["records"] is 2
 
@@ -156,7 +157,7 @@ async def test_get_posts_through_user(authenticated_client: BrowserTestClient):
     assert result["posts"][0]["id"] == post_id
     assert len(result["posts"]) is 1
     assert result["meta"]["page"] is 1
-    assert result["meta"]["limit"] is 10
+    assert result["meta"]["limit"] is general.DEFAULT_LIMIT
     assert result["meta"]["pages"] is 1
     assert result["meta"]["records"] is 1
 
@@ -184,7 +185,7 @@ async def test_get_users_through_group(authenticated_client: BrowserTestClient):
     assert len(result["users"]) is 1
     assert result["users"][0]["id"] == user_id
     assert result["meta"]["page"] is 1
-    assert result["meta"]["limit"] is 10
+    assert result["meta"]["limit"] is general.DEFAULT_LIMIT
     assert result["meta"]["pages"] is 1
     assert result["meta"]["records"] is 1
 
@@ -216,7 +217,7 @@ async def test_alter_users_in_group(authenticated_client: BrowserTestClient):
     assert result["users"][0]["id"] == user_id
     assert result["users"][1]["id"] == alt_user_id
     assert result["meta"]["page"] is 1
-    assert result["meta"]["limit"] is 10
+    assert result["meta"]["limit"] is general.DEFAULT_LIMIT
     assert result["meta"]["pages"] is 1
     assert result["meta"]["records"] is 2
 

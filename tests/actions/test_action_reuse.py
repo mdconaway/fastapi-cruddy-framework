@@ -2,6 +2,7 @@ from json import dumps
 from pytest import mark
 from fastapi import status
 from fastapi_cruddy_framework import BrowserTestClient
+from examples.fastapi_cruddy_sqlite.config.general import general
 
 user_id = None
 
@@ -48,7 +49,7 @@ async def test_get_users_remapped_actions(authenticated_client: BrowserTestClien
     assert len(result1["users"]) is 1
     assert result1["users"][0]["id"] == user_id
     assert result1["meta"]["page"] is 1
-    assert result1["meta"]["limit"] is 10
+    assert result1["meta"]["limit"] is general.DEFAULT_LIMIT
     assert result1["meta"]["pages"] is 1
     assert result1["meta"]["records"] is 1
 
@@ -58,7 +59,7 @@ async def test_get_users_remapped_actions(authenticated_client: BrowserTestClien
     assert len(result2["users"]) is 1
     assert result2["users"][0]["id"] == user_id
     assert result2["meta"]["page"] is 1
-    assert result2["meta"]["limit"] is 10
+    assert result2["meta"]["limit"] is general.DEFAULT_LIMIT
     assert result2["meta"]["pages"] is 1
     assert result2["meta"]["records"] is 1
 
@@ -68,7 +69,7 @@ async def test_get_users_remapped_actions(authenticated_client: BrowserTestClien
     assert len(result2["users"]) is 1
     assert result3["users"][0]["id"] == user_id
     assert result3["meta"]["page"] is 1
-    assert result3["meta"]["limit"] is 10
+    assert result3["meta"]["limit"] is general.DEFAULT_LIMIT
     assert result3["meta"]["pages"] is 1
     assert result3["meta"]["records"] is 1
 

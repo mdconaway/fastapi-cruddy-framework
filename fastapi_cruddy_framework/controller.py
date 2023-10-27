@@ -96,7 +96,10 @@ class Actions:
         many_schema: Type[CruddyGenericModel],
         meta_schema: Union[Type[CruddyModel], Type[CruddyGenericModel]],
         relations: Dict[str, RelationshipConfig],
+        default_limit: int = 10,
     ):
+        self.default_limit = default_limit
+
         async def create(data: create_model):
             the_thing_with_rels = getattr(data, single_name)
             the_thing = create_model_proxy(**the_thing_with_rels.dict())
@@ -161,7 +164,7 @@ class Actions:
 
         async def get_all(
             page: int = 1,
-            limit: int = 10,
+            limit: int = self.default_limit,
             columns: List[str] = Query(None, alias="columns"),
             sort: List[str] = Query(None, alias="sort"),
             where: Json = Query(None, alias="where"),
@@ -344,6 +347,7 @@ def _ControllerConfigOneToMany(
     meta_schema: Union[Type[CruddyModel], Type[CruddyGenericModel]] = MetaObject,
     policies_universal: List = [],
     policies_get_one: List = [],
+    default_limit: int = 10,
 ):
     far_col: Column = next(iter(config.orm_relationship.remote_side))
     col: Column = next(iter(config.orm_relationship.local_columns))
@@ -372,7 +376,7 @@ def _ControllerConfigOneToMany(
     async def get_one_to_many(
         id: id_type = Path(..., alias="id"),
         page: int = 1,
-        limit: int = 10,
+        limit: int = default_limit,
         columns: List[str] = Query(None, alias="columns"),
         sort: List[str] = Query(None, alias="sort"),
         where: Json = Query(None, alias="where"),
@@ -445,6 +449,7 @@ def _ControllerConfigManyToMany(
     meta_schema: Union[Type[CruddyModel], Type[CruddyGenericModel]] = MetaObject,
     policies_universal: List = [],
     policies_get_one: List = [],
+    default_limit: int = 10,
 ):
     far_model: Type[CruddyModel] = config.foreign_resource.repository.model
     resource_model_name = f"{repository.model.__name__}".lower()
@@ -470,7 +475,7 @@ def _ControllerConfigManyToMany(
     async def get_many_to_many(
         id: id_type = Path(..., alias="id"),
         page: int = 1,
-        limit: int = 10,
+        limit: int = default_limit,
         columns: List[str] = Query(None, alias="columns"),
         sort: List[str] = Query(None, alias="sort"),
         where: Json = Query(None, alias="where"),
@@ -599,6 +604,7 @@ def ControllerConfigurator(
                 meta_schema=meta_schema,
                 policies_universal=policies_universal,
                 policies_get_one=policies_get_one,
+                default_limit=actions.default_limit,
             )
         elif config.orm_relationship.direction == MANYTOMANY:
             _ControllerConfigManyToMany(
@@ -610,6 +616,7 @@ def ControllerConfigurator(
                 meta_schema=meta_schema,
                 policies_universal=policies_universal,
                 policies_get_one=policies_get_one,
+                default_limit=actions.default_limit,
             )
             # print("To Implement: Many to Many Through Association Object")
         elif config.orm_relationship.direction == MANYTOONE:

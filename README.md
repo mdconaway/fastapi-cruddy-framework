@@ -321,6 +321,12 @@ disable_update: bool = False,
 disable_delete: bool = False,
 disable_get_one: bool = False,
 disable_get_many: bool = False,
+# Default limit will only set a limit on incoming queries if the user DOES NOT specify one. You should
+# implement POLICIES to enforce a MAX limit, as you will ultimately have to re-use any max limit
+# policies in your own custom controller functions for consistency. Max limit policies can be implemented
+# by overriding any limit query parameter sent by the user with a maximum number if the user value is
+# above whatever the max limit should be.
+default_limit: int = 10,
 # 'controller_extension' is the mount point for user-defined actions to-be-added to this resource's
 # controller/router. Pass in your class definition and it will be instantiated at the appropriate
 # time! See "CruddyController" example below!

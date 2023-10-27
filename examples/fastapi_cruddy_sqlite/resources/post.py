@@ -7,6 +7,7 @@ from examples.fastapi_cruddy_sqlite.models.post import (
     PostView,
 )
 from examples.fastapi_cruddy_sqlite.policies.verify_session import verify_session
+from examples.fastapi_cruddy_sqlite.config.general import general
 
 
 resource = Resource(
@@ -17,4 +18,5 @@ resource = Resource(
     resource_create_model=PostCreate,
     resource_model=Post,
     policies_universal=[verify_session],
+    default_limit=general.DEFAULT_LIMIT,
 )
