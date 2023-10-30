@@ -1,8 +1,7 @@
 from typing import Optional, List, TYPE_CHECKING
-from datetime import datetime
 from sqlmodel import Field, Relationship, Column, DateTime
 from pydantic import EmailStr
-from fastapi_cruddy_framework import UUID, CruddyModel, CruddyUUIDModel
+from fastapi_cruddy_framework import UUID, CruddyModel, CruddyUUIDModel, UTCDateTime
 from examples.fastapi_cruddy_sqlite.models.common.relationships import GroupUserLink
 
 if TYPE_CHECKING:
@@ -43,7 +42,7 @@ class UserUpdate(CruddyModel):
     )
     is_active: bool = Field(default=True)
     is_superuser: bool = Field(default=False)
-    birthdate: Optional[datetime] = Field(
+    birthdate: Optional[UTCDateTime] = Field(
         sa_column=Column(DateTime(timezone=True), nullable=True)
     )  # birthday with timezone
     phone: Optional[str] = Field(schema_extra={"example": EXAMPLE_USER["phone"]})
@@ -78,13 +77,13 @@ class UserView(CruddyUUIDModel):
     email: Optional[EmailStr] = Field(schema_extra={"example": EXAMPLE_USER["email"]})
     is_active: Optional[bool]
     is_superuser: Optional[bool]
-    birthdate: Optional[datetime]
+    birthdate: Optional[UTCDateTime]
     phone: Optional[str] = Field(schema_extra={"example": EXAMPLE_USER["phone"]})
     state: Optional[str] = Field(schema_extra={"example": EXAMPLE_USER["state"]})
     country: Optional[str] = Field(schema_extra={"example": EXAMPLE_USER["country"]})
     address: Optional[str] = Field(schema_extra={"example": EXAMPLE_USER["address"]})
-    created_at: Optional[datetime]
-    updated_at: Optional[datetime]
+    created_at: Optional[UTCDateTime]
+    updated_at: Optional[UTCDateTime]
 
 
 # The "Base" model describes the actual table as it should be reflected in

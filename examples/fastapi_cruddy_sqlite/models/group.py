@@ -1,7 +1,6 @@
 from typing import Optional, List, TYPE_CHECKING
-from datetime import datetime
 from sqlmodel import Field, Relationship
-from fastapi_cruddy_framework import UUID, CruddyModel, CruddyUUIDModel
+from fastapi_cruddy_framework import UUID, CruddyModel, CruddyUUIDModel, UTCDateTime
 from examples.fastapi_cruddy_sqlite.models.common.relationships import GroupUserLink
 
 if TYPE_CHECKING:
@@ -44,8 +43,8 @@ class GroupCreate(GroupUpdate):
 class GroupView(CruddyUUIDModel):
     id: Optional[UUID]
     name: Optional[str] = Field(schema_extra={"example": EXAMPLE_GROUP["name"]})
-    created_at: Optional[datetime]
-    updated_at: Optional[datetime]
+    created_at: Optional[UTCDateTime]
+    updated_at: Optional[UTCDateTime]
 
 
 # The "Base" model describes the actual table as it should be reflected in

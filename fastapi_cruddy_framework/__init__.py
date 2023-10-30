@@ -19,13 +19,20 @@ from .schemas import (
     ExampleCreate,
     ExampleView,
     Example,
+    UTCDateTime,
 )
 from .controller import Actions, CruddyController, ControllerConfigurator
 from .repository import AbstractRepository
 from .adapters import BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter
 from .resource import Resource, ResourceRegistry, CruddyResourceRegistry
 from .router import getModuleDir, getDirectoryModules, CreateRouterFromResources
-from .util import get_pk, possible_id_types, lifecycle_types
+from .util import (
+    get_pk,
+    possible_id_types,
+    lifecycle_types,
+    build_tz_aware_date,
+    coerce_to_utc_datetime,
+)
 from .test_helpers import BrowserTestClient
 from async_asgi_testclient import TestClient
 from async_asgi_testclient.websocket import WebSocketSession

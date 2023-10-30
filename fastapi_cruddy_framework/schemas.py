@@ -1,10 +1,13 @@
+from sqlalchemy import Column
 from sqlalchemy.orm import declared_attr, RelationshipProperty
 from sqlalchemy.engine.row import Row
 from typing import Any, Type, TypeVar, Optional, Generic, Union, List, TYPE_CHECKING
 from pydantic.generics import GenericModel
-from sqlmodel import Field, SQLModel
+from pydantic.datetime_parse import parse_datetime
+from sqlmodel import Field, SQLModel, DateTime
 from datetime import datetime
 from .uuid import UUID, uuid7
+from .util import build_tz_aware_date, coerce_to_utc_datetime
 
 if TYPE_CHECKING:
     from .resource import Resource
@@ -15,6 +18,17 @@ if TYPE_CHECKING:
 # -------------------------------------------------------------------------------------------
 
 T = TypeVar("T")
+
+
+class UTCDateTime(datetime):
+    @classmethod
+    def __get_validators__(cls):
+        yield parse_datetime
+        yield cls.validate
+
+    @classmethod
+    def validate(cls, v):
+        return coerce_to_utc_datetime(v)
 
 
 class RelationshipConfig:
@@ -77,10 +91,19 @@ class CruddyIntIDModel(CruddyModel):
         index=True,
         nullable=False,
     )
-    updated_at: Optional[datetime] = Field(
-        default_factory=datetime.utcnow, sa_column_kwargs={"onupdate": datetime.utcnow}
+    created_at: Optional[UTCDateTime] = Field(
+        default_factory=build_tz_aware_date,
+        sa_column=Column(DateTime(timezone=True), nullable=False, index=True),
     )
-    created_at: Optional[datetime] = Field(default_factory=datetime.utcnow)
+    updated_at: Optional[UTCDateTime] = Field(
+        default_factory=build_tz_aware_date,
+        sa_column=Column(
+            DateTime(timezone=True),
+            nullable=False,
+            index=True,
+            onupdate=build_tz_aware_date,
+        ),
+    )
 
 
 class CruddyUUIDModel(CruddyModel):
@@ -90,10 +113,19 @@ class CruddyUUIDModel(CruddyModel):
         index=True,
         nullable=False,
     )
-    updated_at: Optional[datetime] = Field(
-        default_factory=datetime.utcnow, sa_column_kwargs={"onupdate": datetime.utcnow}
+    created_at: Optional[UTCDateTime] = Field(
+        default_factory=build_tz_aware_date,
+        sa_column=Column(DateTime(timezone=True), nullable=False, index=True),
     )
-    created_at: Optional[datetime] = Field(default_factory=datetime.utcnow)
+    updated_at: Optional[UTCDateTime] = Field(
+        default_factory=build_tz_aware_date,
+        sa_column=Column(
+            DateTime(timezone=True),
+            nullable=False,
+            index=True,
+            onupdate=build_tz_aware_date,
+        ),
+    )
 
 
 class ExampleUpdate(CruddyModel):

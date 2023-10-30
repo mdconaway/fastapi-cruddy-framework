@@ -700,6 +700,8 @@ class AbstractRepository:
                 mattr = getattr(model, k)
                 if isinstance(v2, dict) and "*datetime" in v2:
                     v2 = parse(v2["*datetime"], tzinfos=[UTC])  # type: ignore
+                if isinstance(v2, dict) and "*datetime_naive" in v2:
+                    v2 = parse(v2["*datetime_naive"], tzinfos=None)  # type: ignore
                 if isinstance(k2, str) and not isinstance(v2, dict) and k2[0] == "*":
                     if k2 == "*eq":
                         level_criteria.append(mattr == v2)

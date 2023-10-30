@@ -69,6 +69,7 @@ MysqlAdapter
 PostgresqlAdapter
 # TYPES / MODELS / SCHEMAS
 T
+UTCDateTime
 UUID
 RelationshipConfig
 CruddyGenericModel
@@ -93,6 +94,8 @@ uuid7
 get_pk
 possible_id_types
 lifecycle_types
+build_tz_aware_date
+coerce_to_utc_datetime
 # TEST HELPERS
 BrowserTestClient
 TestClient

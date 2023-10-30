@@ -1,7 +1,6 @@
 from typing import Any, Optional, TYPE_CHECKING
-from datetime import datetime
 from sqlmodel import Column, Field, JSON, Relationship
-from fastapi_cruddy_framework import UUID, CruddyModel, CruddyUUIDModel
+from fastapi_cruddy_framework import UUID, CruddyModel, CruddyUUIDModel, UTCDateTime
 
 if TYPE_CHECKING:
     from examples.fastapi_cruddy_sqlite.models.user import User
@@ -58,8 +57,8 @@ class PostView(CruddyUUIDModel):
         default={},
         schema_extra={"example": EXAMPLE_POST["tags"]},
     )
-    created_at: Optional[datetime]
-    updated_at: Optional[datetime]
+    created_at: Optional[UTCDateTime]
+    updated_at: Optional[UTCDateTime]
 
 
 # The "Base" model describes the actual table as it should be reflected in
