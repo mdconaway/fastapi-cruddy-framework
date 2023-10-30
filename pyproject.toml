@@ -39,8 +39,8 @@ extend-exclude = '''
 python = ">=3.8,<4.0"
 fastapi = {extras = ["all"], version = "^0.99.1"}
 SQLAlchemy-Utils = "^0.41.1"
-SQLAlchemy = { extras = ["asyncio"], version = "^1.4.49" }
-sqlmodel = "^0.0.9"
+SQLAlchemy = { extras = ["asyncio"], version = "^1.4.50" }
+sqlmodel = "^0.0.10"
 inflect = "^7.0.0"
 python-dateutil = "^2.8.2"
 async-asgi-testclient = "^1.4.11"
