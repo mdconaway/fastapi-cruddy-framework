@@ -285,7 +285,7 @@ class AbstractRepository:
                 query = query.order_by(field())
 
         # count query
-        count_query = select(func.count(1), query.subquery())
+        count_query = select(func.count(1)).select_from(query)
         offset_page = query_conf["page"] - 1
         # pagination
         query = query.offset(offset_page * query_conf["limit"]).limit(
@@ -388,7 +388,7 @@ class AbstractRepository:
                 query = query.order_by(field())
 
         # count query
-        count_query = select(func.count(1), query.subquery())
+        count_query = select(func.count(1)).select_from(query)
         offset_page = query_conf["page"] - 1
         # pagination
         query = query.offset(offset_page * query_conf["limit"]).limit(
@@ -515,7 +515,7 @@ class AbstractRepository:
                         join_foreign_col.in_(check_ids),
                     )
                 )
-                count_query = select(func.count(1), find_tgt_query.subquery())
+                count_query = select(func.count(1)).select_from(find_tgt_query)
                 result = (await session.execute(count_query)).scalar() or 0
             else:
                 result = 0
@@ -594,7 +594,7 @@ class AbstractRepository:
                 related_model_id.in_(relation_conf["relations"]),
             )
         )
-        count_query = select(func.count(1), find_tgt_query.subquery())
+        count_query = select(func.count(1)).select_from(find_tgt_query)
         async with self.adapter.getSession() as session:
             if far_col.nullable:
                 await session.execute(clear_query)
