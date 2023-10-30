@@ -1,6 +1,5 @@
 import math
-from dateutil.parser import parse
-from dateutil.tz import UTC
+from pydantic.datetime_parse import parse_datetime
 from asyncio import gather
 from logging import getLogger
 from sqlalchemy import (
@@ -26,7 +25,13 @@ from .schemas import (
     CruddyModel,
 )
 from .adapters import BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter
-from .util import get_pk, possible_id_types, possible_id_values, lifecycle_types
+from .util import (
+    get_pk,
+    possible_id_types,
+    possible_id_values,
+    lifecycle_types,
+    coerce_to_utc_datetime,
+)
 
 JSON_COLUMNS = (JSON, JSONB)
 # The CAST MAP provides composite keys (lhs comparator|rhs value type) which map to a DB cast function
@@ -699,9 +704,9 @@ class AbstractRepository:
                 v2 = v[k2]
                 mattr = getattr(model, k)
                 if isinstance(v2, dict) and "*datetime" in v2:
-                    v2 = parse(v2["*datetime"], tzinfos=[UTC])  # type: ignore
+                    v2 = coerce_to_utc_datetime(parse_datetime(v2["*datetime"]))  # type: ignore
                 if isinstance(v2, dict) and "*datetime_naive" in v2:
-                    v2 = parse(v2["*datetime_naive"], tzinfos=None)  # type: ignore
+                    v2 = parse_datetime(v2["*datetime_naive"])  # type: ignore
                 if isinstance(k2, str) and not isinstance(v2, dict) and k2[0] == "*":
                     if k2 == "*eq":
                         level_criteria.append(mattr == v2)

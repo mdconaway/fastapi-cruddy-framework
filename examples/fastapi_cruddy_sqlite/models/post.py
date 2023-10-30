@@ -52,8 +52,7 @@ class PostView(CruddyUUIDModel):
     user_id: Optional[UUID]
     content: Optional[str] = Field(schema_extra={"example": EXAMPLE_POST["content"]})
     tags: Optional[dict[str, Any]] = Field(
-        sa_column=Column(JSON),
-        index=True,
+        sa_column=Column(JSON, index=True),
         default={},
         schema_extra={"example": EXAMPLE_POST["tags"]},
     )
