@@ -1,6 +1,5 @@
 from sqlalchemy.pool import StaticPool
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine, async_sessionmaker
 from contextlib import asynccontextmanager
 from sqlmodel import text
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -28,12 +27,11 @@ class BaseAdapter:
             yield session
 
     def asyncSessionGenerator(self):
-        return sessionmaker(
-            autocommit=False,
-            autoflush=False,
-            future=True,
+        return async_sessionmaker(
             bind=self.engine,
             class_=AsyncSession,
+            autoflush=False,
+            autocommit=False,
             expire_on_commit=False,
         )
 

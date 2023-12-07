@@ -3,11 +3,10 @@ from sqlalchemy.orm import declared_attr, RelationshipProperty
 from sqlalchemy.engine.row import Row
 from typing import Any, Type, TypeVar, Optional, Generic, Union, List, TYPE_CHECKING
 from pydantic.generics import GenericModel
-from pydantic.datetime_parse import parse_datetime
 from sqlmodel import Field, SQLModel, DateTime
 from datetime import datetime
 from .uuid import UUID, uuid7
-from .util import build_tz_aware_date, coerce_to_utc_datetime
+from .util import build_tz_aware_date, coerce_to_utc_datetime, parse_datetime
 
 if TYPE_CHECKING:
     from .resource import Resource

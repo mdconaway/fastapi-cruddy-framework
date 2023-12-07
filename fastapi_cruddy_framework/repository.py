@@ -18,7 +18,7 @@ from sqlalchemy.types import JSON, VARCHAR  # ARRAY, CHAR
 from sqlalchemy.orm import RelationshipProperty, ONETOMANY, MANYTOMANY
 from sqlmodel import cast, inspect
 from typing import Type, Union, List, Dict
-from pydantic.fields import Undefined
+from pydantic_core import PydanticUndefined as Undefined
 from pydantic.types import Json
 from .schemas import (
     BulkDTO,
@@ -260,7 +260,7 @@ class AbstractRepository:
         get_columns: List[str] = (
             query_conf["columns"]
             if query_conf["columns"] is not None and query_conf["columns"] != []
-            else list(self.model.__fields__.keys())
+            else list(self.model.model_fields.keys())
         )
         if self.primary_key not in get_columns:
             get_columns.append(str(self.primary_key))
@@ -357,7 +357,7 @@ class AbstractRepository:
         get_columns: List[str] = (
             query_conf["columns"]
             if query_conf["columns"] is not None and query_conf["columns"] != []
-            else list(relation_model.__fields__.keys())
+            else list(relation_model.model_fields.keys())
         )
         if relation_pk not in get_columns:
             get_columns.append(relation_pk)
