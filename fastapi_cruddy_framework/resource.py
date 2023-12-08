@@ -239,7 +239,13 @@ class Resource:
                 possible_id_example = possible_id.json_schema_extra.get("example", None)
                 if possible_id_example is not None:
                     example_id = possible_id_example
-                possible_id.json_schema_extra.update({"example": str(example_id)})
+                possible_id.json_schema_extra.update(
+                    {
+                        "example": int(str(example_id))
+                        if self.repository.id_type == int
+                        else str(example_id)
+                    }
+                )
 
         # Create shared link model
         link_object = {}
