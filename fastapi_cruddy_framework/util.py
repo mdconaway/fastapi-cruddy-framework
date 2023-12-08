@@ -1,6 +1,6 @@
-import re
-from typing import Type, Union, Optional, Coroutine, Any, Callable
 import inspect
+from re import compile, Match
+from typing import Type, Union, Optional, Coroutine, Any, Callable
 from pydantic.errors import PydanticErrorMixin
 from sqlalchemy.orm import class_mapper, object_mapper
 from datetime import datetime, timezone, timedelta
@@ -21,9 +21,9 @@ time_expr = (
     r"(?::(?P<second>\d{1,2})(?:\.(?P<microsecond>\d{1,6})\d{0,6})?)?"
     r"(?P<tzinfo>Z|[+-]\d{2}(?::?\d{2})?)?$"
 )
-date_re = re.compile(f"{date_expr}$")
-time_re = re.compile(time_expr)
-datetime_re = re.compile(f"{date_expr}[T ]{time_expr}")
+date_re = compile(f"{date_expr}$")
+time_re = compile(time_expr)
+datetime_re = compile(f"{date_expr}[T ]{time_expr}")
 
 
 class PydanticValueError(PydanticErrorMixin, ValueError):
@@ -99,7 +99,7 @@ def parse_datetime(value: Union[datetime, StrBytesIntFloat]) -> datetime:
     if isinstance(value, bytes):
         value = value.decode()
 
-    match: re.Match = datetime_re.match(value)  # type: ignore
+    match: Match = datetime_re.match(value)  # type: ignore
     if match is None:
         raise DateTimeError("Invalid datetime", code=None)
 

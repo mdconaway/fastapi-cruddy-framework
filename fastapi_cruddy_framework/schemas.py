@@ -1,6 +1,5 @@
 from typing import (
     Any,
-    Annotated,
     Type,
     TypeVar,
     Optional,
@@ -13,13 +12,14 @@ from typing import (
 from datetime import datetime
 from uuid import UUID, uuid4
 from sqlalchemy import Column
-from sqlalchemy.orm import declared_attr, RelationshipProperty, mapped_column
+from sqlalchemy.orm import declared_attr, RelationshipProperty  # , mapped_column
 from sqlalchemy.engine.row import Row
-from pydantic_core.core_schema import CoreSchema, datetime_schema
-from pydantic import BaseModel, GetCoreSchemaHandler, BeforeValidator, EmailStr as EStr
-from pydantic.types import _check_annotated_type
+from pydantic import BaseModel  # , GetCoreSchemaHandler
 from sqlmodel import Field, SQLModel, DateTime
 from .util import build_tz_aware_date
+
+# from pydantic.types import _check_annotated_type
+# from pydantic_core.core_schema import CoreSchema, datetime_schema
 
 if TYPE_CHECKING:
     from .resource import Resource
@@ -32,35 +32,24 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 
 
-def strip_and_lower(v: object) -> str:
-    return str(v).strip().lower()
-
-
-EmailStr = Annotated[
-    EStr,
-    BeforeValidator(strip_and_lower),
-]
-
-
-class UTCDateTime:
-    """A datetime that needs UTC as the timezone."""
-
-    @classmethod
-    def __get_pydantic_core_schema__(
-        cls, source: type[Any], handler: GetCoreSchemaHandler
-    ) -> CoreSchema:
-        if cls is source:
-            # used directly as a type
-            return datetime_schema(tz_constraint=0)
-        else:
-            schema = handler(source)
-            _check_annotated_type(schema["type"], "datetime", cls.__name__)
-            schema["tz_constraint"] = 0  # type: ignore
-            return schema
-
-    def __repr__(self) -> str:
-        return "UTCDateTime"
-
+# class UTCDateTime:
+#    """A datetime that needs UTC as the timezone."""
+#
+#    @classmethod
+#    def __get_pydantic_core_schema__(
+#        cls, source: type[Any], handler: GetCoreSchemaHandler
+#    ) -> CoreSchema:
+#        if cls is source:
+#            # used directly as a type
+#            return datetime_schema(tz_constraint=0)
+#        else:
+#            schema = handler(source)
+#            _check_annotated_type(schema["type"], "datetime", cls.__name__)
+#            schema["tz_constraint"] = 0  # type: ignore
+#            return schema
+#
+#    def __repr__(self) -> str:
+#        return "UTCDateTime"
 
 # UTCDateTime = Annotated[datetime, FieldAfterValidator(parse_and_coerce_to_utc_datetime)]
 

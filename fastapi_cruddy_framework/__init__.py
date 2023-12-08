@@ -20,10 +20,8 @@ from .schemas import (
     ExampleCreate,
     ExampleView,
     Example,
-    UTCDateTime,
     uuid4,
     UUID,
-    EmailStr,
 )
 from .controller import Actions, CruddyController, ControllerConfigurator
 from .repository import AbstractRepository
