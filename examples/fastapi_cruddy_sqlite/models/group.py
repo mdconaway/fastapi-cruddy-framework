@@ -42,7 +42,6 @@ class GroupCreate(GroupUpdate):
 # responses, as in the schemas below. To support column clipping, all
 # fields need to be optional.
 class GroupView(CruddyUUIDModel):
-    id: UUID
     name: Optional[str] = Field(
         default=None, schema_extra={"example": EXAMPLE_GROUP["name"]}
     )

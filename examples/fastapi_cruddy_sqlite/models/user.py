@@ -71,7 +71,6 @@ class UserCreate(UserUpdate):
 # responses, as in the schemas below. To support column clipping, all
 # fields need to be optional.
 class UserView(CruddyUUIDModel):
-    id: UUID
     first_name: Optional[str] = Field(
         default=None, schema_extra={"example": EXAMPLE_USER["first_name"]}
     )
