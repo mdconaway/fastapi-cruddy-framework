@@ -10,7 +10,7 @@ from sqlalchemy.orm import (
 from sqlmodel import Field, inspect
 from typing import Union, Optional, List, Dict, TypedDict, Callable, Literal, Type
 from enum import Enum
-from pydantic import create_model
+from pydantic import create_model, Field as PydanticField
 from .inflector import pluralizer
 from .schemas import (
     RelationshipConfig,
@@ -230,21 +230,21 @@ class Resource:
         if self.repository.id_type == str:
             example_id = str(example_id)
         possible_id = response_schema.model_fields.get("id", None)
-        if (
-            possible_id is not None
-            and possible_id.annotation == self.repository.id_type
+        if possible_id is not None and issubclass(
+            self.repository.id_type, possible_id.annotation  # type: ignore
         ):
+            example_dict = {
+                "example": int(str(example_id))
+                if self.repository.id_type == int
+                else str(example_id)
+            }
             if possible_id.json_schema_extra is not None:
                 possible_id_example = possible_id.json_schema_extra.get("example", None)
                 if possible_id_example is not None:
                     example_id = possible_id_example
-                possible_id.json_schema_extra.update(
-                    {
-                        "example": int(str(example_id))
-                        if self.repository.id_type == int
-                        else str(example_id)
-                    }
-                )
+                possible_id.json_schema_extra.update(example_dict)
+            else:
+                possible_id.json_schema_extra = example_dict  # type: ignore
 
         # Create shared link model
         link_object = {}
@@ -252,10 +252,8 @@ class Resource:
         for k, v in self._relations.items():
             link_object[k] = (
                 str,
-                Field(
-                    schema_extra={
-                        "example": self._single_link(id=str(example_id), relationship=k)
-                    }
+                PydanticField(
+                    examples=[self._single_link(id=str(example_id), relationship=k)]
                 ),
             )
             if (
@@ -266,12 +264,8 @@ class Resource:
         for item in self._artificial_relationship_paths:
             link_object[item] = (
                 str,
-                Field(
-                    schema_extra={
-                        "example": self._single_link(
-                            id=str(example_id), relationship=item
-                        )
-                    }
+                PydanticField(
+                    examples=[self._single_link(id=str(example_id), relationship=item)]
                 ),
             )
         link_object["__base__"] = CruddyModel
@@ -357,17 +351,15 @@ class Resource:
                 self,
                 *args,
                 **{
-                    resource_model_plural: list(
-                        map(
-                            lambda x: SingleSchemaLinked(
-                                **x._mapping,
-                                links=local_resource._link_builder(  # type: ignore
-                                    id=x._mapping[local_resource.repository.primary_key]
-                                ),
+                    resource_model_plural: [
+                        SingleSchemaLinked(
+                            **x._mapping,
+                            links=local_resource._link_builder(  # type: ignore
+                                id=x._mapping[local_resource.repository.primary_key]
                             ),
-                            kwargs["data"],
                         )
-                    )
+                        for x in kwargs["data"]
+                    ]
                     if resource_model_plural not in kwargs
                     else kwargs[resource_model_plural],
                     "data": kwargs["data"] if "data" in kwargs else [],
@@ -413,7 +405,7 @@ class Resource:
                 return {}
             elif hasattr(data, "_mapping"):
                 return data._mapping
-            if hasattr(data, "dict") and callable(data.dict):
+            if hasattr(data, "model_dump") and callable(data.model_dump):
                 return data.model_dump()
             return data
 

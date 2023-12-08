@@ -318,7 +318,7 @@ def _ControllerConfigManyToOne(
         data = None
         if len(result.data) != 0:
             data: Any = result.data[0]
-            table_record = config.foreign_resource.repository.model(**data)
+            table_record = config.foreign_resource.repository.model(**data._mapping)
             if foreign_lifecycle_after != None:
                 await foreign_lifecycle_after(table_record)
             data = table_record.model_dump()
@@ -615,7 +615,6 @@ def ControllerConfigurator(
                 policies_get_one=policies_get_one,
                 default_limit=actions.default_limit,
             )
-            # print("To Implement: Many to Many Through Association Object")
         elif config.orm_relationship.direction == MANYTOONE:
             _ControllerConfigManyToOne(
                 controller=controller,

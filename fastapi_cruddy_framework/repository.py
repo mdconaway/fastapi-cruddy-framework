@@ -265,7 +265,7 @@ class AbstractRepository:
         if self.primary_key not in get_columns:
             get_columns.append(str(self.primary_key))
 
-        select_items = list(map(lambda x: getattr(self.model, x), get_columns))
+        select_items = [getattr(self.model, x) for x in get_columns]
         query = select(*select_items)
 
         if isinstance(query_conf["where"], dict) or isinstance(
@@ -285,7 +285,7 @@ class AbstractRepository:
                     getter = parts[1]
                 return getattr(getattr(self.model, parts[0]), getter)
 
-            sorts = list(map(splitter, query_conf["sort"]))
+            sorts = [splitter(x) for x in query_conf["sort"]]
             for field in sorts:
                 query = query.order_by(field())
 
@@ -362,7 +362,7 @@ class AbstractRepository:
         if relation_pk not in get_columns:
             get_columns.append(relation_pk)
 
-        select_items = list(map(lambda x: getattr(relation_model, x), get_columns))
+        select_items = [getattr(relation_model, x) for x in get_columns]
 
         query = select(*select_items)
 
@@ -388,7 +388,7 @@ class AbstractRepository:
                     getter = parts[1]
                 return getattr(getattr(relation_model, parts[0]), getter)
 
-            sorts = list(map(splitter, query_conf["sort"]))
+            sorts = [splitter(x) for x in query_conf["sort"]]
             for field in sorts:
                 query = query.order_by(field())
 
@@ -484,34 +484,30 @@ class AbstractRepository:
         join_foreign_col: Column = getattr(
             join_table.columns, str(join_table_foreign_attr)
         )
-        # validate_origin_id = select(from_obj=origin_table, columns=[origin_id_col]).where(origin_id_col == id)
-        validate_relation_ids = select(
-            from_obj=foreign_table, columns=[validation_target_col]
-        ).where(validation_target_col.in_(relation_conf["relations"]))
+        validate_relation_ids = select(validation_target_col).where(
+            validation_target_col.in_(relation_conf["relations"])
+        )
         clear_relations_query = (
             join_table.delete()
             .where(join_origin_col == relation_conf["id"])
             .execution_options(synchronize_session="fetch")
         )
-
         async with self.adapter.getSession() as session:
             # origin_id = (await session.execute(validate_origin_id)).scalar_one_or_none()
             db_ids = (await session.execute(validate_relation_ids)).fetchall()
-            insertable = list(
-                map(
-                    lambda x: {
-                        join_table_origin_attr: relation_conf["id"],
-                        join_table_foreign_attr: f"{x._mapping[foreign_key]}",  # type: ignore
-                    },
-                    db_ids,
-                )
-            )
+            insertable = [
+                {
+                    join_table_origin_attr: relation_conf["id"],
+                    join_table_foreign_attr: f"{x._mapping[foreign_key]}",  # type: ignore
+                }
+                for x in db_ids
+            ]
             create_relations_query = join_table.insert().values(
                 insertable
             )  # .returning(join_foreign_col) # RETURNING DOESNT WORK ON ALL ADAPTERS
             await session.execute(clear_relations_query)
 
-            check_ids = list(map(lambda x: f"{x._mapping[foreign_key]}", db_ids))  # type: ignore
+            check_ids = [f"{x._mapping[foreign_key]}" for x in db_ids]  # type: ignore
             if len(insertable) > 0:
                 await session.execute(create_relations_query)
                 find_tgt_query = select(join_table).where(
@@ -667,9 +663,7 @@ class AbstractRepository:
         if not (isinstance(where, list) or isinstance(where, dict)):
             return []
         if isinstance(where, list):
-            list_of_lists = list(
-                map(lambda x: self.query_forge(model=model, where=x), where)
-            )
+            list_of_lists = [self.query_forge(model=model, where=x) for x in where]
             for l in list_of_lists:
                 level_criteria += l
             return level_criteria

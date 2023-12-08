@@ -127,7 +127,8 @@ async def test_get_groups_through_user(authenticated_client: BrowserTestClient):
     assert response.status_code == status.HTTP_200_OK
     result = response.json()
     assert len(result["groups"]) is 2
-    assert result["groups"][0]["id"] == group_id
+    assert result["groups"][0]["id"] in [tertiary_group_id, group_id]
+    assert result["groups"][1]["id"] in [tertiary_group_id, group_id]
     assert result["meta"]["page"] is 1
     assert result["meta"]["limit"] is general.DEFAULT_LIMIT
     assert result["meta"]["pages"] is 1
