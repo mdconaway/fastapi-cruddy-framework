@@ -6,7 +6,7 @@ from sqlalchemy.orm import (
     MANYTOMANY,
     MANYTOONE,
 )
-from typing import Type, Union, List, Dict, TYPE_CHECKING
+from typing import Any, Type, Union, List, Dict, TYPE_CHECKING
 from pydantic.types import Json
 from .inflector import pluralizer
 from .schemas import (
@@ -111,7 +111,7 @@ class Actions:
                 repository=repository,
             )
             # Add error logic?
-            return single_schema(data=result)
+            return single_schema(**{"data": result})
 
         async def update(id: id_type = Path(..., alias="id"), *, data: update_model):
             the_thing_with_rels = getattr(data, single_name)
@@ -131,7 +131,7 @@ class Actions:
                 repository=repository,
             )
 
-            return single_schema(data=result)
+            return single_schema(**{"data": result})
 
         async def delete(
             id: id_type = Path(..., alias="id"),
@@ -145,7 +145,7 @@ class Actions:
                     detail=f"Record id {id} not found",
                 )
 
-            return single_schema(data=data)
+            return single_schema(**{"data": data})
 
         async def get_by_id(
             id: id_type = Path(..., alias="id"),
@@ -160,7 +160,7 @@ class Actions:
                     detail=f"Record id {id} not found",
                 )
 
-            return single_schema(data=data)
+            return single_schema(**{"data": data})
 
         async def get_all(
             page: int = 1,
@@ -178,10 +178,7 @@ class Actions:
                 "pages": result.total_pages,
                 "records": result.total_records,
             }
-            return many_schema(
-                meta=meta_schema(**meta),
-                data=result.data,
-            )
+            return many_schema(**{"meta": meta_schema(**meta), "data": result.data})
 
         # These functions all have dynamic signatures, so are generated within __init__
         self.create = create
@@ -249,7 +246,7 @@ def _ControllerConfigManyToOne(
     policies_universal: List,
     policies_get_one: List,
 ):
-    col: Column = next(iter(config.orm_relationship.local_columns))
+    col: Column = next(iter(config.orm_relationship.local_columns))  # type: ignore
     far_side: ForeignKey = next(iter(col.foreign_keys))
     far_col: Column = far_side.column
     far_col_name = far_col.name
@@ -320,7 +317,7 @@ def _ControllerConfigManyToOne(
         # If we get a result, grab the first value. There should only be one in many to one.
         data = None
         if len(result.data) != 0:
-            data = result.data[0]
+            data: Any = result.data[0]
             table_record = config.foreign_resource.repository.model(**data)
             if foreign_lifecycle_after != None:
                 await foreign_lifecycle_after(table_record)
@@ -335,7 +332,7 @@ def _ControllerConfigManyToOne(
             )
 
         # Invoke the dynamically built model
-        return config.foreign_resource.schemas["single"](data=data)
+        return config.foreign_resource.schemas["single"](**{"data": data})
 
 
 def _ControllerConfigOneToMany(
@@ -349,8 +346,8 @@ def _ControllerConfigOneToMany(
     policies_get_one: List = [],
     default_limit: int = 10,
 ):
-    far_col: Column = next(iter(config.orm_relationship.remote_side))
-    col: Column = next(iter(config.orm_relationship.local_columns))
+    far_col: Column = next(iter(config.orm_relationship.remote_side))  # type: ignore
+    col: Column = next(iter(config.orm_relationship.local_columns))  # type: ignore
     far_col_name = far_col.name
     near_col_name = col.name
     resource_model_name = f"{repository.model.__name__}".lower()
@@ -437,8 +434,7 @@ def _ControllerConfigOneToMany(
             "records": result.total_records,
         }
         return config.foreign_resource.schemas["many"](
-            meta=meta_schema(**meta),
-            data=result.data,
+            **{"meta": meta_schema(**meta), "data": result.data}
         )
 
 
@@ -513,8 +509,7 @@ def _ControllerConfigManyToMany(
             "records": result.total_records,
         }
         return config.foreign_resource.schemas["many"](
-            meta=meta_schema(**meta),
-            data=result.data,
+            **{"meta": meta_schema(**meta), "data": result.data}
         )
 
 

@@ -4,7 +4,6 @@ import re
 from fastapi import APIRouter
 from sqlalchemy.orm import (
     RelationshipProperty,
-    # selectinload,
     ONETOMANY,
     MANYTOMANY,
 )

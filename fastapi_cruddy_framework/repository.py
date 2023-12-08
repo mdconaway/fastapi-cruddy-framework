@@ -290,7 +290,7 @@ class AbstractRepository:
                 query = query.order_by(field())
 
         # count query
-        count_query = select(func.count(1)).select_from(query)
+        count_query = select(func.count(1)).select_from(query)  # type: ignore
         offset_page = query_conf["page"] - 1
         # pagination
         query = query.offset(offset_page * query_conf["limit"]).limit(
@@ -393,7 +393,7 @@ class AbstractRepository:
                 query = query.order_by(field())
 
         # count query
-        count_query = select(func.count(1)).select_from(query)
+        count_query = select(func.count(1)).select_from(query)  # type: ignore
         offset_page = query_conf["page"] - 1
         # pagination
         query = query.offset(offset_page * query_conf["limit"]).limit(
@@ -444,7 +444,7 @@ class AbstractRepository:
         model_relation: RelationshipProperty = getattr(
             inspect(self.model).relationships, relation_conf["relation"]
         )
-        pairs = list(model_relation.local_remote_pairs)
+        pairs = list(model_relation.local_remote_pairs)  # type: ignore
         # origin_table: Table = None
         # origin_key: str = None
         join_table: Union[Table, None] = None
@@ -454,8 +454,8 @@ class AbstractRepository:
         foreign_table: Union[Table, None] = None
         foreign_key: Union[str, None] = None
         for v in pairs:
-            local: Column = v[0]
-            remote: Column = v[1]
+            local: Column = v[0]  # type: ignore
+            remote: Column = v[1]  # type: ignore
             if local.table.name == self.model.__tablename__:
                 join_table = remote.table
                 join_table_origin_attr = remote.key
@@ -520,7 +520,7 @@ class AbstractRepository:
                         join_foreign_col.in_(check_ids),
                     )
                 )
-                count_query = select(func.count(1)).select_from(find_tgt_query)
+                count_query = select(func.count(1)).select_from(find_tgt_query)  # type: ignore
                 result = (await session.execute(count_query)).scalar() or 0
             else:
                 result = 0
@@ -554,14 +554,14 @@ class AbstractRepository:
         model_relation: RelationshipProperty = getattr(
             inspect(self.model).relationships, relation_conf["relation"]
         )
-        pairs = list(model_relation.local_remote_pairs)
+        pairs = list(model_relation.local_remote_pairs)  # type: ignore
         found = False
         related_model: Union[Table, None] = None
         far_col_name: Union[str, None] = None
         far_col: Union[Column, None] = None
         for v in pairs:
-            local: Column = v[0]
-            remote: Column = v[1]
+            local: Column = v[0]  # type: ignore
+            remote: Column = v[1]  # type: ignore
             if local.table.name == self.model.__tablename__:
                 related_model = remote.table
                 far_col_name = remote.key
@@ -599,7 +599,7 @@ class AbstractRepository:
                 related_model_id.in_(relation_conf["relations"]),
             )
         )
-        count_query = select(func.count(1)).select_from(find_tgt_query)
+        count_query = select(func.count(1)).select_from(find_tgt_query)  # type: ignore
         async with self.adapter.getSession() as session:
             if far_col.nullable:
                 await session.execute(clear_query)
