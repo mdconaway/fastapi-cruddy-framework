@@ -1,6 +1,7 @@
 from typing import Any, Optional, TYPE_CHECKING
+from datetime import datetime
 from sqlmodel import Column, Field, JSON, Relationship
-from fastapi_cruddy_framework import UUID, CruddyModel, CruddyUUIDModel, UTCDateTime
+from fastapi_cruddy_framework import UUID, CruddyModel, CruddyUUIDModel
 
 if TYPE_CHECKING:
     from examples.fastapi_cruddy_sqlite.models.user import User
@@ -56,8 +57,8 @@ class PostView(CruddyUUIDModel):
         default={},
         schema_extra={"example": EXAMPLE_POST["tags"]},
     )
-    created_at: Optional[UTCDateTime]
-    updated_at: Optional[UTCDateTime]
+    created_at: Optional[datetime]
+    updated_at: Optional[datetime]
 
 
 # The "Base" model describes the actual table as it should be reflected in
@@ -65,6 +66,6 @@ class PostView(CruddyUUIDModel):
 # in JSON representations, as it may contain hidden fields like passwords
 # or other server-internal state or tracking information. Keep your "Base"
 # models separated from all other interactive derivations.
-class Post(CruddyUUIDModel, PostCreate, table=True):
+class Post(CruddyUUIDModel, PostCreate, table=True):  # type: ignore
     # is the below needed??
     user: "User" = Relationship(back_populates="posts")

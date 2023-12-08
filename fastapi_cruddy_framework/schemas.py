@@ -1,12 +1,25 @@
-from sqlalchemy import Column
-from sqlalchemy.orm import declared_attr, RelationshipProperty
-from sqlalchemy.engine.row import Row
-from typing import Any, Type, TypeVar, Optional, Generic, Union, List, TYPE_CHECKING
-from pydantic.generics import GenericModel
-from sqlmodel import Field, SQLModel, DateTime
+from typing import (
+    Any,
+    Annotated,
+    Type,
+    TypeVar,
+    Optional,
+    Generic,
+    Union,
+    Sequence,
+    List,
+    TYPE_CHECKING,
+)
 from datetime import datetime
-from .uuid import UUID, uuid7
-from .util import build_tz_aware_date, coerce_to_utc_datetime, parse_datetime
+from uuid import UUID, uuid4
+from sqlalchemy import Column
+from sqlalchemy.orm import declared_attr, RelationshipProperty, mapped_column
+from sqlalchemy.engine.row import Row
+from pydantic_core.core_schema import CoreSchema, datetime_schema
+from pydantic import BaseModel, GetCoreSchemaHandler, BeforeValidator, EmailStr as EStr
+from pydantic.types import _check_annotated_type
+from sqlmodel import Field, SQLModel, DateTime
+from .util import build_tz_aware_date
 
 if TYPE_CHECKING:
     from .resource import Resource
@@ -19,15 +32,47 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 
 
-class UTCDateTime(datetime):
-    @classmethod
-    def __get_validators__(cls):
-        yield parse_datetime
-        yield cls.validate
+def strip_and_lower(v: object) -> str:
+    return str(v).strip().lower()
+
+
+EmailStr = Annotated[
+    EStr,
+    BeforeValidator(strip_and_lower),
+]
+
+
+class UTCDateTime:
+    """A datetime that needs UTC as the timezone."""
 
     @classmethod
-    def validate(cls, v):
-        return coerce_to_utc_datetime(v)
+    def __get_pydantic_core_schema__(
+        cls, source: type[Any], handler: GetCoreSchemaHandler
+    ) -> CoreSchema:
+        if cls is source:
+            # used directly as a type
+            return datetime_schema(tz_constraint=0)
+        else:
+            schema = handler(source)
+            _check_annotated_type(schema["type"], "datetime", cls.__name__)
+            schema["tz_constraint"] = 0  # type: ignore
+            return schema
+
+    def __repr__(self) -> str:
+        return "UTCDateTime"
+
+
+# UTCDateTime = Annotated[datetime, FieldAfterValidator(parse_and_coerce_to_utc_datetime)]
+
+# class UTCDateTime(datetime):
+#    @classmethod
+#    def __get_validators__(cls):
+#        yield parse_datetime
+#        yield cls.validate
+#
+#    @classmethod
+#    def validate(cls, v):
+#        return coerce_to_utc_datetime(v)
 
 
 class RelationshipConfig:
@@ -43,9 +88,8 @@ class RelationshipConfig:
         self.foreign_resource = foreign_resource
 
 
-class CruddyGenericModel(GenericModel, Generic[T]):
-    def __init__(self, *args, **kwargs):
-        return super().__init__(*args, **kwargs)
+class CruddyGenericModel(BaseModel, Generic[T]):
+    pass
 
 
 class BulkDTO(CruddyGenericModel):
@@ -53,7 +97,7 @@ class BulkDTO(CruddyGenericModel):
     total_records: int
     limit: int
     page: int
-    data: List[Row]
+    data: Sequence[Row]
 
     class Config:
         arbitrary_types_allowed = True
@@ -65,7 +109,7 @@ class ResponseSchema(CruddyGenericModel):
 
 
 class CruddyModel(SQLModel):
-    @declared_attr  # type: ignore
+    @declared_attr.directive
     def __tablename__(cls) -> str:
         return cls.__name__
 
@@ -90,13 +134,13 @@ class CruddyIntIDModel(CruddyModel):
         index=True,
         nullable=False,
     )
-    created_at: Optional[UTCDateTime] = Field(
+    created_at: Optional[datetime] = Field(
         default_factory=build_tz_aware_date,
-        sa_column=Column(DateTime(timezone=True), nullable=False, index=True),
+        sa_column=lambda: Column(DateTime(timezone=True), nullable=False, index=True),
     )
-    updated_at: Optional[UTCDateTime] = Field(
+    updated_at: Optional[datetime] = Field(
         default_factory=build_tz_aware_date,
-        sa_column=Column(
+        sa_column=lambda: Column(
             DateTime(timezone=True),
             nullable=False,
             index=True,
@@ -107,18 +151,18 @@ class CruddyIntIDModel(CruddyModel):
 
 class CruddyUUIDModel(CruddyModel):
     id: UUID = Field(
-        default_factory=uuid7,
+        default_factory=uuid4,
         primary_key=True,
         index=True,
         nullable=False,
     )
-    created_at: Optional[UTCDateTime] = Field(
+    created_at: Optional[datetime] = Field(
         default_factory=build_tz_aware_date,
-        sa_column=Column(DateTime(timezone=True), nullable=False, index=True),
+        sa_column=lambda: Column(DateTime(timezone=True), nullable=False, index=True),
     )
-    updated_at: Optional[UTCDateTime] = Field(
+    updated_at: Optional[datetime] = Field(
         default_factory=build_tz_aware_date,
-        sa_column=Column(
+        sa_column=lambda: Column(
             DateTime(timezone=True),
             nullable=False,
             index=True,
@@ -139,5 +183,5 @@ class ExampleView(CruddyIntIDModel, ExampleCreate):
     pass
 
 
-class Example(ExampleView, table=False):  # Set table=True on your app's core models
+class Example(ExampleView, table=False):  # type: ignore # Set table=True on your app's core models
     db_only_field: str

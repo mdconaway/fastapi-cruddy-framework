@@ -1,5 +1,4 @@
 import math
-from pydantic.datetime_parse import parse_datetime
 from asyncio import gather
 from logging import getLogger
 from sqlalchemy import (
@@ -30,7 +29,8 @@ from .util import (
     possible_id_types,
     possible_id_values,
     lifecycle_types,
-    coerce_to_utc_datetime,
+    parse_and_coerce_to_utc_datetime,
+    parse_datetime,
 )
 
 JSON_COLUMNS = (JSON, JSONB)
@@ -157,7 +157,7 @@ class AbstractRepository:
     async def create(self, data: CruddyModel) -> CruddyModel:
         # create user data
         async with self.adapter.getSession() as session:
-            record = self.model(**data.dict())
+            record = self.model(**data.model_dump())
             if exists(self.lifecycle["before_create"]):
                 await self.lifecycle["before_create"](record)  # type: ignore
             session.add(record)
@@ -184,7 +184,7 @@ class AbstractRepository:
 
     async def update(self, id: possible_id_values, data: CruddyModel):
         # update user data
-        values = data.dict()
+        values = data.model_dump()
         if exists(self.lifecycle["before_update"]):
             await self.lifecycle["before_update"](values, id)  # type: ignore
         query = (
@@ -704,7 +704,7 @@ class AbstractRepository:
                 v2 = v[k2]
                 mattr = getattr(model, k)
                 if isinstance(v2, dict) and "*datetime" in v2:
-                    v2 = coerce_to_utc_datetime(parse_datetime(v2["*datetime"]))  # type: ignore
+                    v2 = parse_and_coerce_to_utc_datetime(v2["*datetime"])  # type: ignore
                 if isinstance(v2, dict) and "*datetime_naive" in v2:
                     v2 = parse_datetime(v2["*datetime_naive"])  # type: ignore
                 if isinstance(k2, str) and not isinstance(v2, dict) and k2[0] == "*":

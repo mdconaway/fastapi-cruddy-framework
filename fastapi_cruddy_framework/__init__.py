@@ -1,9 +1,10 @@
+# -----------------------------------------------------------------
 # This is a rails-like library. You're welcome Python community.
 # Love,
 # A Sails / Ember lover.
 # -----------------------------------------------------------------
+from pydantic.types import AwareDatetime
 from .inflector import pluralizer
-from .uuid import UUID, uuid7
 from .schemas import (
     T,
     RelationshipConfig,
@@ -20,6 +21,9 @@ from .schemas import (
     ExampleView,
     Example,
     UTCDateTime,
+    uuid4,
+    UUID,
+    EmailStr,
 )
 from .controller import Actions, CruddyController, ControllerConfigurator
 from .repository import AbstractRepository

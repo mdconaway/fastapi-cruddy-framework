@@ -13,7 +13,6 @@ from typing import Union, Optional, List, Dict, TypedDict, Callable, Literal, Ty
 from enum import Enum
 from pydantic import create_model
 from .inflector import pluralizer
-from .uuid import UUID
 from .schemas import (
     RelationshipConfig,
     CruddyGenericModel,
@@ -23,12 +22,13 @@ from .schemas import (
     ExampleCreate,
     ExampleView,
     Example,
+    UUID,
+    uuid4,
 )
 from .controller import Actions, CruddyController, ControllerConfigurator
 from .repository import AbstractRepository
 from .adapters import BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter
 from .util import possible_id_types, possible_id_values, lifecycle_types
-from .uuid import uuid7
 
 
 class SchemaDict(TypedDict):
@@ -227,15 +227,19 @@ class Resource:
         self._model_name_plural = resource_model_plural
 
         # Attempt to align swagger example uuids if possible (non-critical)
-        example_id = uuid7() if self.repository.id_type == UUID else 123
+        example_id = uuid4() if self.repository.id_type == UUID else 123
         if self.repository.id_type == str:
             example_id = str(example_id)
-        possible_id = response_schema.__fields__.get("id", None)
-        if possible_id is not None and possible_id.type_ == self.repository.id_type:
-            possible_id_example = possible_id.field_info.extra.get("example", None)
-            if possible_id_example is not None:
-                example_id = possible_id_example
-            possible_id.field_info.extra["example"] = example_id
+        possible_id = response_schema.model_fields.get("id", None)
+        if (
+            possible_id is not None
+            and possible_id.annotation == self.repository.id_type
+        ):
+            if possible_id.json_schema_extra is not None:
+                possible_id_example = possible_id.json_schema_extra.get("example", None)
+                if possible_id_example is not None:
+                    example_id = possible_id_example
+                possible_id.json_schema_extra.update({"example": str(example_id)})
 
         # Create shared link model
         link_object = {}
@@ -245,7 +249,7 @@ class Resource:
                 str,
                 Field(
                     schema_extra={
-                        "example": self._single_link(id=example_id, relationship=k)
+                        "example": self._single_link(id=str(example_id), relationship=k)
                     }
                 ),
             )
@@ -259,7 +263,9 @@ class Resource:
                 str,
                 Field(
                     schema_extra={
-                        "example": self._single_link(id=example_id, relationship=item)
+                        "example": self._single_link(
+                            id=str(example_id), relationship=item
+                        )
                     }
                 ),
             )
@@ -403,7 +409,7 @@ class Resource:
             elif hasattr(data, "_mapping"):
                 return data._mapping
             if hasattr(data, "dict") and callable(data.dict):
-                return data.dict()
+                return data.model_dump()
             return data
 
         def handle_data_or_none(args: Union[Dict, None]):

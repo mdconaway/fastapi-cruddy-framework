@@ -102,7 +102,7 @@ class Actions:
 
         async def create(data: create_model):
             the_thing_with_rels = getattr(data, single_name)
-            the_thing = create_model_proxy(**the_thing_with_rels.dict())
+            the_thing = create_model_proxy(**the_thing_with_rels.model_dump())
             result = await repository.create(data=the_thing)
             relations_modified = await SaveRelationships(
                 id=getattr(result, str(repository.primary_key)),
@@ -115,7 +115,7 @@ class Actions:
 
         async def update(id: id_type = Path(..., alias="id"), *, data: update_model):
             the_thing_with_rels = getattr(data, single_name)
-            the_thing = update_model_proxy(**the_thing_with_rels.dict())
+            the_thing = update_model_proxy(**the_thing_with_rels.model_dump())
             result = await repository.update(id=id, data=the_thing)
             # Add error logic?
             if result is None:
@@ -287,7 +287,7 @@ def _ControllerConfigManyToOne(
 
         # Build a query to use foreign resource to find related objects
 
-        tgt_id = origin_record.dict()[near_col_name]
+        tgt_id = origin_record.model_dump()[near_col_name]
         must_be = {far_col_name: {"*eq": tgt_id}}
         where = must_be if where is None else {"*and": [must_be, where]}
 
@@ -324,7 +324,7 @@ def _ControllerConfigManyToOne(
             table_record = config.foreign_resource.repository.model(**data)
             if foreign_lifecycle_after != None:
                 await foreign_lifecycle_after(table_record)
-            data = table_record.dict()
+            data = table_record.model_dump()
         else:
             if foreign_lifecycle_after != None:
                 await foreign_lifecycle_after(None)
@@ -390,7 +390,9 @@ def _ControllerConfigOneToMany(
             )
 
         # Build a query to use foreign resource to find related objects
-        additional_where = {far_col_name: {"*eq": origin_record.dict()[near_col_name]}}
+        additional_where = {
+            far_col_name: {"*eq": origin_record.model_dump()[near_col_name]}
+        }
         if where != None:
             repo_where = {"*and": [additional_where, where]}
         else:

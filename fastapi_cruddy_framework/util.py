@@ -1,11 +1,11 @@
 import re
 from typing import Type, Union, Optional, Coroutine, Any, Callable
 import inspect
-from pydantic.errors import PydanticErrorMixin, PydanticErrorCodes
+from pydantic.errors import PydanticErrorMixin
 from sqlalchemy.orm import class_mapper, object_mapper
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Optional, Type, Union
-from .uuid import UUID
+from .schemas import UUID
 
 
 StrBytesIntFloat = Union[str, bytes, int, float]
@@ -138,6 +138,10 @@ def coerce_to_utc_datetime(v: datetime):
         return v.replace(tzinfo=timezone.utc)
 
     return v.astimezone(timezone.utc)
+
+
+def parse_and_coerce_to_utc_datetime(value: Union[datetime, StrBytesIntFloat]):
+    return coerce_to_utc_datetime(parse_datetime(value))
 
 
 possible_id_types = Union[Type[UUID], Type[int], Type[str]]

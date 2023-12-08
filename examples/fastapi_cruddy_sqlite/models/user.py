@@ -1,7 +1,11 @@
 from typing import Optional, List, TYPE_CHECKING
+from datetime import datetime
 from sqlmodel import Field, Relationship, Column, DateTime
-from pydantic import EmailStr
-from fastapi_cruddy_framework import UUID, CruddyModel, CruddyUUIDModel, UTCDateTime
+from fastapi_cruddy_framework import (
+    UUID,
+    CruddyModel,
+    CruddyUUIDModel,
+)
 from examples.fastapi_cruddy_sqlite.models.common.relationships import GroupUserLink
 
 if TYPE_CHECKING:
@@ -34,7 +38,7 @@ EXAMPLE_USER = {
 class UserUpdate(CruddyModel):
     first_name: str = Field(schema_extra={"example": EXAMPLE_USER["first_name"]})
     last_name: str = Field(schema_extra={"example": EXAMPLE_USER["last_name"]})
-    email: EmailStr = Field(
+    email: str = Field(
         nullable=True,
         index=True,
         sa_column_kwargs={"unique": True},
@@ -42,7 +46,7 @@ class UserUpdate(CruddyModel):
     )
     is_active: bool = Field(default=True)
     is_superuser: bool = Field(default=False)
-    birthdate: Optional[UTCDateTime] = Field(
+    birthdate: Optional[datetime] = Field(
         sa_column=Column(DateTime(timezone=True), nullable=True)
     )  # birthday with timezone
     phone: Optional[str] = Field(schema_extra={"example": EXAMPLE_USER["phone"]})
@@ -74,16 +78,16 @@ class UserView(CruddyUUIDModel):
     last_name: Optional[str] = Field(
         schema_extra={"example": EXAMPLE_USER["last_name"]}
     )
-    email: Optional[EmailStr] = Field(schema_extra={"example": EXAMPLE_USER["email"]})
+    email: Optional[str] = Field(schema_extra={"example": EXAMPLE_USER["email"]})
     is_active: Optional[bool]
     is_superuser: Optional[bool]
-    birthdate: Optional[UTCDateTime]
+    birthdate: Optional[datetime]
     phone: Optional[str] = Field(schema_extra={"example": EXAMPLE_USER["phone"]})
     state: Optional[str] = Field(schema_extra={"example": EXAMPLE_USER["state"]})
     country: Optional[str] = Field(schema_extra={"example": EXAMPLE_USER["country"]})
     address: Optional[str] = Field(schema_extra={"example": EXAMPLE_USER["address"]})
-    created_at: Optional[UTCDateTime]
-    updated_at: Optional[UTCDateTime]
+    created_at: Optional[datetime]
+    updated_at: Optional[datetime]
 
 
 # The "Base" model describes the actual table as it should be reflected in
@@ -91,7 +95,7 @@ class UserView(CruddyUUIDModel):
 # in JSON representations, as it may contain hidden fields like passwords
 # or other server-internal state or tracking information. Keep your "Base"
 # models separated from all other interactive derivations.
-class User(CruddyUUIDModel, UserCreate, table=True):
+class User(CruddyUUIDModel, UserCreate, table=True):  # type: ignore
     password: str = Field(nullable=False, index=True)
     posts: List["Post"] = Relationship(back_populates="user")
     groups: List["Group"] = Relationship(

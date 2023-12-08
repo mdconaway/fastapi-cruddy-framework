@@ -89,8 +89,7 @@ getModuleDir
 getDirectoryModules
 # HELPERS
 pluralizer
-uuid6
-uuid7
+uuid4
 get_pk
 possible_id_types
 lifecycle_types
