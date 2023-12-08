@@ -1,7 +1,9 @@
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, status
+from fastapi.responses import JSONResponse
 from starlette.middleware.cors import CORSMiddleware
+from sqlalchemy.exc import IntegrityError
 from examples.fastapi_cruddy_sqlite.config import general, http, sessions
 from examples.fastapi_cruddy_sqlite.router import application as application_router
 from examples.fastapi_cruddy_sqlite.middleware import RequestLogger
@@ -11,6 +13,7 @@ from datetime import timedelta
 
 
 logger = logging.getLogger(__name__)
+HTTP_400_BAD_REQUEST = status.HTTP_400_BAD_REQUEST
 
 
 async def bootstrap(application: FastAPI):
@@ -61,3 +64,12 @@ app.add_middleware(
     same_site="lax",  # lax or strict
     max_age=int(timedelta(days=sessions.SESSION_MAX_AGE).total_seconds()),  # in seconds
 )
+
+
+# Add global handler to catch DB integrity errors
+@app.exception_handler(IntegrityError)
+async def integrity_exception_handler(_, exc: IntegrityError):
+    return JSONResponse(
+        status_code=HTTP_400_BAD_REQUEST,
+        content={"detail": [str(exc.orig)]},
+    )

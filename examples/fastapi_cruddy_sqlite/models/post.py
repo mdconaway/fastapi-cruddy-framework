@@ -49,16 +49,18 @@ class PostCreate(PostUpdate):
 # responses, as in the schemas below. To support column clipping, all
 # fields need to be optional.
 class PostView(CruddyUUIDModel):
-    id: Optional[UUID]
-    user_id: Optional[UUID]
-    content: Optional[str] = Field(schema_extra={"example": EXAMPLE_POST["content"]})
+    id: UUID
+    user_id: Optional[UUID] = None
+    content: Optional[str] = Field(
+        default=None, schema_extra={"example": EXAMPLE_POST["content"]}
+    )
     tags: Optional[dict[str, Any]] = Field(
         sa_column=Column(JSON, index=True),
-        default={},
+        default=None,
         schema_extra={"example": EXAMPLE_POST["tags"]},
     )
-    created_at: Optional[datetime]
-    updated_at: Optional[datetime]
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 
 # The "Base" model describes the actual table as it should be reflected in

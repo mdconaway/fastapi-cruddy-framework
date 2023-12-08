@@ -71,23 +71,33 @@ class UserCreate(UserUpdate):
 # responses, as in the schemas below. To support column clipping, all
 # fields need to be optional.
 class UserView(CruddyUUIDModel):
-    id: Optional[UUID]
+    id: UUID
     first_name: Optional[str] = Field(
-        schema_extra={"example": EXAMPLE_USER["first_name"]}
+        default=None, schema_extra={"example": EXAMPLE_USER["first_name"]}
     )
     last_name: Optional[str] = Field(
-        schema_extra={"example": EXAMPLE_USER["last_name"]}
+        default=None, schema_extra={"example": EXAMPLE_USER["last_name"]}
     )
-    email: Optional[str] = Field(schema_extra={"example": EXAMPLE_USER["email"]})
-    is_active: Optional[bool]
-    is_superuser: Optional[bool]
-    birthdate: Optional[datetime]
-    phone: Optional[str] = Field(schema_extra={"example": EXAMPLE_USER["phone"]})
-    state: Optional[str] = Field(schema_extra={"example": EXAMPLE_USER["state"]})
-    country: Optional[str] = Field(schema_extra={"example": EXAMPLE_USER["country"]})
-    address: Optional[str] = Field(schema_extra={"example": EXAMPLE_USER["address"]})
-    created_at: Optional[datetime]
-    updated_at: Optional[datetime]
+    email: Optional[str] = Field(
+        default=None, schema_extra={"example": EXAMPLE_USER["email"]}
+    )
+    is_active: Optional[bool] = None
+    is_superuser: Optional[bool] = None
+    birthdate: Optional[datetime] = None
+    phone: Optional[str] = Field(
+        default=None, schema_extra={"example": EXAMPLE_USER["phone"]}
+    )
+    state: Optional[str] = Field(
+        default=None, schema_extra={"example": EXAMPLE_USER["state"]}
+    )
+    country: Optional[str] = Field(
+        default=None, schema_extra={"example": EXAMPLE_USER["country"]}
+    )
+    address: Optional[str] = Field(
+        default=None, schema_extra={"example": EXAMPLE_USER["address"]}
+    )
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 
 # The "Base" model describes the actual table as it should be reflected in
