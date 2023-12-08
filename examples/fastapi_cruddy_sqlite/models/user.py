@@ -29,6 +29,7 @@ EXAMPLE_USER = {
     "state": "FL",
     "country": "USA",
     "address": "101 Sunshine Way",
+    "password": "at-least-6-characters",
 }
 
 
@@ -36,23 +37,23 @@ EXAMPLE_USER = {
 # client's PATCH action. Generally, the update model should have the fewest
 # number of available fields for a client to manipulate.
 class UserUpdate(CruddyModel):
-    first_name: str = Field(schema_extra={"example": EXAMPLE_USER["first_name"]})
-    last_name: str = Field(schema_extra={"example": EXAMPLE_USER["last_name"]})
+    first_name: str = Field(schema_extra={"examples": [EXAMPLE_USER["first_name"]]})
+    last_name: str = Field(schema_extra={"examples": [EXAMPLE_USER["last_name"]]})
     email: str = Field(
         nullable=True,
         index=True,
         sa_column_kwargs={"unique": True},
-        schema_extra={"example": EXAMPLE_USER["email"]},
+        schema_extra={"examples": [EXAMPLE_USER["email"]]},
     )
     is_active: bool = Field(default=True)
     is_superuser: bool = Field(default=False)
     birthdate: Optional[datetime] = Field(
         sa_column=Column(DateTime(timezone=True), nullable=True)
     )  # birthday with timezone
-    phone: Optional[str] = Field(schema_extra={"example": EXAMPLE_USER["phone"]})
-    state: Optional[str] = Field(schema_extra={"example": EXAMPLE_USER["state"]})
-    country: Optional[str] = Field(schema_extra={"example": EXAMPLE_USER["country"]})
-    address: Optional[str] = Field(schema_extra={"example": EXAMPLE_USER["address"]})
+    phone: Optional[str] = Field(schema_extra={"examples": [EXAMPLE_USER["phone"]]})
+    state: Optional[str] = Field(schema_extra={"examples": [EXAMPLE_USER["state"]]})
+    country: Optional[str] = Field(schema_extra={"examples": [EXAMPLE_USER["country"]]})
+    address: Optional[str] = Field(schema_extra={"examples": [EXAMPLE_USER["address"]]})
 
 
 # The "Create" model variant expands on the update model, above, and adds
@@ -60,7 +61,7 @@ class UserUpdate(CruddyModel):
 # generated. This allows the POST action to accept update-able fields, as
 # well as one-time writeable fields.
 class UserCreate(UserUpdate):
-    password: str
+    password: str = Field(schema_extra={"examples": [EXAMPLE_USER["password"]]})
 
 
 # The "View" model describes all fields that should typcially be present
@@ -72,28 +73,28 @@ class UserCreate(UserUpdate):
 # fields need to be optional.
 class UserView(CruddyUUIDModel):
     first_name: Optional[str] = Field(
-        default=None, schema_extra={"example": EXAMPLE_USER["first_name"]}
+        default=None, schema_extra={"examples": [EXAMPLE_USER["first_name"]]}
     )
     last_name: Optional[str] = Field(
-        default=None, schema_extra={"example": EXAMPLE_USER["last_name"]}
+        default=None, schema_extra={"examples": [EXAMPLE_USER["last_name"]]}
     )
     email: Optional[str] = Field(
-        default=None, schema_extra={"example": EXAMPLE_USER["email"]}
+        default=None, schema_extra={"examples": [EXAMPLE_USER["email"]]}
     )
     is_active: Optional[bool] = None
     is_superuser: Optional[bool] = None
     birthdate: Optional[datetime] = None
     phone: Optional[str] = Field(
-        default=None, schema_extra={"example": EXAMPLE_USER["phone"]}
+        default=None, schema_extra={"examples": [EXAMPLE_USER["phone"]]}
     )
     state: Optional[str] = Field(
-        default=None, schema_extra={"example": EXAMPLE_USER["state"]}
+        default=None, schema_extra={"examples": [EXAMPLE_USER["state"]]}
     )
     country: Optional[str] = Field(
-        default=None, schema_extra={"example": EXAMPLE_USER["country"]}
+        default=None, schema_extra={"examples": [EXAMPLE_USER["country"]]}
     )
     address: Optional[str] = Field(
-        default=None, schema_extra={"example": EXAMPLE_USER["address"]}
+        default=None, schema_extra={"examples": [EXAMPLE_USER["address"]]}
     )
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

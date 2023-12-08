@@ -10,7 +10,7 @@ from sqlalchemy.orm import (
 from sqlmodel import Field, inspect
 from typing import Union, Optional, List, Dict, TypedDict, Callable, Literal, Type
 from enum import Enum
-from pydantic import create_model, Field as PydanticField
+from pydantic import create_model
 from .inflector import pluralizer
 from .schemas import (
     RelationshipConfig,
@@ -252,8 +252,12 @@ class Resource:
         for k, v in self._relations.items():
             link_object[k] = (
                 str,
-                PydanticField(
-                    examples=[self._single_link(id=str(example_id), relationship=k)]
+                Field(
+                    schema_extra={
+                        "examples": [
+                            self._single_link(id=str(example_id), relationship=k)
+                        ]
+                    }
                 ),
             )
             if (
@@ -264,8 +268,12 @@ class Resource:
         for item in self._artificial_relationship_paths:
             link_object[item] = (
                 str,
-                PydanticField(
-                    examples=[self._single_link(id=str(example_id), relationship=item)]
+                Field(
+                    schema_extra={
+                        "examples": [
+                            self._single_link(id=str(example_id), relationship=item)
+                        ]
+                    }
                 ),
             )
         link_object["__base__"] = CruddyModel

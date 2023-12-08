@@ -23,7 +23,7 @@ EXAMPLE_GROUP = {"name": "Cruddy Fans"}
 # client's PATCH action. Generally, the update model should have the fewest
 # number of available fields for a client to manipulate.
 class GroupUpdate(CruddyModel):
-    name: str = Field(schema_extra={"example": EXAMPLE_GROUP["name"]})
+    name: str = Field(schema_extra={"examples": [EXAMPLE_GROUP["name"]]})
 
 
 # The "Create" model variant expands on the update model, above, and adds
@@ -43,7 +43,7 @@ class GroupCreate(GroupUpdate):
 # fields need to be optional.
 class GroupView(CruddyUUIDModel):
     name: Optional[str] = Field(
-        default=None, schema_extra={"example": EXAMPLE_GROUP["name"]}
+        default=None, schema_extra={"examples": [EXAMPLE_GROUP["name"]]}
     )
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

@@ -25,11 +25,11 @@ EXAMPLE_POST = {
 # client's PATCH action. Generally, the update model should have the fewest
 # number of available fields for a client to manipulate.
 class PostUpdate(CruddyModel):
-    content: str = Field(schema_extra={"example": EXAMPLE_POST["content"]})
+    content: str = Field(schema_extra={"examples": [EXAMPLE_POST["content"]]})
     tags: dict = Field(
         sa_column=Column(JSON),
         default={},
-        schema_extra={"example": EXAMPLE_POST["tags"]},
+        schema_extra={"examples": [EXAMPLE_POST["tags"]]},
     )
 
 
@@ -51,12 +51,12 @@ class PostCreate(PostUpdate):
 class PostView(CruddyUUIDModel):
     user_id: Optional[UUID] = None
     content: Optional[str] = Field(
-        default=None, schema_extra={"example": EXAMPLE_POST["content"]}
+        default=None, schema_extra={"examples": [EXAMPLE_POST["content"]]}
     )
     tags: Optional[dict[str, Any]] = Field(
         sa_column=Column(JSON, index=True),
         default=None,
-        schema_extra={"example": EXAMPLE_POST["tags"]},
+        schema_extra={"examples": [EXAMPLE_POST["tags"]]},
     )
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
