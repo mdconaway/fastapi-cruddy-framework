@@ -265,4 +265,35 @@ class BulkDTO(CruddyGenericModel):
     page: int
     data: Sequence[Row]
 ```
+---
+
+12. As of December 2023, `sqlmodel` does not support `lambda` functions when declaring an `sa_column` `Field` argument. As a result, `created_at` and `updated_at` fields have been separated from core cruddy models and isolated into a functional class generator mixin. This allows framework users to achieve the same effect without creating `sqlalchemy` errors because multiple models are trying to share the same `Column` instance.
+- Modify any code where a `table=true` model expects the normal cruddy `created_at` and `updated_at` timestamping functionality:
+```python
+from fastapi_cruddy_framework import CruddyIntIDModel, CruddyUUIDModel
+from sqlmodel import Field
+
+class Widget(CruddyUUIDModel, table=True):
+    name: str = Field(nullable=False, index=True)
+
+
+class Foo(CruddyIntIDModel, table=True):
+    name: str = Field(nullable=False, index=True)
+```
+becomes
+```python
+# The "type: ignore" comments are for migration note 3, ABOVE ^
+from fastapi_cruddy_framework import CruddyIntIDModel, CruddyUUIDModel, CruddyCreatedUpdatedMixin
+from sqlmodel import Field
+
+
+class Widget(CruddyCreatedUpdatedMixin(), CruddyUUIDModel, table=True):  # type: ignore
+    name: str = Field(nullable=False, index=True)
+
+
+class Foo(CruddyCreatedUpdatedMixin(), CruddyIntIDModel, table=True):  # type: ignore
+    name: str = Field(nullable=False, index=True)
+```
+---
+
 <p align="right">(<a href="#readme-top">back to top</a>)</p>

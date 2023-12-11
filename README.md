@@ -100,9 +100,9 @@ MetaObject
 PageResponse
 ResponseSchema
 CruddyModel
-CruddyIntIDMinimalModel
+CruddyCreatedUpdatedSignature
+CruddyCreatedUpdatedMixin
 CruddyIntIDModel
-CruddyUUIDMinimalModel
 CruddyUUIDModel
 ExampleUpdate
 ExampleCreate

@@ -1,7 +1,12 @@
 from typing import Optional, List, TYPE_CHECKING
 from datetime import datetime
 from sqlmodel import Field, Relationship
-from fastapi_cruddy_framework import CruddyModel, CruddyUUIDModel
+from fastapi_cruddy_framework import (
+    CruddyModel,
+    CruddyUUIDModel,
+    CruddyCreatedUpdatedSignature,
+    CruddyCreatedUpdatedMixin,
+)
 from examples.fastapi_cruddy_sqlite.models.common.relationships import GroupUserLink
 
 if TYPE_CHECKING:
@@ -41,12 +46,10 @@ class GroupCreate(GroupUpdate):
 # fields. This should be used when defining single responses and paged
 # responses, as in the schemas below. To support column clipping, all
 # fields need to be optional.
-class GroupView(CruddyUUIDModel):
+class GroupView(CruddyCreatedUpdatedSignature, CruddyUUIDModel):
     name: Optional[str] = Field(
         default=None, schema_extra={"examples": [EXAMPLE_GROUP["name"]]}
     )
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
 
 
 # The "Base" model describes the actual table as it should be reflected in
@@ -54,7 +57,7 @@ class GroupView(CruddyUUIDModel):
 # in JSON representations, as it may contain hidden fields like passwords
 # or other server-internal state or tracking information. Keep your "Base"
 # models separated from all other interactive derivations.
-class Group(CruddyUUIDModel, GroupCreate, table=True):  # type: ignore
+class Group(CruddyCreatedUpdatedMixin(), CruddyUUIDModel, GroupCreate, table=True):  # type: ignore
     # is the below needed??
     users: List["User"] = Relationship(
         back_populates="groups", link_model=GroupUserLink

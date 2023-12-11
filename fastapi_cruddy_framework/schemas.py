@@ -13,14 +13,11 @@ from datetime import datetime
 from uuid import UUID
 from uuid_extensions import uuid7
 from sqlalchemy import Column
-from sqlalchemy.orm import declared_attr, RelationshipProperty  # , mapped_column
+from sqlalchemy.orm import declared_attr, RelationshipProperty
 from sqlalchemy.engine.row import Row
-from pydantic import BaseModel, field_validator  # , GetCoreSchemaHandler
+from pydantic import BaseModel, field_validator
 from sqlmodel import Field, SQLModel, DateTime
 from .util import build_tz_aware_date, parse_and_coerce_to_utc_datetime
-
-# from pydantic.types import _check_annotated_type
-# from pydantic_core.core_schema import CoreSchema, datetime_schema
 
 if TYPE_CHECKING:
     from .resource import Resource
@@ -31,38 +28,6 @@ if TYPE_CHECKING:
 # -------------------------------------------------------------------------------------------
 
 T = TypeVar("T")
-
-
-# class UTCDateTime:
-#    """A datetime that needs UTC as the timezone."""
-#
-#    @classmethod
-#    def __get_pydantic_core_schema__(
-#        cls, source: type[Any], handler: GetCoreSchemaHandler
-#    ) -> CoreSchema:
-#        if cls is source:
-#            # used directly as a type
-#            return datetime_schema(tz_constraint=0)
-#        else:
-#            schema = handler(source)
-#            _check_annotated_type(schema["type"], "datetime", cls.__name__)
-#            schema["tz_constraint"] = 0  # type: ignore
-#            return schema
-#
-#    def __repr__(self) -> str:
-#        return "UTCDateTime"
-
-# UTCDateTime = Annotated[datetime, FieldAfterValidator(parse_and_coerce_to_utc_datetime)]
-
-# class UTCDateTime(datetime):
-#    @classmethod
-#    def __get_validators__(cls):
-#        yield parse_datetime
-#        yield cls.validate
-#
-#    @classmethod
-#    def validate(cls, v):
-#        return coerce_to_utc_datetime(v)
 
 
 class RelationshipConfig:
@@ -117,7 +82,7 @@ class PageResponse(CruddyGenericModel):
     data: List[Any]
 
 
-class CruddyIntIDMinimalModel(CruddyModel):
+class CruddyIntIDModel(CruddyModel):
     id: Optional[int] = Field(
         default=None,
         primary_key=True,
@@ -126,7 +91,7 @@ class CruddyIntIDMinimalModel(CruddyModel):
     )
 
 
-class CruddyUUIDMinimalModel(CruddyModel):
+class CruddyUUIDModel(CruddyModel):
     id: UUID = Field(
         default_factory=uuid7,
         primary_key=True,
@@ -135,33 +100,33 @@ class CruddyUUIDMinimalModel(CruddyModel):
     )
 
 
-class CruddyCreatedUpdatedModel(CruddyModel):
-    created_at: Optional[datetime] = Field(
-        default_factory=build_tz_aware_date,
-        sa_column=lambda: Column(DateTime(timezone=True), nullable=False, index=True),
-    )
-    updated_at: Optional[datetime] = Field(
-        default_factory=build_tz_aware_date,
-        sa_column=lambda: Column(
-            DateTime(timezone=True),
-            nullable=False,
-            index=True,
-            onupdate=build_tz_aware_date,
-        ),
-    )
-
-    @field_validator("created_at", "updated_at", mode="before")
-    @classmethod
-    def _validate_cruddy_timestamps(cls, v: Any) -> datetime:
-        return parse_and_coerce_to_utc_datetime(v)
+class CruddyCreatedUpdatedSignature(CruddyModel):
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 
-class CruddyIntIDModel(CruddyCreatedUpdatedModel, CruddyIntIDMinimalModel):
-    pass
+def CruddyCreatedUpdatedMixin() -> type[CruddyCreatedUpdatedSignature]:
+    class CruddyCreatedUpdatedInstance(CruddyCreatedUpdatedSignature):
+        created_at: Optional[datetime] = Field(
+            default_factory=build_tz_aware_date,
+            sa_column=Column(DateTime(timezone=True), nullable=False, index=True),
+        )
+        updated_at: Optional[datetime] = Field(
+            default_factory=build_tz_aware_date,
+            sa_column=Column(
+                DateTime(timezone=True),
+                nullable=False,
+                index=True,
+                onupdate=build_tz_aware_date,
+            ),
+        )
 
+        @field_validator("created_at", "updated_at", mode="before")
+        @classmethod
+        def _validate_cruddy_timestamps(cls, v: Any) -> datetime:
+            return parse_and_coerce_to_utc_datetime(v)
 
-class CruddyUUIDModel(CruddyCreatedUpdatedModel, CruddyUUIDMinimalModel):
-    pass
+    return CruddyCreatedUpdatedInstance
 
 
 class ExampleUpdate(CruddyModel):

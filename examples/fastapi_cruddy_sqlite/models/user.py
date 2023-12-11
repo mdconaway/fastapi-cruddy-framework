@@ -2,7 +2,13 @@ from typing import Any, Optional, List, TYPE_CHECKING
 from datetime import datetime
 from pydantic import field_validator
 from sqlmodel import Field, Relationship, Column, DateTime
-from fastapi_cruddy_framework import CruddyModel, CruddyUUIDModel, validate_utc_datetime
+from fastapi_cruddy_framework import (
+    CruddyModel,
+    CruddyUUIDModel,
+    CruddyCreatedUpdatedSignature,
+    CruddyCreatedUpdatedMixin,
+    validate_utc_datetime,
+)
 from examples.fastapi_cruddy_sqlite.models.common.relationships import GroupUserLink
 
 if TYPE_CHECKING:
@@ -81,7 +87,7 @@ class UserCreate(UserUpdate):
 # fields. This should be used when defining single responses and paged
 # responses, as in the schemas below. To support column clipping, all
 # fields need to be optional.
-class UserView(CruddyUUIDModel):
+class UserView(CruddyCreatedUpdatedSignature, CruddyUUIDModel):
     first_name: Optional[str] = Field(
         default=None, schema_extra={"examples": [EXAMPLE_USER["first_name"]]}
     )
@@ -106,8 +112,6 @@ class UserView(CruddyUUIDModel):
     address: Optional[str] = Field(
         default=None, schema_extra={"examples": [EXAMPLE_USER["address"]]}
     )
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
 
 
 # The "Base" model describes the actual table as it should be reflected in
@@ -115,7 +119,7 @@ class UserView(CruddyUUIDModel):
 # in JSON representations, as it may contain hidden fields like passwords
 # or other server-internal state or tracking information. Keep your "Base"
 # models separated from all other interactive derivations.
-class User(CruddyUUIDModel, UserCreate, table=True):  # type: ignore
+class User(CruddyCreatedUpdatedMixin(), CruddyUUIDModel, UserCreate, table=True):  # type: ignore
     password: str = Field(nullable=False, index=True)
     posts: List["Post"] = Relationship(back_populates="user")
     groups: List["Group"] = Relationship(

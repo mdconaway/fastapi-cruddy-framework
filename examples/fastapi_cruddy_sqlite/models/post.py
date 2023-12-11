@@ -6,6 +6,8 @@ from fastapi_cruddy_framework import (
     UUID,
     CruddyModel,
     CruddyUUIDModel,
+    CruddyCreatedUpdatedSignature,
+    CruddyCreatedUpdatedMixin,
     validate_utc_datetime,
 )
 
@@ -70,7 +72,7 @@ class PostCreate(PostUpdate):
 # fields. This should be used when defining single responses and paged
 # responses, as in the schemas below. To support column clipping, all
 # fields need to be optional.
-class PostView(CruddyUUIDModel):
+class PostView(CruddyCreatedUpdatedSignature, CruddyUUIDModel):
     user_id: Optional[UUID] = None
     content: Optional[str] = Field(
         default=None, schema_extra={"examples": [EXAMPLE_POST["content"]]}
@@ -81,8 +83,6 @@ class PostView(CruddyUUIDModel):
         schema_extra={"examples": [EXAMPLE_POST["tags"]]},
     )
     event_date: Optional[datetime] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
 
 
 # The "Base" model describes the actual table as it should be reflected in
@@ -90,6 +90,6 @@ class PostView(CruddyUUIDModel):
 # in JSON representations, as it may contain hidden fields like passwords
 # or other server-internal state or tracking information. Keep your "Base"
 # models separated from all other interactive derivations.
-class Post(CruddyUUIDModel, PostCreate, table=True):  # type: ignore
+class Post(CruddyCreatedUpdatedMixin(), CruddyUUIDModel, PostCreate, table=True):  # type: ignore
     # is the below needed??
     user: "User" = Relationship(back_populates="posts")
