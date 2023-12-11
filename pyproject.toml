@@ -44,6 +44,7 @@ sqlmodel = "^0.0.14"
 inflect = "^7.0.0"
 async-asgi-testclient = "^1.4.11"
 validator-collection = "^1.5.0"
+uuid7 = "^0.1.0"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.10.1"

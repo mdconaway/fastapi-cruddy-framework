@@ -24,7 +24,7 @@ from .schemas import (
     ExampleCreate,
     ExampleView,
     Example,
-    uuid4,
+    uuid7,
     UUID,
 )
 from .controller import Actions, CruddyController, ControllerConfigurator

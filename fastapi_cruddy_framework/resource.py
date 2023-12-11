@@ -22,7 +22,7 @@ from .schemas import (
     ExampleView,
     Example,
     UUID,
-    uuid4,
+    uuid7,
 )
 from .controller import Actions, CruddyController, ControllerConfigurator
 from .repository import AbstractRepository
@@ -226,7 +226,7 @@ class Resource:
         self._model_name_plural = resource_model_plural
 
         # Attempt to align swagger example uuids if possible (non-critical)
-        example_id = uuid4() if self.repository.id_type == UUID else 123
+        example_id = uuid7() if self.repository.id_type == UUID else 123
         if self.repository.id_type == str:
             example_id = str(example_id)
         possible_id = response_schema.model_fields.get("id", None)

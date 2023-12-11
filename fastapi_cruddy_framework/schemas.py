@@ -10,7 +10,8 @@ from typing import (
     TYPE_CHECKING,
 )
 from datetime import datetime
-from uuid import UUID, uuid4
+from uuid import UUID
+from uuid_extensions import uuid7
 from sqlalchemy import Column
 from sqlalchemy.orm import declared_attr, RelationshipProperty  # , mapped_column
 from sqlalchemy.engine.row import Row
@@ -140,7 +141,7 @@ class CruddyIntIDModel(CruddyModel):
 
 class CruddyUUIDModel(CruddyModel):
     id: UUID = Field(
-        default_factory=uuid4,
+        default_factory=uuid7,
         primary_key=True,
         index=True,
         nullable=False,
