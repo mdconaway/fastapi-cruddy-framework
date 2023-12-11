@@ -29,14 +29,14 @@ See the examples folder for a quick reference of high level setup. It currently 
 
 `fastapi-cruddy-framework` was originally developed against FastAPI &lt;= 0.91.0, sqlmodel &lt;= 0.0.12, pydantic &lt; 2.0.0, and sqlalchemy &lt; 2.0.0. However, beginning with `fastapi-cruddy-framework` version 1.x.x+, all major dependencies have been shifted forward to target FastAPI 0.100.0+, sqlmodel 0.0.14+, pydantic 2.0.0+, and sqlalchemy 2.0.0+. Therefore, when using this library, please note the following library compatibility chart:
 
-### `fastapi-crudy-framework&#64;0.x.x`:
+### `fastapi-crudy-framework@0.x.x`:
 - FastAPI &lt;= 0.91.0
 - SQLModel &lt;= 0.0.12
 - pydantic &lt; 2.0.0
 - sqlalchemy &lt; 2.0.0
 
 
-### `fastapi-crudy-framework&#64;1.x.x`:
+### `fastapi-crudy-framework@1.x.x`:
 - FastAPI &gt;= 0.100.0
 - SQLModel &gt;= 0.0.14
 - pydantic &gt;= 2.0.0
