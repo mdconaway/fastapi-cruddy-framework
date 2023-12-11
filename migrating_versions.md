@@ -211,4 +211,59 @@ class Widget(CruddyModel):
     def validate_some_field(cls, v: str) -> str | None:
         return field_validators.email(v)
 ```
+
+
+8. `pydantic` 2.0+ replaces `record.dict()` with `record.model_dump()`.
+- Modify all calls to `.dict()` by replacing with `.model_dump()` by changing:
+```python
+record_dict = record.dict()
+```
+to
+```python
+record_dict = record.model_dump()
+```
+
+
+9. `pydantic` 2.0+ moves the default `Undefined` field, and all other `fields`, to `pydantic_core`.
+- Modify all references to `Undefined` or other fields by changing:
+ ```python
+ from pydantic.fields import Undefined
+ ```
+ to
+  ```python
+ from pydantic_core import PydanticUndefined as Undefined
+ ```
+ This applies to all custom pydantic `fields`
+
+
+ 10. Model class level fields are no longer accessed via the private attribute `__fields__`.
+ - Modify all references to `__fields__` by changing:
+```python
+my_model.__fields__
+```
+to
+```python
+my_model.model_fields
+```
+
+
+11. Cruddy's `BulkDTO` type alters the `data` attribute's primary type, in accordance with the new return value from `sqlalchemy` 2.0+.
+- Modify any code directly using a `BulkDTO` object to change type dependence from:
+```python
+class BulkDTO(CruddyGenericModel):
+    total_pages: int
+    total_records: int
+    limit: int
+    page: int
+    data: List[Row]
+```
+to
+```python
+class BulkDTO(CruddyGenericModel):
+    total_pages: int
+    total_records: int
+    limit: int
+    page: int
+    data: Sequence[Row]
+```
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
