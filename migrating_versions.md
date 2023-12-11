@@ -30,5 +30,49 @@ becomes
 ```python
 from pydantic_settings import BaseSettings
 ```
+2. Replace `@app.on_event("startup")` and `@app.on_event("shutdown")` with `lifespan` context manager.
+- Upgrade your `main.py` file to change:
+```python
+from fastapi import FastAPI
+from myproject.router import application as application_router
+
+app = FastAPI(title="My Project", version="0.0.0")
+
+
+@app.on_event("startup")
+async def bootstrap():
+    app.include_router(application_router)
+
+
+@app.on_event("shudtown")
+async def shutdown():
+    pass
+```
+to
+```python
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+from myproject.router import application as application_router
+
+
+async def bootstrap(application: FastAPI):
+    application.include_router(application_router)
+
+
+async def shutdown():
+    pass
+
+
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    await bootstrap(application)
+    yield
+    await shutdown()
+
+
+app = FastAPI(
+    title="My Project", version="0.0.0", lifespan=lifespan
+)
+```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
