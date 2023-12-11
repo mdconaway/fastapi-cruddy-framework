@@ -30,7 +30,7 @@ becomes
 ```python
 from pydantic_settings import BaseSettings
 ```
-
+---
 
 2. Replace `@app.on_event("startup")` and `@app.on_event("shutdown")` with `lifespan` context manager.
 - Upgrade your `main.py` file:
@@ -76,7 +76,7 @@ app = FastAPI(
     title="My Project", version="0.0.0", lifespan=lifespan
 )
 ```
-
+---
 
 3. (Optional) As of December 2023, there is a known bug with sqlmodel 0.0.14 where type checking on TABLE models will complain, but will still work.
 - For any models that have a corresponding database table by using `table=True` in the class declaration, modify the declaration to ignore class type checking:
@@ -89,7 +89,7 @@ becomes
 class Widget(CruddyModel, table=True):  # type: ignore
     pass
 ```
-
+---
 
 4. Schema `example` attribute has been moved to plural `examples`. Modify any use of `schema_extra` which declares `example` attribute.
 - For any models that leverage  `schema_extra={"example": "some value}`:
@@ -103,7 +103,7 @@ class Widget(CruddyModel):
     name: str = Field(schema_extra={"examples": ["Widget Name"]})
 ```
 in order to maintain proper openapi.json / swagger examples.
-
+---
 
 5. `UTCDateTime` has been removed due to `pydantic` and `sqlalchemy` incompatibility with this custom type.
 - Modify any model fields depending on cruddy's `UTCDateTime` to leverage the new `field_validator` named `validate_utc_datetime`:
@@ -143,7 +143,7 @@ class Widget(CruddyModel):
     def validate_event_date(cls, v: Any) -> datetime | None:
         return validate_utc_datetime(v, allow_none=True)
 ```
-
+---
 
 6. `pydantic` 2+, and therefore `sqlmodel`, is more strict with `Optional` fields.
 - Modify any models with `Optional` fields to conform to `pydantic` verison 2+'s stricter possible empty value declarations:
@@ -178,7 +178,7 @@ class Widget(CruddyModel):
 class Foo(CruddyModel):
     name: Optional[str] = None
 ```
-
+---
 
 7. (Optional) Take advantage of new checkers and validators that ship with `fastapi-cruddy-framework`, courtesy of the [validator-collection](https://github.com/insightindustry/validator-collection/). For additional documentation on what is available, see that project's README. This change also provides an alternative to the pydantic `EmailStr` type which is no longer available for use in `pydantic` 2.0 + `sqlalchemy` 2.0.
 - Modify any models that might now use `validator-collection` via importing cruddy's exports:
@@ -211,7 +211,7 @@ class Widget(CruddyModel):
     def validate_some_field(cls, v: str) -> str | None:
         return field_validators.email(v)
 ```
-
+---
 
 8. `pydantic` 2.0+ replaces `record.dict()` with `record.model_dump()`.
 - Modify all calls to `.dict()` by replacing with `.model_dump()`:
@@ -222,7 +222,7 @@ becomes
 ```python
 record_dict = record.model_dump()
 ```
-
+---
 
 9. `pydantic` 2.0+ moves the default `Undefined` field, and all other `fields`, to `pydantic_core`.
 - Modify all references to `Undefined` or other fields:
@@ -245,7 +245,7 @@ becomes
 ```python
 my_model.model_fields
 ```
-
+---
 
 11. Cruddy's `BulkDTO` type alters the `data` attribute's primary type, in accordance with the new return value from `sqlalchemy` 2.0+.
 - Modify any code directly using a `BulkDTO` object to change type dependence:
