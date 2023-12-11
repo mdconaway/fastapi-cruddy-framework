@@ -102,7 +102,6 @@ becomes
 class Widget(CruddyModel):
     name: str = Field(schema_extra={"examples": ["Widget Name"]})
 ```
-in order to maintain proper openapi.json / swagger examples.
 ---
 
 5. `UTCDateTime` has been removed due to `pydantic` and `sqlalchemy` incompatibility with this custom type.
