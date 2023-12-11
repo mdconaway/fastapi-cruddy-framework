@@ -1,7 +1,8 @@
-from typing import Optional, List, TYPE_CHECKING
+from typing import Any, Optional, List, TYPE_CHECKING
 from datetime import datetime
+from pydantic import field_validator
 from sqlmodel import Field, Relationship, Column, DateTime
-from fastapi_cruddy_framework import CruddyModel, CruddyUUIDModel
+from fastapi_cruddy_framework import CruddyModel, CruddyUUIDModel, validate_utc_datetime
 from examples.fastapi_cruddy_sqlite.models.common.relationships import GroupUserLink
 
 if TYPE_CHECKING:
@@ -26,6 +27,7 @@ EXAMPLE_USER = {
     "country": "USA",
     "address": "101 Sunshine Way",
     "password": "at-least-6-characters",
+    "birthdate": "2012-12-11T15:27:39.984Z",
 }
 
 
@@ -44,12 +46,24 @@ class UserUpdate(CruddyModel):
     is_active: bool = Field(default=True)
     is_superuser: bool = Field(default=False)
     birthdate: Optional[datetime] = Field(
-        sa_column=Column(DateTime(timezone=True), nullable=True)
+        default=None,
+        sa_column=Column(
+            DateTime(timezone=True),
+            nullable=True,
+            index=True,
+            default=None,
+        ),
+        schema_extra={"examples": [EXAMPLE_USER["birthdate"]]},
     )  # birthday with timezone
     phone: Optional[str] = Field(schema_extra={"examples": [EXAMPLE_USER["phone"]]})
     state: Optional[str] = Field(schema_extra={"examples": [EXAMPLE_USER["state"]]})
     country: Optional[str] = Field(schema_extra={"examples": [EXAMPLE_USER["country"]]})
     address: Optional[str] = Field(schema_extra={"examples": [EXAMPLE_USER["address"]]})
+
+    @field_validator("birthdate", mode="before")
+    @classmethod
+    def validate_event_date(cls, v: Any) -> datetime | None:
+        return validate_utc_datetime(v, allow_none=True)
 
 
 # The "Create" model variant expands on the update model, above, and adds

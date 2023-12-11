@@ -17,13 +17,36 @@
 
 `fastapi-cruddy-framework` is a companion library to [FastAPI](https://fastapi.tiangolo.com/) designed to bring the development productivity of [Ruby on Rails](https://rubyonrails.org/), [Ember.js](https://emberjs.com/) or [Sails.js](https://sailsjs.com/) to the [FastAPI](https://fastapi.tiangolo.com/) ecosystem. Many of the design patterns base themselves on [Sails.js](https://sailsjs.com/) "policies," [Sails.js](https://sailsjs.com/) model lifecycle events, [sails-ember-rest](https://github.com/mdconaway/sails-ember-rest) automatic CRUD routing, and [Ember.js](https://emberjs.com/) [REST-Adapter](https://api.emberjs.com/ember-data/release/classes/RESTAdapter) feature sets. By default, data sent to and from the auto-magic CRUD routes are expected to conform to the [Ember.js](https://emberjs.com/) Rest Envelope and Linked-data relationship specification. This specification is highly readable for front-end developers, allows for an expressive over-the-wire query syntax, and embeds self-describing relationship URL links in each over-the-wire record to help data stores automatically generate requests to fetch or update related records. This library is still in an alpha/beta phase, so use at your own risk. All CRUD actions and relationship types are currently supported, though there may be unexpected bugs. Please report any bugs under "issues."
 
-TODO: All the documentation and E2E tests. Maybe more comments. Maybe more features.
+TODO: Additional documentation and tests. (General features covered by tests) Maybe more comments. Maybe more features.
 
 See the examples folder for a quick reference of high level setup. It currently contains a fully functional fastapi server which uses fastapi-cruddy-framework and the sqlite adapter. It even shows how to override incoming post data to do things like hash a user's password during initial registration using a simple drop-in policy function.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-<!-- ABOUT THE PROJECT -->
+<!-- VERSION COMPATIBILITY INFORMATION -->
+
+## FastAPI, SQLModel, Pydantic and SQL Alchemy Compatibility:
+
+`fastapi-cruddy-framework` was originally developed against FastAPI &lt;= 0.91.0, sqlmodel &lt;= 0.0.12, pydantic &lt; 2.0.0, and sqlalchemy &lt; 2.0.0. However, beginning with `fastapi-cruddy-framework` version 1.x.x+, all major dependencies have been shifted forward to target FastAPI 0.100.0+, sqlmodel 0.0.14+, pydantic 2.0.0+, and sqlalchemy 2.0.0+. Therefore, when using this library, please note the following library compatibility chart:
+
+### fastapi-crudy-framework@0.x.x:
+- FastAPI &lt;= 0.91.0
+- SQLModel &lt;= 0.0.12
+- pydantic &lt; 2.0.0
+- sqlalchemy &lt; 2.0.0
+
+
+### fastapi-crudy-framework@1.x.x:
+- FastAPI &gt;= 0.100.0
+- SQLModel &gt;= 0.0.14
+- pydantic &gt;= 2.0.0
+- sqlalchemy &gt;= 2.0.0
+
+Moving between `fastapi-cruddy-framework` versions? See the following [migration guide](migrating_versions.md).
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+<!-- PROJECT INSTALLATION -->
 
 ## Installation
 

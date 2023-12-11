@@ -1,7 +1,13 @@
 from typing import Any, Optional, TYPE_CHECKING
 from datetime import datetime
-from sqlmodel import Column, Field, JSON, Relationship
-from fastapi_cruddy_framework import UUID, CruddyModel, CruddyUUIDModel
+from pydantic import field_validator
+from sqlmodel import Column, DateTime, Field, JSON, Relationship
+from fastapi_cruddy_framework import (
+    UUID,
+    CruddyModel,
+    CruddyUUIDModel,
+    validate_utc_datetime,
+)
 
 if TYPE_CHECKING:
     from examples.fastapi_cruddy_sqlite.models.user import User
@@ -10,6 +16,7 @@ if TYPE_CHECKING:
 EXAMPLE_POST = {
     "content": "Today I felt like blogging. Fin.",
     "tags": {"categories": ["blog"]},
+    "event_date": "2023-12-11T15:27:39.984Z",
 }
 
 # The way the CRUD Router works, it needs an update, create, and base model.
@@ -26,11 +33,26 @@ EXAMPLE_POST = {
 # number of available fields for a client to manipulate.
 class PostUpdate(CruddyModel):
     content: str = Field(schema_extra={"examples": [EXAMPLE_POST["content"]]})
+    event_date: Optional[datetime] = Field(
+        default=None,
+        sa_column=Column(
+            DateTime(timezone=True),
+            nullable=True,
+            index=True,
+            default=None,
+        ),
+        schema_extra={"examples": [EXAMPLE_POST["event_date"]]},
+    )
     tags: dict = Field(
         sa_column=Column(JSON),
         default={},
         schema_extra={"examples": [EXAMPLE_POST["tags"]]},
     )
+
+    @field_validator("event_date", mode="before")
+    @classmethod
+    def validate_event_date(cls, v: Any) -> datetime | None:
+        return validate_utc_datetime(v, allow_none=True)
 
 
 # The "Create" model variant expands on the update model, above, and adds
@@ -58,6 +80,7 @@ class PostView(CruddyUUIDModel):
         default=None,
         schema_extra={"examples": [EXAMPLE_POST["tags"]]},
     )
+    event_date: Optional[datetime] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 

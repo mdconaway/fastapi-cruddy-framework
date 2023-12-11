@@ -15,9 +15,9 @@ from uuid_extensions import uuid7
 from sqlalchemy import Column
 from sqlalchemy.orm import declared_attr, RelationshipProperty  # , mapped_column
 from sqlalchemy.engine.row import Row
-from pydantic import BaseModel  # , GetCoreSchemaHandler
+from pydantic import BaseModel, field_validator  # , GetCoreSchemaHandler
 from sqlmodel import Field, SQLModel, DateTime
-from .util import build_tz_aware_date
+from .util import build_tz_aware_date, parse_and_coerce_to_utc_datetime
 
 # from pydantic.types import _check_annotated_type
 # from pydantic_core.core_schema import CoreSchema, datetime_schema
@@ -117,35 +117,25 @@ class PageResponse(CruddyGenericModel):
     data: List[Any]
 
 
-class CruddyIntIDModel(CruddyModel):
+class CruddyIntIDMinimalModel(CruddyModel):
     id: Optional[int] = Field(
         default=None,
         primary_key=True,
         index=True,
         nullable=False,
     )
-    created_at: Optional[datetime] = Field(
-        default_factory=build_tz_aware_date,
-        sa_column=lambda: Column(DateTime(timezone=True), nullable=False, index=True),
-    )
-    updated_at: Optional[datetime] = Field(
-        default_factory=build_tz_aware_date,
-        sa_column=lambda: Column(
-            DateTime(timezone=True),
-            nullable=False,
-            index=True,
-            onupdate=build_tz_aware_date,
-        ),
-    )
 
 
-class CruddyUUIDModel(CruddyModel):
+class CruddyUUIDMinimalModel(CruddyModel):
     id: UUID = Field(
         default_factory=uuid7,
         primary_key=True,
         index=True,
         nullable=False,
     )
+
+
+class CruddyCreatedUpdatedModel(CruddyModel):
     created_at: Optional[datetime] = Field(
         default_factory=build_tz_aware_date,
         sa_column=lambda: Column(DateTime(timezone=True), nullable=False, index=True),
@@ -159,6 +149,19 @@ class CruddyUUIDModel(CruddyModel):
             onupdate=build_tz_aware_date,
         ),
     )
+
+    @field_validator("created_at", "updated_at", mode="before")
+    @classmethod
+    def _validate_cruddy_timestamps(cls, v: Any) -> datetime:
+        return parse_and_coerce_to_utc_datetime(v)
+
+
+class CruddyIntIDModel(CruddyCreatedUpdatedModel, CruddyIntIDMinimalModel):
+    pass
+
+
+class CruddyUUIDModel(CruddyCreatedUpdatedModel, CruddyUUIDMinimalModel):
+    pass
 
 
 class ExampleUpdate(CruddyModel):
