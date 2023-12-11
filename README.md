@@ -42,7 +42,7 @@ See the examples folder for a quick reference of high level setup. It currently 
 - pydantic &gt;= 2.0.0
 - sqlalchemy &gt;= 2.0.0
 
-Moving between `fastapi-cruddy-framework` versions? See the following [migration guide](migrating_versions.md).
+Moving between `fastapi-cruddy-framework` versions? See the [migration guides](migrating_versions.md).
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
