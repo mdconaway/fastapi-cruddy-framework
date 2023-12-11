@@ -78,7 +78,7 @@ app = FastAPI(
 ```
 ---
 
-3. (Optional) As of December 2023, there is a known bug with sqlmodel 0.0.14 where type checking on TABLE models will complain, but will still work.
+3. (Optional) As of December 2023, there is a known bug with `sqlmodel` 0.0.14 where type checking on TABLE models will complain, but will still work.
 - For any models that have a corresponding database table by using `table=True` in the class declaration, modify the declaration to ignore class type checking:
 ```python
 class Widget(CruddyModel, table=True):
