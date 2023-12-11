@@ -105,7 +105,8 @@ class Widget(CruddyModel):
 in order to maintain proper openapi.json / swagger examples.
 
 
-5. `UTCDateTime` has been removed due to `pydantic` and `sqlalchemy` incompatibility with this custom type. Modify any model fields depending on cruddy's `UTCDateTime` to leverage the new `field_validator` named `validate_utc_datetime` by changing:
+5. `UTCDateTime` has been removed due to `pydantic` and `sqlalchemy` incompatibility with this custom type.
+- Modify any model fields depending on cruddy's `UTCDateTime` to leverage the new `field_validator` named `validate_utc_datetime` by changing:
 ```python
 from typing import Optional
 from sqlmodel import Field, Column, DateTime
@@ -144,7 +145,8 @@ class Widget(CruddyModel):
 ```
 
 
-6. Modify any models with `Optional` fields to conform to `pydantic` verison 2+'s stricter possible empty value declarations by changing all instances of:
+6. `pydantic` 2+, and therefore `sqlmodel`, is more strict with `Optional` fields.
+- Modify any models with `Optional` fields to conform to `pydantic` verison 2+'s stricter possible empty value declarations by changing all instances of:
 ```python
 from typing import Optional
 from sqlmodel import Field
@@ -175,5 +177,38 @@ class Widget(CruddyModel):
 # Style 2
 class Foo(CruddyModel):
     name: Optional[str] = None
+```
+
+
+7. (Optional) Take advantage of new checkers and validators that ship with `fastapi-cruddy-framework`, courtesy of the [validator-collection](https://github.com/insightindustry/validator-collection/). For additional documentation on what is available, see that project's README. This change also provides an alternative to the pydantic `EmailStr` type which is no longer available for use in `pydantic` 2.0 + `sqlalchemy` 2.0.
+- Modify any models that might now use `validator-collection` via importing cruddy's exports by changing:
+```python
+# various imports ...
+
+class Widget(CruddyModel):
+    some_field: Optional[str] = Field(default=None)
+
+    @field_validator("some_field", mode="before")
+    @classmethod
+    def validate_some_field(cls, v: str) -> str | None:
+        # ... some custom e-mail address validation logic
+        return v
+```
+to
+```python
+# various imports ...
+from fastapi_cruddy_framework import field_checkers, field_validators, field_errors
+# field_validators = validators
+# field_checkers = checkers
+# field_errors = errors
+
+
+class Widget(CruddyModel):
+    some_field: Optional[str] = Field(default=None)
+
+    @field_validator("some_field", mode="before")
+    @classmethod
+    def validate_some_field(cls, v: str) -> str | None:
+        return field_validators.email(v)
 ```
 <p align="right">(<a href="#readme-top">back to top</a>)</p>

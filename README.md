@@ -114,6 +114,9 @@ getDirectoryModules
 # HELPERS
 pluralizer
 uuid7
+field_checkers
+field_validators
+field_errors
 get_pk
 possible_id_types
 lifecycle_types
@@ -717,6 +720,12 @@ Generally, these functions do about what you would expect them to do. More docum
 - `set_many_many_relations` and `set_one_many_relations` both destroy and then re-create the x-to-Many relationships they target. If a `user` with the id of 1 was a member of `groups` 1, 2, and 3, then calling `await user_repository.set_many_many_relations(1, 'groups', [4,5,6])` would result in `user` 1 being a member of only groups 4,5, and 6 after execution. Client applications should be aware of this functionality, and always send ALL relationships that should still exist during any relational updates.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+<!-- Validators / Checkers -->
+
+## Validators / Checkers
+
+`fastapi-cruddy-framework` includes validators and checkers useful to enrich your model definitions by exporting `field_checkers`, `field_validators`, and `field_errors` objects. These objects are all simple re-exports of the core `validators`, `checkers` and `errors` from [validator-collection](https://github.com/insightindustry/validator-collection/). For additional documentation on what is available, see that project's README.
 
 <!-- BrowserTestClient -->
 
