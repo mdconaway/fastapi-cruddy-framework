@@ -62,7 +62,7 @@ class UserUpdate(CruddyModel):
 
     @field_validator("birthdate", mode="before")
     @classmethod
-    def validate_event_date(cls, v: Any) -> datetime | None:
+    def validate_birthdate(cls, v: Any) -> datetime | None:
         return validate_utc_datetime(v, allow_none=True)
 
 

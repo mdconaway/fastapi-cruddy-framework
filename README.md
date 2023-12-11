@@ -42,7 +42,7 @@ See the examples folder for a quick reference of high level setup. It currently 
 - pydantic &gt;= 2.0.0
 - sqlalchemy &gt;= 2.0.0
 
-Moving between `fastapi-cruddy-framework` versions? See the [migration guides](migrating_versions.md).
+Moving between `fastapi-cruddy-framework` versions? See the [migration guides](https://github.com/mdconaway/fastapi-cruddy-framework/blob/master/migrating_versions.md).
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -92,7 +92,6 @@ MysqlAdapter
 PostgresqlAdapter
 # TYPES / MODELS / SCHEMAS
 T
-UTCDateTime
 UUID
 RelationshipConfig
 CruddyGenericModel
@@ -101,7 +100,9 @@ MetaObject
 PageResponse
 ResponseSchema
 CruddyModel
+CruddyIntIDMinimalModel
 CruddyIntIDModel
+CruddyUUIDMinimalModel
 CruddyUUIDModel
 ExampleUpdate
 ExampleCreate
@@ -112,12 +113,15 @@ getModuleDir
 getDirectoryModules
 # HELPERS
 pluralizer
-uuid4
+uuid7
 get_pk
 possible_id_types
 lifecycle_types
 build_tz_aware_date
+parse_datetime
 coerce_to_utc_datetime
+parse_and_coerce_to_utc_datetime
+validate_utc_datetime
 # TEST HELPERS
 BrowserTestClient
 TestClient
