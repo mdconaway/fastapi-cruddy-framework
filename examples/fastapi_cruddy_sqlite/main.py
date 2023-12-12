@@ -1,8 +1,11 @@
 import logging
-from fastapi import FastAPI
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, status
+from fastapi.responses import JSONResponse
 from starlette.middleware.cors import CORSMiddleware
+from sqlalchemy.exc import IntegrityError
 from examples.fastapi_cruddy_sqlite.config import general, http, sessions
-from examples.fastapi_cruddy_sqlite.router import application as ApplicationRouter
+from examples.fastapi_cruddy_sqlite.router import application as application_router
 from examples.fastapi_cruddy_sqlite.middleware import RequestLogger
 from examples.fastapi_cruddy_sqlite.adapters import sqlite
 from starlette_session import SessionMiddleware
@@ -10,8 +13,34 @@ from datetime import timedelta
 
 
 logger = logging.getLogger(__name__)
+HTTP_400_BAD_REQUEST = status.HTTP_400_BAD_REQUEST
 
-app = FastAPI(title=general.PROJECT_NAME, version=general.API_VERSION)
+
+async def bootstrap(application: FastAPI):
+    # Because of how fastapi and sqlalchemy populate the relationship mappers, the CRUD router
+    # can't be fully loaded until after the fastapi server starts. Make sure you only mount
+    # the application_router in the bootstrapper. Fortunately, routers can be added lazily, which
+    # forces fastapi to re-index the routes and update the openapi.json.
+    await sqlite.destroy_then_create_all_tables_unsafe()
+    application.include_router(application_router)
+    logger.info(f"{general.PROJECT_NAME}, {general.API_VERSION}: Bootstrap complete")
+    # You can do any init hooks below
+
+
+async def shutdown():
+    pass
+
+
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    await bootstrap(application)
+    yield
+    await shutdown()
+
+
+app = FastAPI(
+    title=general.PROJECT_NAME, version=general.API_VERSION, lifespan=lifespan
+)
 
 # As of fastapi 0.91.0+, all middlewares have to be defined immediately
 app.add_middleware(RequestLogger)
@@ -37,13 +66,10 @@ app.add_middleware(
 )
 
 
-@app.on_event("startup")
-async def bootstrap():
-    # Because of how fastapi and sqlalchemy populate the relationship mappers, the CRUD router
-    # can't be fully loaded until after the fastapi server starts. Make sure you only mount
-    # the ApplicationRouter in the bootstrapper. Fortunately, routers can be added lazily, which
-    # forces fastapi to re-index the routes and update the openapi.json.
-    await sqlite.destroy_then_create_all_tables_unsafe()
-    app.include_router(ApplicationRouter)
-    logger.info(f"{general.PROJECT_NAME}, {general.API_VERSION}: Bootstrap complete")
-    # You can do any init hooks below
+# Add global handler to catch DB integrity errors
+@app.exception_handler(IntegrityError)
+async def integrity_exception_handler(_, exc: IntegrityError):
+    return JSONResponse(
+        status_code=HTTP_400_BAD_REQUEST,
+        content={"detail": [str(exc.orig)]},
+    )

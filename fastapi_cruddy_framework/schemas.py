@@ -1,13 +1,20 @@
+from typing import (
+    Any,
+    Type,
+    TypeVar,
+    Generic,
+    Sequence,
+    TYPE_CHECKING,
+)
+from datetime import datetime
+from uuid import UUID
+from uuid_extensions import uuid7
 from sqlalchemy import Column
 from sqlalchemy.orm import declared_attr, RelationshipProperty
 from sqlalchemy.engine.row import Row
-from typing import Any, Type, TypeVar, Optional, Generic, Union, List, TYPE_CHECKING
-from pydantic.generics import GenericModel
-from pydantic.datetime_parse import parse_datetime
+from pydantic import BaseModel, field_validator
 from sqlmodel import Field, SQLModel, DateTime
-from datetime import datetime
-from .uuid import UUID, uuid7
-from .util import build_tz_aware_date, coerce_to_utc_datetime
+from .util import build_tz_aware_date, parse_and_coerce_to_utc_datetime
 
 if TYPE_CHECKING:
     from .resource import Resource
@@ -18,17 +25,6 @@ if TYPE_CHECKING:
 # -------------------------------------------------------------------------------------------
 
 T = TypeVar("T")
-
-
-class UTCDateTime(datetime):
-    @classmethod
-    def __get_validators__(cls):
-        yield parse_datetime
-        yield cls.validate
-
-    @classmethod
-    def validate(cls, v):
-        return coerce_to_utc_datetime(v)
 
 
 class RelationshipConfig:
@@ -44,9 +40,8 @@ class RelationshipConfig:
         self.foreign_resource = foreign_resource
 
 
-class CruddyGenericModel(GenericModel, Generic[T]):
-    def __init__(self, *args, **kwargs):
-        return super().__init__(*args, **kwargs)
+class CruddyGenericModel(BaseModel, Generic[T]):
+    pass
 
 
 class BulkDTO(CruddyGenericModel):
@@ -54,7 +49,7 @@ class BulkDTO(CruddyGenericModel):
     total_records: int
     limit: int
     page: int
-    data: List[Row]
+    data: Sequence[Row]
 
     class Config:
         arbitrary_types_allowed = True
@@ -62,47 +57,34 @@ class BulkDTO(CruddyGenericModel):
 
 class ResponseSchema(CruddyGenericModel):
     # The response for a single object return
-    data: Optional[Any] = None
+    data: Any | None = None
 
 
 class CruddyModel(SQLModel):
-    @declared_attr  # type: ignore
+    @declared_attr.directive
     def __tablename__(cls) -> str:
         return cls.__name__
 
 
 class MetaObject(CruddyModel):
-    page: int = Field(schema_extra={"example": 1})
-    limit: int = Field(schema_extra={"example": 10})
-    pages: int = Field(schema_extra={"example": 1})
-    records: int = Field(schema_extra={"example": 1})
+    page: int = Field(schema_extra={"examples": [1]})
+    limit: int = Field(schema_extra={"examples": [10]})
+    pages: int = Field(schema_extra={"examples": [1]})
+    records: int = Field(schema_extra={"examples": [1]})
 
 
 class PageResponse(CruddyGenericModel):
     # The response for a pagination query.
-    meta: Union[Type[CruddyModel], Type[CruddyGenericModel]]
-    data: List[Any]
+    meta: Type[CruddyModel] | Type[CruddyGenericModel]
+    data: list[Any]
 
 
 class CruddyIntIDModel(CruddyModel):
-    id: Optional[int] = Field(
+    id: int | None = Field(
         default=None,
         primary_key=True,
         index=True,
         nullable=False,
-    )
-    created_at: Optional[UTCDateTime] = Field(
-        default_factory=build_tz_aware_date,
-        sa_column=Column(DateTime(timezone=True), nullable=False, index=True),
-    )
-    updated_at: Optional[UTCDateTime] = Field(
-        default_factory=build_tz_aware_date,
-        sa_column=Column(
-            DateTime(timezone=True),
-            nullable=False,
-            index=True,
-            onupdate=build_tz_aware_date,
-        ),
     )
 
 
@@ -113,19 +95,35 @@ class CruddyUUIDModel(CruddyModel):
         index=True,
         nullable=False,
     )
-    created_at: Optional[UTCDateTime] = Field(
-        default_factory=build_tz_aware_date,
-        sa_column=Column(DateTime(timezone=True), nullable=False, index=True),
-    )
-    updated_at: Optional[UTCDateTime] = Field(
-        default_factory=build_tz_aware_date,
-        sa_column=Column(
-            DateTime(timezone=True),
-            nullable=False,
-            index=True,
-            onupdate=build_tz_aware_date,
-        ),
-    )
+
+
+class CruddyCreatedUpdatedSignature(CruddyModel):
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+def CruddyCreatedUpdatedMixin() -> type[CruddyCreatedUpdatedSignature]:
+    class CruddyCreatedUpdatedInstance(CruddyCreatedUpdatedSignature):
+        created_at: datetime | None = Field(
+            default_factory=build_tz_aware_date,
+            sa_column=Column(DateTime(timezone=True), nullable=False, index=True),
+        )
+        updated_at: datetime | None = Field(
+            default_factory=build_tz_aware_date,
+            sa_column=Column(
+                DateTime(timezone=True),
+                nullable=False,
+                index=True,
+                onupdate=build_tz_aware_date,
+            ),
+        )
+
+        @field_validator("created_at", "updated_at", mode="before")
+        @classmethod
+        def _validate_cruddy_timestamps(cls, v: Any) -> datetime:
+            return parse_and_coerce_to_utc_datetime(v)
+
+    return CruddyCreatedUpdatedInstance
 
 
 class ExampleUpdate(CruddyModel):
@@ -140,5 +138,5 @@ class ExampleView(CruddyIntIDModel, ExampleCreate):
     pass
 
 
-class Example(ExampleView, table=False):  # Set table=True on your app's core models
+class Example(ExampleView, table=False):  # type: ignore # Set table=True on your app's core models
     db_only_field: str

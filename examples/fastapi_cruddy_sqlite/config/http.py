@@ -1,19 +1,24 @@
 from examples.fastapi_cruddy_sqlite.config._base import Base
-from pydantic import validator, AnyHttpUrl
-from typing import Union, List
+from pydantic import model_validator, AnyHttpUrl
 
 
 class Http(Base):
     HTTP_PORT: int = 8000
-    HTTP_CORS_ORIGINS: Union[List[str], List[AnyHttpUrl]] = ["*"]
+    HTTP_CORS_ORIGINS: str | list[str] | list[AnyHttpUrl] = ["*"]
 
-    @validator("HTTP_CORS_ORIGINS", pre=True)
-    def assemble_cors_origins(cls, v: Union[str, List[str]]) -> Union[List[str], str]:
-        if isinstance(v, str) and not v.startswith("["):
-            return [i.strip() for i in v.split(",")]
-        elif isinstance(v, (list, str)):
-            return v
-        raise ValueError(v)
+    @model_validator(mode="after")
+    def assemble_cors_origins(self):
+        if isinstance(
+            self.HTTP_CORS_ORIGINS, str
+        ) and not self.HTTP_CORS_ORIGINS.startswith("["):
+            self.HTTP_CORS_ORIGINS = [
+                i.strip() for i in self.HTTP_CORS_ORIGINS.split(",")
+            ]
+        elif isinstance(self.HTTP_CORS_ORIGINS, list):
+            self.HTTP_CORS_ORIGINS = self.HTTP_CORS_ORIGINS
+        else:
+            raise ValueError(self.HTTP_CORS_ORIGINS)
+        return self
 
 
 http = Http()

@@ -17,13 +17,36 @@
 
 `fastapi-cruddy-framework` is a companion library to [FastAPI](https://fastapi.tiangolo.com/) designed to bring the development productivity of [Ruby on Rails](https://rubyonrails.org/), [Ember.js](https://emberjs.com/) or [Sails.js](https://sailsjs.com/) to the [FastAPI](https://fastapi.tiangolo.com/) ecosystem. Many of the design patterns base themselves on [Sails.js](https://sailsjs.com/) "policies," [Sails.js](https://sailsjs.com/) model lifecycle events, [sails-ember-rest](https://github.com/mdconaway/sails-ember-rest) automatic CRUD routing, and [Ember.js](https://emberjs.com/) [REST-Adapter](https://api.emberjs.com/ember-data/release/classes/RESTAdapter) feature sets. By default, data sent to and from the auto-magic CRUD routes are expected to conform to the [Ember.js](https://emberjs.com/) Rest Envelope and Linked-data relationship specification. This specification is highly readable for front-end developers, allows for an expressive over-the-wire query syntax, and embeds self-describing relationship URL links in each over-the-wire record to help data stores automatically generate requests to fetch or update related records. This library is still in an alpha/beta phase, so use at your own risk. All CRUD actions and relationship types are currently supported, though there may be unexpected bugs. Please report any bugs under "issues."
 
-TODO: All the documentation and E2E tests. Maybe more comments. Maybe more features.
+TODO: Additional documentation and tests. (General features covered by tests) Maybe more comments. Maybe more features.
 
 See the examples folder for a quick reference of high level setup. It currently contains a fully functional fastapi server which uses fastapi-cruddy-framework and the sqlite adapter. It even shows how to override incoming post data to do things like hash a user's password during initial registration using a simple drop-in policy function.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-<!-- ABOUT THE PROJECT -->
+<!-- VERSION COMPATIBILITY INFORMATION -->
+
+## FastAPI, SQLModel, Pydantic and SQL Alchemy Compatibility:
+
+`fastapi-cruddy-framework` was originally developed against FastAPI &lt;= 0.99.1, sqlmodel &lt;= 0.0.12, pydantic &lt; 2.0.0, and sqlalchemy &lt; 2.0.0. However, beginning with `fastapi-cruddy-framework` version 1.x.x+, all major dependencies have been shifted forward to target FastAPI 0.100.0+, sqlmodel 0.0.14+, pydantic 2.0.0+, and sqlalchemy 2.0.0+. Therefore, when using this library, please note the following library compatibility chart:
+
+### `fastapi-cruddy-framework@0.x.x`:
+- FastAPI &lt;= 0.99.1
+- SQLModel &lt;= 0.0.12
+- pydantic &lt; 2.0.0
+- sqlalchemy &lt; 2.0.0
+
+
+### `fastapi-cruddy-framework@1.x.x`:
+- FastAPI &gt;= 0.100.0
+- SQLModel &gt;= 0.0.14
+- pydantic &gt;= 2.0.0
+- sqlalchemy &gt;= 2.0.0
+
+Moving between `fastapi-cruddy-framework` versions? See the [migration guides](https://github.com/mdconaway/fastapi-cruddy-framework/blob/master/migrating_versions.md).
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+<!-- PROJECT INSTALLATION -->
 
 ## Installation
 
@@ -69,7 +92,6 @@ MysqlAdapter
 PostgresqlAdapter
 # TYPES / MODELS / SCHEMAS
 T
-UTCDateTime
 UUID
 RelationshipConfig
 CruddyGenericModel
@@ -78,6 +100,8 @@ MetaObject
 PageResponse
 ResponseSchema
 CruddyModel
+CruddyCreatedUpdatedSignature
+CruddyCreatedUpdatedMixin
 CruddyIntIDModel
 CruddyUUIDModel
 ExampleUpdate
@@ -89,13 +113,18 @@ getModuleDir
 getDirectoryModules
 # HELPERS
 pluralizer
-uuid6
 uuid7
+field_checkers
+field_validators
+field_errors
 get_pk
 possible_id_types
 lifecycle_types
 build_tz_aware_date
+parse_datetime
 coerce_to_utc_datetime
+parse_and_coerce_to_utc_datetime
+validate_utc_datetime
 # TEST HELPERS
 BrowserTestClient
 TestClient
@@ -153,13 +182,13 @@ The `Resource` class is the fundamental building block of fastapi-cruddy-framewo
 - Defining your policies is done at definition time!
 - Lifecycle actions occur immediately before and after any database interaction your CRUD controllers make
 - Lifecycle actions passed into the Resource constructor to interact with your queries or data <b>MUST</b> be `async` functions.
-- Policies are run in the exact order in which they are included in the `List` sent to the resource definition.
+- Policies are run in the exact order in which they are included in the `list` sent to the resource definition.
 - `policies_universal` apply to ALL CRUD routes, and always run <i>BEFORE</i> action specific policy chains.
 - Action specific policies run <i>AFTER</i> all `policies_universal` have resolved successfully.
 - Each endpoint is protected by `policies_universal` + `policies_<action>`.
 - One-to-Many and Many-to-Many sub-routes (like /users/{id}/posts) will be protected by the policy chain: `user.policies_universal` + `user.policies_get_one` + `posts.policies_get_many`. Security, security, security!
 - Blocking user REST modification of certain relationships via the default CRUD controller is also done at definition time!
-- `protected_relationships` is a `List[str]` with each string indicating a one-to-many or many-to-many relationship that should not be allowed to update via the default CRUD actions.
+- `protected_relationships` is a `list[str]` with each string indicating a one-to-many or many-to-many relationship that should not be allowed to update via the default CRUD actions.
 - You should define your application-wide adapter elsewhere and pass it into the resource instance.
 - Resources cannot span different databases.
 
@@ -247,15 +276,15 @@ The following lifecycle hook methods, which can be defined in user-space code, r
 Resource Definition Options (And Defaults!):
 
 ```python
-id_type: Union[Type[int], Type[UUID]] = int,
+id_type: Type[int] | Type[UUID] = int,
 # You SHOULD pass in 'adapter'
-adapter: Union[BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter, None] = None,
+adapter: BaseAdapter | SqliteAdapter | MysqlAdapter | PostgresqlAdapter | None = None,
 # The following adapter specific options will probably get removed. You don't need to pass them in.
 # They exist solely in the event you are defining disparate resources and want the resources to
 # automatically build their own adapters. This is probably not a great idea.
 adapter_type: Literal["mysql", "postgresql"] = "postgresql",
 db_mode: Literal["memory", "file"] = "memory",
-db_path: Union[str, None] = None,
+db_path: str | None = None,
 connection_uri="",
 pool_size=4,
 max_overflow=64,
@@ -272,7 +301,7 @@ link_prefix="",
 path: str = None,
 # The "tags" list corresponds with the fastapi "tags" list. You can alter this if needed.
 # It is defined for you initially as the singular name of your resource model. User -> 'user'
-tags: List[str] = None,
+tags: list[str] = None,
 # The next four options are mandatory. 'create_model' specifies the inner schema that is
 # allowed to be sent to the create endpoint by a user. It will be auto-wrapped in a REST
 # envelope schema. 'update_model ' specifies the inner schema that is allowed to be sent
@@ -294,7 +323,7 @@ response_meta_schema: CruddyGenericModel = MetaObject,
 # relationships via the default CRUD actions. You will need to build other business logic
 # to manage creating or changing protected relationships elsewhere in your application.
 # Protected relationships will still be viewable at their designated GET routes.
-protected_relationships: List[str] = [],
+protected_relationships: list[str] = [],
 # 'artificial_relationship_paths' will add an arbitrary list of sub-paths to each CRUD object's
 # relationship "links" attribute. For example, adding "artificial_relationship_paths": ["fake"]
 # would cause each object's "links" attribute to contain a key-value pair of:
@@ -302,19 +331,19 @@ protected_relationships: List[str] = [],
 # within its links object. This can be used to create arbitrarily complicated controller GET
 # actions (that can handle nested or complex relationships) and then have those actions
 # successfully mapped into the RestAdapter compliant links specification for each object instance.
-artificial_relationship_paths: List[str] = [],
+artificial_relationship_paths: list[str] = [],
 # The following options allow you to pass in your Sails.js-like policy chains, which will
 # run before all of your endpoints (in the case of universal), or in front of only specific
 # endpoints that match the action specified. These policies can be used for nearly any purpose,
 # from triggering other APIs and services, protecting endpoints to ensure only the correct
 # users can alter data, or to intercept and even modify data before it gets to a default CRUD
 # action! (Like hashing a user's password based on the plain-text password they send to register)
-policies_universal: List[Callable] = [],
-policies_create: List[Callable] = [],
-policies_update: List[Callable] = [],
-policies_delete: List[Callable] = [],
-policies_get_one: List[Callable] = [],
-policies_get_many: List[Callable] = [],
+policies_universal: list[Callable] = [],
+policies_create: list[Callable] = [],
+policies_update: list[Callable] = [],
+policies_delete: list[Callable] = [],
+policies_get_one: list[Callable] = [],
+policies_get_many: list[Callable] = [],
 # The disable_<endpoint> options allow app developers to simply abort automatic generation of select
 # CRUD endpoints on the resource's controller. For instance, to make a write-once collection a
 # developercould set disable_update to True, which would cause the resource to abort building a route
@@ -341,18 +370,18 @@ controller_extension: CruddyController = None,
 # relationships to always exist, force "many" queries to obey sensible limits, commit log entries,
 # send messages to queues for processing based on CRUD events, or generally handle unforseen
 # circumstances.
-lifecycle_before_create: Optional[Callable[..., Coroutine[Any, Any, Any]]] = None,
-lifecycle_after_create: Optional[Callable[..., Coroutine[Any, Any, Any]]] = None,
-lifecycle_before_update: Optional[Callable[..., Coroutine[Any, Any, Any]]] = None,
-lifecycle_after_update: Optional[Callable[..., Coroutine[Any, Any, Any]]] = None,
-lifecycle_before_delete: Optional[Callable[..., Coroutine[Any, Any, Any]]] = None,
-lifecycle_after_delete: Optional[Callable[..., Coroutine[Any, Any, Any]]] = None,
-lifecycle_before_get_one: Optional[Callable[..., Coroutine[Any, Any, Any]]] = None,
-lifecycle_after_get_one: Optional[Callable[..., Coroutine[Any, Any, Any]]] = None,
-lifecycle_before_get_all: Optional[Callable[..., Coroutine[Any, Any, Any]]] = None,
-lifecycle_after_get_all: Optional[Callable[..., Coroutine[Any, Any, Any]]] = None,
-lifecycle_before_set_relations: Optional[Callable[..., Coroutine[Any, Any, Any]]] = None,
-lifecycle_after_set_relations: Optional[Callable[..., Coroutine[Any, Any, Any]]] = None,
+lifecycle_before_create: Callable[..., Coroutine[Any, Any, Any]] | None = None,
+lifecycle_after_create: Callable[..., Coroutine[Any, Any, Any]] | None = None,
+lifecycle_before_update: Callable[..., Coroutine[Any, Any, Any]] | None = None,
+lifecycle_after_update: Callable[..., Coroutine[Any, Any, Any]] | None = None,
+lifecycle_before_delete: Callable[..., Coroutine[Any, Any, Any]] | None = None,
+lifecycle_after_delete: Callable[..., Coroutine[Any, Any, Any]] | None = None,
+lifecycle_before_get_one: Callable[..., Coroutine[Any, Any, Any]] | None = None,
+lifecycle_after_get_one: Callable[..., Coroutine[Any, Any, Any]] | None = None,
+lifecycle_before_get_all: Callable[..., Coroutine[Any, Any, Any]] | None = None,
+lifecycle_after_get_all: Callable[..., Coroutine[Any, Any, Any]] | None = None,
+lifecycle_before_set_relations: Callable[..., Coroutine[Any, Any, Any]] | None = None,
+lifecycle_after_set_relations: Callable[..., Coroutine[Any, Any, Any]] | None = None,
 ```
 
 Below is an example for creating a `user` resource. The best way to organize your app would be to place the definition for your user resource in a folder like `my_app/resources/user.py`, where the name of your application is `my_app`. As you saw earlier in the description for `CreateRouterFromResources` you would then load this user resource file by simply specifying `application_module=my_app` and `resource_path="resources"`. Your `fastapi-cruddy-framework` project would then auto-magically load your resource file(s), create dynamic routes to create, read, update, and delete this resource, and further create sub-routes within this resource to browse, query and update all of the relationships for your resource.
@@ -429,12 +458,12 @@ async def load_user_into_session(request: Request):
 
 The available registry lookup function signatures are:
 
-- `get_model_by_name(model_name: str) -> Union[CruddyModel, None]`
-- `get_relationships_by_name(model_name: str) -> Union[Dict, None]`
-- `get_resource_by_name(model_name: str) -> Union[Resource, None]`
-- `get_repository_by_name(model_name: str) -> Union[AbstractRepository, None]`
-- `get_controller_by_name(model_name: str) -> Union[APIRouter, None]`
-- `get_controller_extension_by_name(model_name: str) -> Union[CruddyController, None]`
+- `get_model_by_name(model_name: str) -> CruddyModel | None]`
+- `get_relationships_by_name(model_name: str) -> dict | None`
+- `get_resource_by_name(model_name: str) -> Resource | None`
+- `get_repository_by_name(model_name: str) -> AbstractRepository | None`
+- `get_controller_by_name(model_name: str) -> APIRouter | None`
+- `get_controller_extension_by_name(model_name: str) -> CruddyController | None`
 
 Make sure that the `model_name` string you pass to the registry EXACTLY mirrors the class name for your base table `CruddyModel`. So for a model with a class of `User` you would pass in `model_name="User"`. Pay attention to the capitalization!
 
@@ -465,8 +494,8 @@ async def get_by_id(
 async def get_all(
     page: int = 1,
     limit: int = 10,
-    columns: List[str] = Query(None, alias="columns"),
-    sort: List[str] = Query(None, alias="sort"),
+    columns: list[str] = Query(None, alias="columns"),
+    sort: list[str] = Query(None, alias="sort"),
     where: Json = Query(None, alias="where"),
 )
 ```
@@ -669,19 +698,19 @@ The `AbstractRepository` is a helpful way to interact with the data layer of you
 # User functions accessible from any resource's 'AbstractRepository'
 async def create(data: CruddyModel)
 
-async def get_by_id(id: Union[UUID, int, str])
+async def get_by_id(id: UUID | int | str)
 
-async def update(id: Union[UUID, int, str], data: CruddyModel)
+async def update(id: UUID | int | str, data: CruddyModel)
 
-async def delete(id: Union[UUID, int, str])
+async def delete(id: UUID | int | str)
 
-async def get_all(page: int = 1, limit: int = 10, columns: List[str] = None, sort: List[str] = None, where: Json = None)
+async def get_all(page: int = 1, limit: int = 10, columns: list[str] = None, sort: list[str] = None, where: Json = None)
 
-async def get_all_relations(id: Union[UUID, int, str] = ..., relation: str = ..., relation_model: CruddyModel = ..., page: int = 1, limit: int = 10, columns: List[str] = None, sort: List[str] = None, where: Json = None)
+async def get_all_relations(id: UUID | int | str = ..., relation: str = ..., relation_model: CruddyModel = ..., page: int = 1, limit: int = 10, columns: list[str] = None, sort: list[str] = None, where: Json = None)
 
-async def set_many_many_relations(id: Union[UUID, int, str], relation: str = ..., relations: List[Union[UUID, int, str]] = ...)
+async def set_many_many_relations(id: UUID | int | str, relation: str = ..., relations: list[UUID | int | str] = ...)
 
-async def set_one_many_relations(id: Union[UUID, int, str], relation: str = ..., relations: List[Union[UUID, int, str]] = ...)
+async def set_one_many_relations(id: UUID | int | str, relation: str = ..., relations: list[UUID | int | str] = ...)
 ```
 
 Generally, these functions do about what you would expect them to do. More documentation will be added to describe their function soon. Please read nuances below, however, as it applies to how x-to-Many relationships are managed via the automatic CRUD routes.
@@ -691,6 +720,12 @@ Generally, these functions do about what you would expect them to do. More docum
 - `set_many_many_relations` and `set_one_many_relations` both destroy and then re-create the x-to-Many relationships they target. If a `user` with the id of 1 was a member of `groups` 1, 2, and 3, then calling `await user_repository.set_many_many_relations(1, 'groups', [4,5,6])` would result in `user` 1 being a member of only groups 4,5, and 6 after execution. Client applications should be aware of this functionality, and always send ALL relationships that should still exist during any relational updates.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+<!-- Validators / Checkers -->
+
+## Validators / Checkers
+
+`fastapi-cruddy-framework` includes validators and checkers useful to enrich your model definitions by exporting `field_checkers`, `field_validators`, and `field_errors` objects. These objects are all simple re-exports of the core `validators`, `checkers` and `errors` from [validator-collection](https://github.com/insightindustry/validator-collection/). For additional documentation on what is available, see that project's README.
 
 <!-- BrowserTestClient -->
 
@@ -776,7 +811,7 @@ async def authenticated_websocket(authenticated_client: BrowserTestClient):
 
 To work on this repository, you need to take the following steps first:
 
-- Use python 3.10+ for your local python environment. (example servers rely on alternative union syntax)
+- Use python 3.10+ for your local python environment. (library relies on alternative union syntax)
 - Install `pre-commit` globally by using the command `pip install pre-commit` (This will be used to manage pre-commit git hooks)
 - Clone this project `git clone https://github.com/mdconaway/fastapi-cruddy-framework.git` or `git clone git@github.com:mdconaway/fastapi-cruddy-framework.git`
 - `cd` into this project directory.

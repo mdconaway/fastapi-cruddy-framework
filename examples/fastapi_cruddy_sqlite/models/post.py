@@ -1,6 +1,15 @@
-from typing import Any, Optional, TYPE_CHECKING
-from sqlmodel import Column, Field, JSON, Relationship
-from fastapi_cruddy_framework import UUID, CruddyModel, CruddyUUIDModel, UTCDateTime
+from typing import Any, TYPE_CHECKING
+from datetime import datetime
+from pydantic import field_validator
+from sqlmodel import Column, DateTime, Field, JSON, Relationship
+from fastapi_cruddy_framework import (
+    UUID,
+    CruddyModel,
+    CruddyUUIDModel,
+    CruddyCreatedUpdatedSignature,
+    CruddyCreatedUpdatedMixin,
+    validate_utc_datetime,
+)
 
 if TYPE_CHECKING:
     from examples.fastapi_cruddy_sqlite.models.user import User
@@ -9,6 +18,7 @@ if TYPE_CHECKING:
 EXAMPLE_POST = {
     "content": "Today I felt like blogging. Fin.",
     "tags": {"categories": ["blog"]},
+    "event_date": "2023-12-11T15:27:39.984Z",
 }
 
 # The way the CRUD Router works, it needs an update, create, and base model.
@@ -24,12 +34,27 @@ EXAMPLE_POST = {
 # client's PATCH action. Generally, the update model should have the fewest
 # number of available fields for a client to manipulate.
 class PostUpdate(CruddyModel):
-    content: str = Field(schema_extra={"example": EXAMPLE_POST["content"]})
+    content: str = Field(schema_extra={"examples": [EXAMPLE_POST["content"]]})
+    event_date: datetime | None = Field(
+        default=None,
+        sa_column=Column(
+            DateTime(timezone=True),
+            nullable=True,
+            index=True,
+            default=None,
+        ),
+        schema_extra={"examples": [EXAMPLE_POST["event_date"]]},
+    )
     tags: dict = Field(
         sa_column=Column(JSON),
         default={},
-        schema_extra={"example": EXAMPLE_POST["tags"]},
+        schema_extra={"examples": [EXAMPLE_POST["tags"]]},
     )
+
+    @field_validator("event_date", mode="before")
+    @classmethod
+    def validate_event_date(cls, v: Any) -> datetime | None:
+        return validate_utc_datetime(v, allow_none=True)
 
 
 # The "Create" model variant expands on the update model, above, and adds
@@ -47,17 +72,17 @@ class PostCreate(PostUpdate):
 # fields. This should be used when defining single responses and paged
 # responses, as in the schemas below. To support column clipping, all
 # fields need to be optional.
-class PostView(CruddyUUIDModel):
-    id: Optional[UUID]
-    user_id: Optional[UUID]
-    content: Optional[str] = Field(schema_extra={"example": EXAMPLE_POST["content"]})
-    tags: Optional[dict[str, Any]] = Field(
-        sa_column=Column(JSON, index=True),
-        default={},
-        schema_extra={"example": EXAMPLE_POST["tags"]},
+class PostView(CruddyCreatedUpdatedSignature, CruddyUUIDModel):
+    user_id: UUID | None = None
+    content: str | None = Field(
+        default=None, schema_extra={"examples": [EXAMPLE_POST["content"]]}
     )
-    created_at: Optional[UTCDateTime]
-    updated_at: Optional[UTCDateTime]
+    tags: dict[str, Any] | None = Field(
+        sa_column=Column(JSON, index=True),
+        default=None,
+        schema_extra={"examples": [EXAMPLE_POST["tags"]]},
+    )
+    event_date: datetime | None = None
 
 
 # The "Base" model describes the actual table as it should be reflected in
@@ -65,6 +90,6 @@ class PostView(CruddyUUIDModel):
 # in JSON representations, as it may contain hidden fields like passwords
 # or other server-internal state or tracking information. Keep your "Base"
 # models separated from all other interactive derivations.
-class Post(CruddyUUIDModel, PostCreate, table=True):
+class Post(CruddyCreatedUpdatedMixin(), CruddyUUIDModel, PostCreate, table=True):  # type: ignore
     # is the below needed??
     user: "User" = Relationship(back_populates="posts")

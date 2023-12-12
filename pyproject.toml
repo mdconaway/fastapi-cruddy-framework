@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fastapi-cruddy-framework"
-version = "0.2.1"
+version = "1.0.0"
 description = "A holistic CRUD/MVC framework for FastAPI, with endpoint policies and relationships"
 authors = ["mdconaway <mdconaway@users.noreply.github.com>"]
 readme = "README.md"
@@ -36,23 +36,25 @@ extend-exclude = '''
 '''
 
 [tool.poetry.dependencies]
-python = ">=3.8,<4.0"
-fastapi = {extras = ["all"], version = "^0.99.1"}
+python = ">=3.10,<4.0"
+fastapi = {extras = ["all"], version = ">=0.100.0"}
 SQLAlchemy-Utils = "^0.41.1"
-SQLAlchemy = { extras = ["asyncio"], version = "^1.4.50" }
-sqlmodel = "^0.0.11"
+SQLAlchemy = { extras = ["asyncio"], version = ">=2.0.0" }
+sqlmodel = "^0.0.14"
 inflect = "^7.0.0"
 async-asgi-testclient = "^1.4.11"
+validator-collection = "^1.5.0"
+uuid7 = "^0.1.0"
 
 [tool.poetry.group.dev.dependencies]
-black = "^23.10.1"
-uvicorn = "^0.23.2"
+black = "^23.12.0"
+uvicorn = "^0.24.0"
 starlette-session = "^0.4.3"
 aiosqlite = "^0.19.0"
 bcrypt = "^4.0.1"
-pytest = "^7.4.0"
-pylint = "^2.17.7"
-pytest-asyncio = "^0.21.1"
+pytest = "^7.4.3"
+pylint = "^3.0.3"
+pytest-asyncio = "0.21.1"
 pytest-dependency = "^0.5.1"
 coverage = "^7.3.2"
 

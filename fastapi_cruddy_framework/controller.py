@@ -6,7 +6,7 @@ from sqlalchemy.orm import (
     MANYTOMANY,
     MANYTOONE,
 )
-from typing import Type, Union, List, Dict, TYPE_CHECKING
+from typing import Any, Type, TYPE_CHECKING
 from pydantic.types import Json
 from .inflector import pluralizer
 from .schemas import (
@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
 
 def GetRelationships(
-    record: Type[CruddyModel], relation_config_map: Dict[str, RelationshipConfig]
+    record: Type[CruddyModel], relation_config_map: dict[str, RelationshipConfig]
 ):
     record_relations = {}
     for k, v in relation_config_map.items():
@@ -48,7 +48,7 @@ def GetRelationships(
 async def SaveRelationships(
     id: possible_id_values,
     record: Type[CruddyModel],
-    relation_config_map: Dict[str, RelationshipConfig],
+    relation_config_map: dict[str, RelationshipConfig],
     repository: "AbstractRepository",
 ):
     relationship_lists = GetRelationships(record, relation_config_map)
@@ -56,7 +56,7 @@ async def SaveRelationships(
     awaitables = []
     for k, v in relationship_lists.items():
         name: str = k
-        new_relations: List[possible_id_values] = v
+        new_relations: list[possible_id_values] = v
         config: RelationshipConfig = relation_config_map[name]
         if config.orm_relationship.direction == MANYTOMANY:
             awaitables.append(
@@ -94,15 +94,15 @@ class Actions:
         update_model_proxy: Type[CruddyModel],
         single_schema: Type[CruddyGenericModel],
         many_schema: Type[CruddyGenericModel],
-        meta_schema: Union[Type[CruddyModel], Type[CruddyGenericModel]],
-        relations: Dict[str, RelationshipConfig],
+        meta_schema: Type[CruddyModel] | Type[CruddyGenericModel],
+        relations: dict[str, RelationshipConfig],
         default_limit: int = 10,
     ):
         self.default_limit = default_limit
 
         async def create(data: create_model):
             the_thing_with_rels = getattr(data, single_name)
-            the_thing = create_model_proxy(**the_thing_with_rels.dict())
+            the_thing = create_model_proxy(**the_thing_with_rels.model_dump())
             result = await repository.create(data=the_thing)
             relations_modified = await SaveRelationships(
                 id=getattr(result, str(repository.primary_key)),
@@ -111,11 +111,11 @@ class Actions:
                 repository=repository,
             )
             # Add error logic?
-            return single_schema(data=result)
+            return single_schema(**{"data": result})
 
         async def update(id: id_type = Path(..., alias="id"), *, data: update_model):
             the_thing_with_rels = getattr(data, single_name)
-            the_thing = update_model_proxy(**the_thing_with_rels.dict())
+            the_thing = update_model_proxy(**the_thing_with_rels.model_dump())
             result = await repository.update(id=id, data=the_thing)
             # Add error logic?
             if result is None:
@@ -131,7 +131,7 @@ class Actions:
                 repository=repository,
             )
 
-            return single_schema(data=result)
+            return single_schema(**{"data": result})
 
         async def delete(
             id: id_type = Path(..., alias="id"),
@@ -145,7 +145,7 @@ class Actions:
                     detail=f"Record id {id} not found",
                 )
 
-            return single_schema(data=data)
+            return single_schema(**{"data": data})
 
         async def get_by_id(
             id: id_type = Path(..., alias="id"),
@@ -160,13 +160,13 @@ class Actions:
                     detail=f"Record id {id} not found",
                 )
 
-            return single_schema(data=data)
+            return single_schema(**{"data": data})
 
         async def get_all(
             page: int = 1,
             limit: int = self.default_limit,
-            columns: List[str] = Query(None, alias="columns"),
-            sort: List[str] = Query(None, alias="sort"),
+            columns: list[str] = Query(None, alias="columns"),
+            sort: list[str] = Query(None, alias="sort"),
             where: Json = Query(None, alias="where"),
         ):
             result: BulkDTO = await repository.get_all(
@@ -178,10 +178,7 @@ class Actions:
                 "pages": result.total_pages,
                 "records": result.total_records,
             }
-            return many_schema(
-                meta=meta_schema(**meta),
-                data=result.data,
-            )
+            return many_schema(**{"meta": meta_schema(**meta), "data": result.data})
 
         # These functions all have dynamic signatures, so are generated within __init__
         self.create = create
@@ -201,7 +198,7 @@ class CruddyController:
     controller: APIRouter
     repository: "AbstractRepository"
     resource: "Resource"
-    adapter: Union["BaseAdapter", "MysqlAdapter", "PostgresqlAdapter", "SqliteAdapter"]
+    adapter: "BaseAdapter | MysqlAdapter | PostgresqlAdapter | SqliteAdapter"
 
     def __init__(
         self,
@@ -209,9 +206,7 @@ class CruddyController:
         controller: APIRouter,
         repository: "AbstractRepository",
         resource: "Resource",
-        adapter: Union[
-            "BaseAdapter", "MysqlAdapter", "PostgresqlAdapter", "SqliteAdapter"
-        ],
+        adapter: "BaseAdapter | MysqlAdapter | PostgresqlAdapter | SqliteAdapter",
     ):
         self.actions = actions
         self.controller = controller
@@ -232,7 +227,7 @@ class CruddyController:
 # -------------------------------------------------------------------------------------------
 
 
-def assemblePolicies(*args: (List)):
+def assemblePolicies(*args: (list)):
     merged = []
     for policy_set in args:
         for individual_policy in policy_set:
@@ -246,10 +241,10 @@ def _ControllerConfigManyToOne(
     id_type: possible_id_types,
     relationship_prop: str,
     config: RelationshipConfig,
-    policies_universal: List,
-    policies_get_one: List,
+    policies_universal: list,
+    policies_get_one: list,
 ):
-    col: Column = next(iter(config.orm_relationship.local_columns))
+    col: Column = next(iter(config.orm_relationship.local_columns))  # type: ignore
     far_side: ForeignKey = next(iter(col.foreign_keys))
     far_col: Column = far_side.column
     far_col_name = far_col.name
@@ -274,7 +269,7 @@ def _ControllerConfigManyToOne(
     )
     async def get_many_to_one(
         id: id_type = Path(..., alias="id"),
-        columns: List[str] = Query(None, alias="columns"),
+        columns: list[str] = Query(None, alias="columns"),
         where: Json = Query(None, alias="where"),
     ):
         origin_record = await repository.get_by_id(id=id)
@@ -287,7 +282,7 @@ def _ControllerConfigManyToOne(
 
         # Build a query to use foreign resource to find related objects
 
-        tgt_id = origin_record.dict()[near_col_name]
+        tgt_id = origin_record.model_dump()[near_col_name]
         must_be = {far_col_name: {"*eq": tgt_id}}
         where = must_be if where is None else {"*and": [must_be, where]}
 
@@ -320,11 +315,11 @@ def _ControllerConfigManyToOne(
         # If we get a result, grab the first value. There should only be one in many to one.
         data = None
         if len(result.data) != 0:
-            data = result.data[0]
-            table_record = config.foreign_resource.repository.model(**data)
+            data: Any = result.data[0]
+            table_record = config.foreign_resource.repository.model(**data._mapping)
             if foreign_lifecycle_after != None:
                 await foreign_lifecycle_after(table_record)
-            data = table_record.dict()
+            data = table_record.model_dump()
         else:
             if foreign_lifecycle_after != None:
                 await foreign_lifecycle_after(None)
@@ -335,7 +330,7 @@ def _ControllerConfigManyToOne(
             )
 
         # Invoke the dynamically built model
-        return config.foreign_resource.schemas["single"](data=data)
+        return config.foreign_resource.schemas["single"](**{"data": data})
 
 
 def _ControllerConfigOneToMany(
@@ -344,13 +339,13 @@ def _ControllerConfigOneToMany(
     id_type: possible_id_types,
     relationship_prop: str,
     config: RelationshipConfig,
-    meta_schema: Union[Type[CruddyModel], Type[CruddyGenericModel]] = MetaObject,
-    policies_universal: List = [],
-    policies_get_one: List = [],
+    meta_schema: Type[CruddyModel] | Type[CruddyGenericModel] = MetaObject,
+    policies_universal: list = [],
+    policies_get_one: list = [],
     default_limit: int = 10,
 ):
-    far_col: Column = next(iter(config.orm_relationship.remote_side))
-    col: Column = next(iter(config.orm_relationship.local_columns))
+    far_col: Column = next(iter(config.orm_relationship.remote_side))  # type: ignore
+    col: Column = next(iter(config.orm_relationship.local_columns))  # type: ignore
     far_col_name = far_col.name
     near_col_name = col.name
     resource_model_name = f"{repository.model.__name__}".lower()
@@ -377,8 +372,8 @@ def _ControllerConfigOneToMany(
         id: id_type = Path(..., alias="id"),
         page: int = 1,
         limit: int = default_limit,
-        columns: List[str] = Query(None, alias="columns"),
-        sort: List[str] = Query(None, alias="sort"),
+        columns: list[str] = Query(None, alias="columns"),
+        sort: list[str] = Query(None, alias="sort"),
         where: Json = Query(None, alias="where"),
     ):
         origin_record = await repository.get_by_id(id=id)
@@ -390,7 +385,9 @@ def _ControllerConfigOneToMany(
             )
 
         # Build a query to use foreign resource to find related objects
-        additional_where = {far_col_name: {"*eq": origin_record.dict()[near_col_name]}}
+        additional_where = {
+            far_col_name: {"*eq": origin_record.model_dump()[near_col_name]}
+        }
         if where != None:
             repo_where = {"*and": [additional_where, where]}
         else:
@@ -435,8 +432,7 @@ def _ControllerConfigOneToMany(
             "records": result.total_records,
         }
         return config.foreign_resource.schemas["many"](
-            meta=meta_schema(**meta),
-            data=result.data,
+            **{"meta": meta_schema(**meta), "data": result.data}
         )
 
 
@@ -446,9 +442,9 @@ def _ControllerConfigManyToMany(
     id_type: possible_id_types,
     relationship_prop: str,
     config: RelationshipConfig,
-    meta_schema: Union[Type[CruddyModel], Type[CruddyGenericModel]] = MetaObject,
-    policies_universal: List = [],
-    policies_get_one: List = [],
+    meta_schema: Type[CruddyModel] | Type[CruddyGenericModel] = MetaObject,
+    policies_universal: list = [],
+    policies_get_one: list = [],
     default_limit: int = 10,
 ):
     far_model: Type[CruddyModel] = config.foreign_resource.repository.model
@@ -476,8 +472,8 @@ def _ControllerConfigManyToMany(
         id: id_type = Path(..., alias="id"),
         page: int = 1,
         limit: int = default_limit,
-        columns: List[str] = Query(None, alias="columns"),
-        sort: List[str] = Query(None, alias="sort"),
+        columns: list[str] = Query(None, alias="columns"),
+        sort: list[str] = Query(None, alias="sort"),
         where: Json = Query(None, alias="where"),
     ):
         # Consider raising 404 here and in get by ID
@@ -511,8 +507,7 @@ def _ControllerConfigManyToMany(
             "records": result.total_records,
         }
         return config.foreign_resource.schemas["many"](
-            meta=meta_schema(**meta),
-            data=result.data,
+            **{"meta": meta_schema(**meta), "data": result.data}
         )
 
 
@@ -528,11 +523,11 @@ def ControllerConfigurator(
     single_name: str,
     plural_name: str,
     actions: Actions,
-    relations: Dict[str, RelationshipConfig],
+    relations: dict[str, RelationshipConfig],
     id_type: possible_id_types = int,
     single_schema: Type[CruddyGenericModel] = ResponseSchema,
     many_schema: Type[CruddyGenericModel] = PageResponse,
-    meta_schema: Union[Type[CruddyModel], Type[CruddyGenericModel]] = MetaObject,
+    meta_schema: Type[CruddyModel] | Type[CruddyGenericModel] = MetaObject,
     policies_universal=[],
     policies_create=[],
     policies_update=[],
@@ -618,7 +613,6 @@ def ControllerConfigurator(
                 policies_get_one=policies_get_one,
                 default_limit=actions.default_limit,
             )
-            # print("To Implement: Many to Many Through Association Object")
         elif config.orm_relationship.direction == MANYTOONE:
             _ControllerConfigManyToOne(
                 controller=controller,

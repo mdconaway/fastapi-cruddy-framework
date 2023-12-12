@@ -1,6 +1,11 @@
-from typing import Optional, List, TYPE_CHECKING
+from typing import TYPE_CHECKING
 from sqlmodel import Field, Relationship
-from fastapi_cruddy_framework import UUID, CruddyModel, CruddyUUIDModel, UTCDateTime
+from fastapi_cruddy_framework import (
+    CruddyModel,
+    CruddyUUIDModel,
+    CruddyCreatedUpdatedSignature,
+    CruddyCreatedUpdatedMixin,
+)
 from examples.fastapi_cruddy_sqlite.models.common.relationships import GroupUserLink
 
 if TYPE_CHECKING:
@@ -22,7 +27,7 @@ EXAMPLE_GROUP = {"name": "Cruddy Fans"}
 # client's PATCH action. Generally, the update model should have the fewest
 # number of available fields for a client to manipulate.
 class GroupUpdate(CruddyModel):
-    name: str = Field(schema_extra={"example": EXAMPLE_GROUP["name"]})
+    name: str = Field(schema_extra={"examples": [EXAMPLE_GROUP["name"]]})
 
 
 # The "Create" model variant expands on the update model, above, and adds
@@ -40,11 +45,10 @@ class GroupCreate(GroupUpdate):
 # fields. This should be used when defining single responses and paged
 # responses, as in the schemas below. To support column clipping, all
 # fields need to be optional.
-class GroupView(CruddyUUIDModel):
-    id: Optional[UUID]
-    name: Optional[str] = Field(schema_extra={"example": EXAMPLE_GROUP["name"]})
-    created_at: Optional[UTCDateTime]
-    updated_at: Optional[UTCDateTime]
+class GroupView(CruddyCreatedUpdatedSignature, CruddyUUIDModel):
+    name: str | None = Field(
+        default=None, schema_extra={"examples": [EXAMPLE_GROUP["name"]]}
+    )
 
 
 # The "Base" model describes the actual table as it should be reflected in
@@ -52,8 +56,8 @@ class GroupView(CruddyUUIDModel):
 # in JSON representations, as it may contain hidden fields like passwords
 # or other server-internal state or tracking information. Keep your "Base"
 # models separated from all other interactive derivations.
-class Group(CruddyUUIDModel, GroupCreate, table=True):
+class Group(CruddyCreatedUpdatedMixin(), CruddyUUIDModel, GroupCreate, table=True):  # type: ignore
     # is the below needed??
-    users: List["User"] = Relationship(
+    users: list["User"] = Relationship(
         back_populates="groups", link_model=GroupUserLink
     )

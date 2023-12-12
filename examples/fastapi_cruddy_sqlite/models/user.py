@@ -1,7 +1,14 @@
-from typing import Optional, List, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
+from datetime import datetime
+from pydantic import field_validator
 from sqlmodel import Field, Relationship, Column, DateTime
-from pydantic import EmailStr
-from fastapi_cruddy_framework import UUID, CruddyModel, CruddyUUIDModel, UTCDateTime
+from fastapi_cruddy_framework import (
+    CruddyModel,
+    CruddyUUIDModel,
+    CruddyCreatedUpdatedSignature,
+    CruddyCreatedUpdatedMixin,
+    validate_utc_datetime,
+)
 from examples.fastapi_cruddy_sqlite.models.common.relationships import GroupUserLink
 
 if TYPE_CHECKING:
@@ -25,6 +32,8 @@ EXAMPLE_USER = {
     "state": "FL",
     "country": "USA",
     "address": "101 Sunshine Way",
+    "password": "at-least-6-characters",
+    "birthdate": "2012-12-11T15:27:39.984Z",
 }
 
 
@@ -32,23 +41,35 @@ EXAMPLE_USER = {
 # client's PATCH action. Generally, the update model should have the fewest
 # number of available fields for a client to manipulate.
 class UserUpdate(CruddyModel):
-    first_name: str = Field(schema_extra={"example": EXAMPLE_USER["first_name"]})
-    last_name: str = Field(schema_extra={"example": EXAMPLE_USER["last_name"]})
-    email: EmailStr = Field(
+    first_name: str = Field(schema_extra={"examples": [EXAMPLE_USER["first_name"]]})
+    last_name: str = Field(schema_extra={"examples": [EXAMPLE_USER["last_name"]]})
+    email: str = Field(
         nullable=True,
         index=True,
         sa_column_kwargs={"unique": True},
-        schema_extra={"example": EXAMPLE_USER["email"]},
+        schema_extra={"examples": [EXAMPLE_USER["email"]]},
     )
     is_active: bool = Field(default=True)
     is_superuser: bool = Field(default=False)
-    birthdate: Optional[UTCDateTime] = Field(
-        sa_column=Column(DateTime(timezone=True), nullable=True)
+    birthdate: datetime | None = Field(
+        default=None,
+        sa_column=Column(
+            DateTime(timezone=True),
+            nullable=True,
+            index=True,
+            default=None,
+        ),
+        schema_extra={"examples": [EXAMPLE_USER["birthdate"]]},
     )  # birthday with timezone
-    phone: Optional[str] = Field(schema_extra={"example": EXAMPLE_USER["phone"]})
-    state: Optional[str] = Field(schema_extra={"example": EXAMPLE_USER["state"]})
-    country: Optional[str] = Field(schema_extra={"example": EXAMPLE_USER["country"]})
-    address: Optional[str] = Field(schema_extra={"example": EXAMPLE_USER["address"]})
+    phone: str | None = Field(schema_extra={"examples": [EXAMPLE_USER["phone"]]})
+    state: str | None = Field(schema_extra={"examples": [EXAMPLE_USER["state"]]})
+    country: str | None = Field(schema_extra={"examples": [EXAMPLE_USER["country"]]})
+    address: str | None = Field(schema_extra={"examples": [EXAMPLE_USER["address"]]})
+
+    @field_validator("birthdate", mode="before")
+    @classmethod
+    def validate_birthdate(cls, v: Any) -> datetime | None:
+        return validate_utc_datetime(v, allow_none=True)
 
 
 # The "Create" model variant expands on the update model, above, and adds
@@ -56,7 +77,7 @@ class UserUpdate(CruddyModel):
 # generated. This allows the POST action to accept update-able fields, as
 # well as one-time writeable fields.
 class UserCreate(UserUpdate):
-    password: str
+    password: str = Field(schema_extra={"examples": [EXAMPLE_USER["password"]]})
 
 
 # The "View" model describes all fields that should typcially be present
@@ -66,24 +87,31 @@ class UserCreate(UserUpdate):
 # fields. This should be used when defining single responses and paged
 # responses, as in the schemas below. To support column clipping, all
 # fields need to be optional.
-class UserView(CruddyUUIDModel):
-    id: Optional[UUID]
-    first_name: Optional[str] = Field(
-        schema_extra={"example": EXAMPLE_USER["first_name"]}
+class UserView(CruddyCreatedUpdatedSignature, CruddyUUIDModel):
+    first_name: str | None = Field(
+        default=None, schema_extra={"examples": [EXAMPLE_USER["first_name"]]}
     )
-    last_name: Optional[str] = Field(
-        schema_extra={"example": EXAMPLE_USER["last_name"]}
+    last_name: str | None = Field(
+        default=None, schema_extra={"examples": [EXAMPLE_USER["last_name"]]}
     )
-    email: Optional[EmailStr] = Field(schema_extra={"example": EXAMPLE_USER["email"]})
-    is_active: Optional[bool]
-    is_superuser: Optional[bool]
-    birthdate: Optional[UTCDateTime]
-    phone: Optional[str] = Field(schema_extra={"example": EXAMPLE_USER["phone"]})
-    state: Optional[str] = Field(schema_extra={"example": EXAMPLE_USER["state"]})
-    country: Optional[str] = Field(schema_extra={"example": EXAMPLE_USER["country"]})
-    address: Optional[str] = Field(schema_extra={"example": EXAMPLE_USER["address"]})
-    created_at: Optional[UTCDateTime]
-    updated_at: Optional[UTCDateTime]
+    email: str | None = Field(
+        default=None, schema_extra={"examples": [EXAMPLE_USER["email"]]}
+    )
+    is_active: bool | None = None
+    is_superuser: bool | None = None
+    birthdate: datetime | None = None
+    phone: str | None = Field(
+        default=None, schema_extra={"examples": [EXAMPLE_USER["phone"]]}
+    )
+    state: str | None = Field(
+        default=None, schema_extra={"examples": [EXAMPLE_USER["state"]]}
+    )
+    country: str | None = Field(
+        default=None, schema_extra={"examples": [EXAMPLE_USER["country"]]}
+    )
+    address: str | None = Field(
+        default=None, schema_extra={"examples": [EXAMPLE_USER["address"]]}
+    )
 
 
 # The "Base" model describes the actual table as it should be reflected in
@@ -91,9 +119,9 @@ class UserView(CruddyUUIDModel):
 # in JSON representations, as it may contain hidden fields like passwords
 # or other server-internal state or tracking information. Keep your "Base"
 # models separated from all other interactive derivations.
-class User(CruddyUUIDModel, UserCreate, table=True):
+class User(CruddyCreatedUpdatedMixin(), CruddyUUIDModel, UserCreate, table=True):  # type: ignore
     password: str = Field(nullable=False, index=True)
-    posts: List["Post"] = Relationship(back_populates="user")
-    groups: List["Group"] = Relationship(
+    posts: list["Post"] = Relationship(back_populates="user")
+    groups: list["Group"] = Relationship(
         back_populates="users", link_model=GroupUserLink
     )
