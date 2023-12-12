@@ -15,14 +15,6 @@ logger = getLogger(__name__)
 
 
 class RequestLogger(BaseHTTPMiddleware):
-    def __init__(
-        self,
-        app,
-        # some_attribute: str,
-    ):
-        super().__init__(app)
-        # self.some_attribute = some_attribute
-
     async def dispatch(self, request: Request, call_next):
         idem = "".join(choices(ascii_uppercase + digits, k=6))
         logger.info(f"rid={idem} start request path={request.url.path}")
