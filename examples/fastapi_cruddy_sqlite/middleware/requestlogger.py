@@ -1,10 +1,10 @@
+from os import path
 from random import choices
 from time import time
 from string import ascii_uppercase, digits
 from logging import getLogger, config
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
-from os import path
 
 config.fileConfig(
     path.join(path.dirname(path.abspath(__file__)), "../config/logging.conf"),
