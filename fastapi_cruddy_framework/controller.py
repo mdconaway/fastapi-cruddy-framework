@@ -6,7 +6,7 @@ from sqlalchemy.orm import (
     MANYTOMANY,
     MANYTOONE,
 )
-from typing import Any, Type, Union, List, Dict, TYPE_CHECKING
+from typing import Any, Type, TYPE_CHECKING
 from pydantic.types import Json
 from .inflector import pluralizer
 from .schemas import (
@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
 
 def GetRelationships(
-    record: Type[CruddyModel], relation_config_map: Dict[str, RelationshipConfig]
+    record: Type[CruddyModel], relation_config_map: dict[str, RelationshipConfig]
 ):
     record_relations = {}
     for k, v in relation_config_map.items():
@@ -48,7 +48,7 @@ def GetRelationships(
 async def SaveRelationships(
     id: possible_id_values,
     record: Type[CruddyModel],
-    relation_config_map: Dict[str, RelationshipConfig],
+    relation_config_map: dict[str, RelationshipConfig],
     repository: "AbstractRepository",
 ):
     relationship_lists = GetRelationships(record, relation_config_map)
@@ -56,7 +56,7 @@ async def SaveRelationships(
     awaitables = []
     for k, v in relationship_lists.items():
         name: str = k
-        new_relations: List[possible_id_values] = v
+        new_relations: list[possible_id_values] = v
         config: RelationshipConfig = relation_config_map[name]
         if config.orm_relationship.direction == MANYTOMANY:
             awaitables.append(
@@ -94,8 +94,8 @@ class Actions:
         update_model_proxy: Type[CruddyModel],
         single_schema: Type[CruddyGenericModel],
         many_schema: Type[CruddyGenericModel],
-        meta_schema: Union[Type[CruddyModel], Type[CruddyGenericModel]],
-        relations: Dict[str, RelationshipConfig],
+        meta_schema: Type[CruddyModel] | Type[CruddyGenericModel],
+        relations: dict[str, RelationshipConfig],
         default_limit: int = 10,
     ):
         self.default_limit = default_limit
@@ -165,8 +165,8 @@ class Actions:
         async def get_all(
             page: int = 1,
             limit: int = self.default_limit,
-            columns: List[str] = Query(None, alias="columns"),
-            sort: List[str] = Query(None, alias="sort"),
+            columns: list[str] = Query(None, alias="columns"),
+            sort: list[str] = Query(None, alias="sort"),
             where: Json = Query(None, alias="where"),
         ):
             result: BulkDTO = await repository.get_all(
@@ -198,7 +198,7 @@ class CruddyController:
     controller: APIRouter
     repository: "AbstractRepository"
     resource: "Resource"
-    adapter: Union["BaseAdapter", "MysqlAdapter", "PostgresqlAdapter", "SqliteAdapter"]
+    adapter: "BaseAdapter | MysqlAdapter | PostgresqlAdapter | SqliteAdapter"
 
     def __init__(
         self,
@@ -206,9 +206,7 @@ class CruddyController:
         controller: APIRouter,
         repository: "AbstractRepository",
         resource: "Resource",
-        adapter: Union[
-            "BaseAdapter", "MysqlAdapter", "PostgresqlAdapter", "SqliteAdapter"
-        ],
+        adapter: "BaseAdapter | MysqlAdapter | PostgresqlAdapter | SqliteAdapter",
     ):
         self.actions = actions
         self.controller = controller
@@ -229,7 +227,7 @@ class CruddyController:
 # -------------------------------------------------------------------------------------------
 
 
-def assemblePolicies(*args: (List)):
+def assemblePolicies(*args: (list)):
     merged = []
     for policy_set in args:
         for individual_policy in policy_set:
@@ -243,8 +241,8 @@ def _ControllerConfigManyToOne(
     id_type: possible_id_types,
     relationship_prop: str,
     config: RelationshipConfig,
-    policies_universal: List,
-    policies_get_one: List,
+    policies_universal: list,
+    policies_get_one: list,
 ):
     col: Column = next(iter(config.orm_relationship.local_columns))  # type: ignore
     far_side: ForeignKey = next(iter(col.foreign_keys))
@@ -271,7 +269,7 @@ def _ControllerConfigManyToOne(
     )
     async def get_many_to_one(
         id: id_type = Path(..., alias="id"),
-        columns: List[str] = Query(None, alias="columns"),
+        columns: list[str] = Query(None, alias="columns"),
         where: Json = Query(None, alias="where"),
     ):
         origin_record = await repository.get_by_id(id=id)
@@ -341,9 +339,9 @@ def _ControllerConfigOneToMany(
     id_type: possible_id_types,
     relationship_prop: str,
     config: RelationshipConfig,
-    meta_schema: Union[Type[CruddyModel], Type[CruddyGenericModel]] = MetaObject,
-    policies_universal: List = [],
-    policies_get_one: List = [],
+    meta_schema: Type[CruddyModel] | Type[CruddyGenericModel] = MetaObject,
+    policies_universal: list = [],
+    policies_get_one: list = [],
     default_limit: int = 10,
 ):
     far_col: Column = next(iter(config.orm_relationship.remote_side))  # type: ignore
@@ -374,8 +372,8 @@ def _ControllerConfigOneToMany(
         id: id_type = Path(..., alias="id"),
         page: int = 1,
         limit: int = default_limit,
-        columns: List[str] = Query(None, alias="columns"),
-        sort: List[str] = Query(None, alias="sort"),
+        columns: list[str] = Query(None, alias="columns"),
+        sort: list[str] = Query(None, alias="sort"),
         where: Json = Query(None, alias="where"),
     ):
         origin_record = await repository.get_by_id(id=id)
@@ -444,9 +442,9 @@ def _ControllerConfigManyToMany(
     id_type: possible_id_types,
     relationship_prop: str,
     config: RelationshipConfig,
-    meta_schema: Union[Type[CruddyModel], Type[CruddyGenericModel]] = MetaObject,
-    policies_universal: List = [],
-    policies_get_one: List = [],
+    meta_schema: Type[CruddyModel] | Type[CruddyGenericModel] = MetaObject,
+    policies_universal: list = [],
+    policies_get_one: list = [],
     default_limit: int = 10,
 ):
     far_model: Type[CruddyModel] = config.foreign_resource.repository.model
@@ -474,8 +472,8 @@ def _ControllerConfigManyToMany(
         id: id_type = Path(..., alias="id"),
         page: int = 1,
         limit: int = default_limit,
-        columns: List[str] = Query(None, alias="columns"),
-        sort: List[str] = Query(None, alias="sort"),
+        columns: list[str] = Query(None, alias="columns"),
+        sort: list[str] = Query(None, alias="sort"),
         where: Json = Query(None, alias="where"),
     ):
         # Consider raising 404 here and in get by ID
@@ -525,11 +523,11 @@ def ControllerConfigurator(
     single_name: str,
     plural_name: str,
     actions: Actions,
-    relations: Dict[str, RelationshipConfig],
+    relations: dict[str, RelationshipConfig],
     id_type: possible_id_types = int,
     single_schema: Type[CruddyGenericModel] = ResponseSchema,
     many_schema: Type[CruddyGenericModel] = PageResponse,
-    meta_schema: Union[Type[CruddyModel], Type[CruddyGenericModel]] = MetaObject,
+    meta_schema: Type[CruddyModel] | Type[CruddyGenericModel] = MetaObject,
     policies_universal=[],
     policies_create=[],
     policies_update=[],

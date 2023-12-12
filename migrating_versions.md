@@ -107,19 +107,18 @@ class Widget(CruddyModel):
 5. `UTCDateTime` has been removed due to `pydantic` and `sqlalchemy` incompatibility with this custom type.
 - Modify any model fields depending on cruddy's `UTCDateTime` to leverage the new `field_validator` named `validate_utc_datetime`:
 ```python
-from typing import Optional
 from sqlmodel import Field, Column, DateTime
 from fastapi_cruddy_framework import CruddyModel, UTCDateTime
 
 
 class Widget(CruddyModel):
-    event_date: Optional[UTCDateTime] = Field(
+    event_date: UTCDateTime | None = Field(
         sa_column=Column(DateTime(timezone=True), nullable=True)
     )
 ```
 becomes
 ```python
-from typing import Any, Optional
+from typing import Any
 from datetime import datetime
 from pydantic import field_validator
 from sqlmodel import Field, Column, DateTime
@@ -127,7 +126,7 @@ from fastapi_cruddy_framework import CruddyModel, validate_utc_datetime
 
 
 class Widget(CruddyModel):
-    event_date: Optional[datetime] = Field(
+    event_date: datetime | None = Field(
         default=None,
         sa_column=Column(
             DateTime(timezone=True),
@@ -147,35 +146,32 @@ class Widget(CruddyModel):
 6. `pydantic` 2+, and therefore `sqlmodel`, is more strict with `Optional` fields.
 - Modify any models with `Optional` fields to conform to `pydantic` verison 2+'s stricter possible empty value declarations:
 ```python
-from typing import Optional
 from sqlmodel import Field
 from fastapi_cruddy_framework import CruddyModel
 
 # Style 1
 class Widget(CruddyModel):
-    name: Optional[str] = Field()
+    name: str | None = Field()
 
 
 # Style 2
 class Foo(CruddyModel):
-    name: Optional[str]
+    name: str | None
 ```
 becomes
 ```python
-
-from typing import Optional
 from sqlmodel import Field
 from fastapi_cruddy_framework import CruddyModel
 
 
 # Style 1
 class Widget(CruddyModel):
-    name: Optional[str] = Field(default=None)
+    name: str | None = Field(default=None)
 
 
 # Style 2
 class Foo(CruddyModel):
-    name: Optional[str] = None
+    name: str | None = None
 ```
 ---
 
@@ -185,7 +181,7 @@ class Foo(CruddyModel):
 # various imports ...
 
 class Widget(CruddyModel):
-    some_field: Optional[str] = Field(default=None)
+    some_field: str | None = Field(default=None)
 
     @field_validator("some_field", mode="before")
     @classmethod
@@ -203,7 +199,7 @@ from fastapi_cruddy_framework import field_checkers, field_validators, field_err
 
 
 class Widget(CruddyModel):
-    some_field: Optional[str] = Field(default=None)
+    some_field: str | None = Field(default=None)
 
     @field_validator("some_field", mode="before")
     @classmethod
@@ -254,7 +250,7 @@ class BulkDTO(CruddyGenericModel):
     total_records: int
     limit: int
     page: int
-    data: List[Row]
+    data: list[Row]
 ```
 becomes
 ```python

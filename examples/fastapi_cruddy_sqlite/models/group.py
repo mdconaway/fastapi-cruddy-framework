@@ -1,5 +1,4 @@
-from typing import Optional, List, TYPE_CHECKING
-from datetime import datetime
+from typing import TYPE_CHECKING
 from sqlmodel import Field, Relationship
 from fastapi_cruddy_framework import (
     CruddyModel,
@@ -47,7 +46,7 @@ class GroupCreate(GroupUpdate):
 # responses, as in the schemas below. To support column clipping, all
 # fields need to be optional.
 class GroupView(CruddyCreatedUpdatedSignature, CruddyUUIDModel):
-    name: Optional[str] = Field(
+    name: str | None = Field(
         default=None, schema_extra={"examples": [EXAMPLE_GROUP["name"]]}
     )
 
@@ -59,6 +58,6 @@ class GroupView(CruddyCreatedUpdatedSignature, CruddyUUIDModel):
 # models separated from all other interactive derivations.
 class Group(CruddyCreatedUpdatedMixin(), CruddyUUIDModel, GroupCreate, table=True):  # type: ignore
     # is the below needed??
-    users: List["User"] = Relationship(
+    users: list["User"] = Relationship(
         back_populates="groups", link_model=GroupUserLink
     )

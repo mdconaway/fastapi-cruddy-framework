@@ -1,15 +1,15 @@
 import inspect
 from re import compile, Match
-from typing import Type, Union, Optional, Coroutine, Any, Callable
+from typing import Type, Coroutine, Any, Callable
 from pydantic.errors import PydanticErrorMixin
 from sqlalchemy.orm import class_mapper, object_mapper
 from datetime import datetime, timezone, timedelta
 from .schemas import UUID
 
 
-possible_id_types = Union[Type[UUID], Type[int], Type[str]]
-possible_id_values = Union[UUID, int, str]
-lifecycle_types = Optional[Callable[..., Coroutine[Any, Any, Any]]]
+possible_id_types = Type[UUID] | Type[int] | Type[str]
+possible_id_values = UUID | int | str
+lifecycle_types = Callable[..., Coroutine[Any, Any, Any]] | None
 EPOCH = datetime(1970, 1, 1)
 # if greater than this, the number is in ms, if less than or equal it's in seconds
 # (in seconds this is 11th October 2603, in ms it's 20th August 1970)
@@ -36,8 +36,8 @@ class DateTimeError(PydanticValueError):
 
 
 def get_numeric(
-    value: Union[str, bytes, int, float], native_expected_type: str
-) -> Union[None, int, float]:
+    value: str | bytes | int | float, native_expected_type: str
+) -> None | int | float:
     if isinstance(value, (int, float)):
         return value
     try:
@@ -50,7 +50,7 @@ def get_numeric(
         )
 
 
-def from_unix_seconds(seconds: Union[int, float]) -> datetime:
+def from_unix_seconds(seconds: int | float) -> datetime:
     if seconds > MAX_NUMBER:
         return datetime.max
     elif seconds < -MAX_NUMBER:
@@ -62,9 +62,7 @@ def from_unix_seconds(seconds: Union[int, float]) -> datetime:
     return dt.replace(tzinfo=timezone.utc)
 
 
-def _parse_timezone(
-    value: Optional[str], error: Type[Exception]
-) -> Union[None, int, timezone]:
+def _parse_timezone(value: str | None, error: Type[Exception]) -> None | int | timezone:
     if value == "Z":
         return timezone.utc
     elif value is not None:
@@ -80,7 +78,7 @@ def _parse_timezone(
         return None
 
 
-def parse_datetime(value: Union[datetime, str, bytes, int, float]) -> datetime:
+def parse_datetime(value: datetime | str | bytes | int | float) -> datetime:
     """
     Parse a datetime/int/float/string and return a datetime.datetime.
 
@@ -109,7 +107,7 @@ def parse_datetime(value: Union[datetime, str, bytes, int, float]) -> datetime:
         kw["microsecond"] = kw["microsecond"].ljust(6, "0")
 
     tzinfo = _parse_timezone(kw.pop("tzinfo"), DateTimeError)
-    kw_: dict[str, Union[None, int, timezone]] = {
+    kw_: dict[str, None | int | timezone] = {
         k: int(v) for k, v in kw.items() if v is not None
     }
     kw_["tzinfo"] = tzinfo
@@ -140,12 +138,12 @@ def coerce_to_utc_datetime(v: datetime):
     return v.astimezone(timezone.utc)
 
 
-def parse_and_coerce_to_utc_datetime(value: Union[datetime, str, bytes, int, float]):
+def parse_and_coerce_to_utc_datetime(value: datetime | str | bytes | int | float):
     return coerce_to_utc_datetime(parse_datetime(value))
 
 
 def validate_utc_datetime(
-    value: Union[datetime, str, bytes, int, float, None], allow_none: bool = False
+    value: datetime | str | bytes | int | float | None, allow_none: bool = False
 ):
     if allow_none and value is None:
         return None

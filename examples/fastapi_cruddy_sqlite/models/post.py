@@ -1,4 +1,4 @@
-from typing import Any, Optional, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 from datetime import datetime
 from pydantic import field_validator
 from sqlmodel import Column, DateTime, Field, JSON, Relationship
@@ -35,7 +35,7 @@ EXAMPLE_POST = {
 # number of available fields for a client to manipulate.
 class PostUpdate(CruddyModel):
     content: str = Field(schema_extra={"examples": [EXAMPLE_POST["content"]]})
-    event_date: Optional[datetime] = Field(
+    event_date: datetime | None = Field(
         default=None,
         sa_column=Column(
             DateTime(timezone=True),
@@ -73,16 +73,16 @@ class PostCreate(PostUpdate):
 # responses, as in the schemas below. To support column clipping, all
 # fields need to be optional.
 class PostView(CruddyCreatedUpdatedSignature, CruddyUUIDModel):
-    user_id: Optional[UUID] = None
-    content: Optional[str] = Field(
+    user_id: UUID | None = None
+    content: str | None = Field(
         default=None, schema_extra={"examples": [EXAMPLE_POST["content"]]}
     )
-    tags: Optional[dict[str, Any]] = Field(
+    tags: dict[str, Any] | None = Field(
         sa_column=Column(JSON, index=True),
         default=None,
         schema_extra={"examples": [EXAMPLE_POST["tags"]]},
     )
-    event_date: Optional[datetime] = None
+    event_date: datetime | None = None
 
 
 # The "Base" model describes the actual table as it should be reflected in

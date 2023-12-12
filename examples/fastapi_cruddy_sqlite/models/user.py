@@ -1,4 +1,4 @@
-from typing import Any, Optional, List, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 from datetime import datetime
 from pydantic import field_validator
 from sqlmodel import Field, Relationship, Column, DateTime
@@ -51,7 +51,7 @@ class UserUpdate(CruddyModel):
     )
     is_active: bool = Field(default=True)
     is_superuser: bool = Field(default=False)
-    birthdate: Optional[datetime] = Field(
+    birthdate: datetime | None = Field(
         default=None,
         sa_column=Column(
             DateTime(timezone=True),
@@ -61,10 +61,10 @@ class UserUpdate(CruddyModel):
         ),
         schema_extra={"examples": [EXAMPLE_USER["birthdate"]]},
     )  # birthday with timezone
-    phone: Optional[str] = Field(schema_extra={"examples": [EXAMPLE_USER["phone"]]})
-    state: Optional[str] = Field(schema_extra={"examples": [EXAMPLE_USER["state"]]})
-    country: Optional[str] = Field(schema_extra={"examples": [EXAMPLE_USER["country"]]})
-    address: Optional[str] = Field(schema_extra={"examples": [EXAMPLE_USER["address"]]})
+    phone: str | None = Field(schema_extra={"examples": [EXAMPLE_USER["phone"]]})
+    state: str | None = Field(schema_extra={"examples": [EXAMPLE_USER["state"]]})
+    country: str | None = Field(schema_extra={"examples": [EXAMPLE_USER["country"]]})
+    address: str | None = Field(schema_extra={"examples": [EXAMPLE_USER["address"]]})
 
     @field_validator("birthdate", mode="before")
     @classmethod
@@ -88,28 +88,28 @@ class UserCreate(UserUpdate):
 # responses, as in the schemas below. To support column clipping, all
 # fields need to be optional.
 class UserView(CruddyCreatedUpdatedSignature, CruddyUUIDModel):
-    first_name: Optional[str] = Field(
+    first_name: str | None = Field(
         default=None, schema_extra={"examples": [EXAMPLE_USER["first_name"]]}
     )
-    last_name: Optional[str] = Field(
+    last_name: str | None = Field(
         default=None, schema_extra={"examples": [EXAMPLE_USER["last_name"]]}
     )
-    email: Optional[str] = Field(
+    email: str | None = Field(
         default=None, schema_extra={"examples": [EXAMPLE_USER["email"]]}
     )
-    is_active: Optional[bool] = None
-    is_superuser: Optional[bool] = None
-    birthdate: Optional[datetime] = None
-    phone: Optional[str] = Field(
+    is_active: bool | None = None
+    is_superuser: bool | None = None
+    birthdate: datetime | None = None
+    phone: str | None = Field(
         default=None, schema_extra={"examples": [EXAMPLE_USER["phone"]]}
     )
-    state: Optional[str] = Field(
+    state: str | None = Field(
         default=None, schema_extra={"examples": [EXAMPLE_USER["state"]]}
     )
-    country: Optional[str] = Field(
+    country: str | None = Field(
         default=None, schema_extra={"examples": [EXAMPLE_USER["country"]]}
     )
-    address: Optional[str] = Field(
+    address: str | None = Field(
         default=None, schema_extra={"examples": [EXAMPLE_USER["address"]]}
     )
 
@@ -121,7 +121,7 @@ class UserView(CruddyCreatedUpdatedSignature, CruddyUUIDModel):
 # models separated from all other interactive derivations.
 class User(CruddyCreatedUpdatedMixin(), CruddyUUIDModel, UserCreate, table=True):  # type: ignore
     password: str = Field(nullable=False, index=True)
-    posts: List["Post"] = Relationship(back_populates="user")
-    groups: List["Group"] = Relationship(
+    posts: list["Post"] = Relationship(back_populates="user")
+    groups: list["Group"] = Relationship(
         back_populates="users", link_model=GroupUserLink
     )

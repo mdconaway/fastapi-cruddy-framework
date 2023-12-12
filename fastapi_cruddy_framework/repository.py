@@ -16,7 +16,7 @@ from sqlalchemy.sql.schema import Table, Column
 from sqlalchemy.types import JSON, VARCHAR  # ARRAY, CHAR
 from sqlalchemy.orm import RelationshipProperty, ONETOMANY, MANYTOMANY
 from sqlmodel import cast, inspect
-from typing import Type, Union, List, Dict
+from typing import Type
 from pydantic_core import PydanticUndefined as Undefined
 from pydantic.types import Json
 from .schemas import (
@@ -82,13 +82,13 @@ LOGGER = getLogger(__file__)
 # REPOSITORY MANAGER
 # -------------------------------------------------------------------------------------------
 class AbstractRepository:
-    adapter: Union[BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter]
+    adapter: BaseAdapter | SqliteAdapter | MysqlAdapter | PostgresqlAdapter
     update_model: Type[CruddyModel]
     create_model: Type[CruddyModel]
     model: Type[CruddyModel]
     id_type: possible_id_types
-    primary_key: Union[str, None] = None
-    lifecycle: Dict[str, lifecycle_types] = {
+    primary_key: str | None = None
+    lifecycle: dict[str, lifecycle_types] = {
         "before_create": None,
         "after_create": None,
         "before_update": None,
@@ -103,11 +103,11 @@ class AbstractRepository:
         "after_set_relations": None,
     }
 
-    op_map: Dict
+    op_map: dict
 
     def __init__(
         self,
-        adapter: Union[BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter],
+        adapter: BaseAdapter | SqliteAdapter | MysqlAdapter | PostgresqlAdapter,
         update_model: Type[CruddyModel],
         create_model: Type[CruddyModel],
         model: Type[CruddyModel],
@@ -227,8 +227,8 @@ class AbstractRepository:
         self,
         page: int = 1,
         limit: int = 10,
-        columns: Union[List[str], None] = None,
-        sort: Union[List[str], None] = None,
+        columns: list[str] | None = None,
+        sort: list[str] | None = None,
         where: Json = None,
         # possible lifecycle hooks from foreign resource
         _lifecycle_before: lifecycle_types = None,
@@ -257,7 +257,7 @@ class AbstractRepository:
             # this query
             await lifecycle_before(query_conf)  # type: ignore
 
-        get_columns: List[str] = (
+        get_columns: list[str] = (
             query_conf["columns"]
             if query_conf["columns"] is not None and query_conf["columns"] != []
             else list(self.model.model_fields.keys())
@@ -333,8 +333,8 @@ class AbstractRepository:
         relation_model: Type[CruddyModel],
         page: int = 1,
         limit: int = 10,
-        columns: Union[List[str], None] = None,
-        sort: Union[List[str], None] = None,
+        columns: list[str] | None = None,
+        sort: list[str] | None = None,
         where: Json = None,
         # the foreign repository's lifecycle hooks must be injected
         _lifecycle_before: lifecycle_types = None,
@@ -354,7 +354,7 @@ class AbstractRepository:
         if exists(_lifecycle_before):
             await _lifecycle_before(query_conf)  # type: ignore
 
-        get_columns: List[str] = (
+        get_columns: list[str] = (
             query_conf["columns"]
             if query_conf["columns"] is not None and query_conf["columns"] != []
             else list(relation_model.model_fields.keys())
@@ -434,7 +434,7 @@ class AbstractRepository:
         self,
         id: possible_id_values,
         relation: str,
-        relations: List[possible_id_values],
+        relations: list[possible_id_values],
     ):
         relation_conf = {"id": id, "relation": relation, "relations": relations}
 
@@ -447,12 +447,12 @@ class AbstractRepository:
         pairs = list(model_relation.local_remote_pairs)  # type: ignore
         # origin_table: Table = None
         # origin_key: str = None
-        join_table: Union[Table, None] = None
-        join_table_origin_attr: Union[str, None] = None
-        join_table_foreign_attr: Union[str, None] = None
-        join_table_foreign: Union[Table, None] = None
-        foreign_table: Union[Table, None] = None
-        foreign_key: Union[str, None] = None
+        join_table: Table | None = None
+        join_table_origin_attr: str | None = None
+        join_table_foreign_attr: str | None = None
+        join_table_foreign: Table | None = None
+        foreign_table: Table | None = None
+        foreign_key: str | None = None
         for v in pairs:
             local: Column = v[0]  # type: ignore
             remote: Column = v[1]  # type: ignore
@@ -540,7 +540,7 @@ class AbstractRepository:
         self,
         id: possible_id_values,
         relation: str,
-        relations: List[possible_id_values],
+        relations: list[possible_id_values],
     ):
         relation_conf = {"id": id, "relation": relation, "relations": relations}
 
@@ -552,9 +552,9 @@ class AbstractRepository:
         )
         pairs = list(model_relation.local_remote_pairs)  # type: ignore
         found = False
-        related_model: Union[Table, None] = None
-        far_col_name: Union[str, None] = None
-        far_col: Union[Column, None] = None
+        related_model: Table | None = None
+        far_col_name: str | None = None
+        far_col: Column | None = None
         for v in pairs:
             local: Column = v[0]  # type: ignore
             remote: Column = v[1]  # type: ignore
@@ -656,8 +656,8 @@ class AbstractRepository:
     # This function needs to be extended to support "dot" notation in left hand keys to imply joined relation searchers
     def query_forge(
         self,
-        model: Union[CruddyModel, Type[CruddyModel], RelationshipProperty],
-        where: Union[Dict, List[Dict]],
+        model: Type[CruddyModel] | RelationshipProperty,
+        where: dict | list[dict],
     ):
         level_criteria = []
         if not (isinstance(where, list) or isinstance(where, dict)):

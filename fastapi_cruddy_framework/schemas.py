@@ -2,11 +2,8 @@ from typing import (
     Any,
     Type,
     TypeVar,
-    Optional,
     Generic,
-    Union,
     Sequence,
-    List,
     TYPE_CHECKING,
 )
 from datetime import datetime
@@ -60,7 +57,7 @@ class BulkDTO(CruddyGenericModel):
 
 class ResponseSchema(CruddyGenericModel):
     # The response for a single object return
-    data: Optional[Any] = None
+    data: Any | None = None
 
 
 class CruddyModel(SQLModel):
@@ -78,12 +75,12 @@ class MetaObject(CruddyModel):
 
 class PageResponse(CruddyGenericModel):
     # The response for a pagination query.
-    meta: Union[Type[CruddyModel], Type[CruddyGenericModel]]
-    data: List[Any]
+    meta: Type[CruddyModel] | Type[CruddyGenericModel]
+    data: list[Any]
 
 
 class CruddyIntIDModel(CruddyModel):
-    id: Optional[int] = Field(
+    id: int | None = Field(
         default=None,
         primary_key=True,
         index=True,
@@ -101,17 +98,17 @@ class CruddyUUIDModel(CruddyModel):
 
 
 class CruddyCreatedUpdatedSignature(CruddyModel):
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 def CruddyCreatedUpdatedMixin() -> type[CruddyCreatedUpdatedSignature]:
     class CruddyCreatedUpdatedInstance(CruddyCreatedUpdatedSignature):
-        created_at: Optional[datetime] = Field(
+        created_at: datetime | None = Field(
             default_factory=build_tz_aware_date,
             sa_column=Column(DateTime(timezone=True), nullable=False, index=True),
         )
-        updated_at: Optional[datetime] = Field(
+        updated_at: datetime | None = Field(
             default_factory=build_tz_aware_date,
             sa_column=Column(
                 DateTime(timezone=True),
