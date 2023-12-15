@@ -222,6 +222,43 @@ async def test_alter_users_in_group(authenticated_client: BrowserTestClient):
     assert result["meta"]["pages"] is 1
     assert result["meta"]["records"] is 2
 
+    response = await authenticated_client.get(
+        f"/groups/{group_id}/users?where={dumps([{'email': {'*contains': 'cruddy-framework'}}, {'email': {'*contains': 'com'}}])}&sort=first_name asc"
+    )
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert len(result["users"]) is 2
+    assert result["users"][0]["id"] == user_id
+    assert result["users"][1]["id"] == alt_user_id
+    assert result["meta"]["page"] is 1
+    assert result["meta"]["limit"] is general.DEFAULT_LIMIT
+    assert result["meta"]["pages"] is 1
+    assert result["meta"]["records"] is 2
+
+    response = await authenticated_client.get(
+        f"/groups/{group_id}/users?where={dumps([{'email': {'*contains': 'cruddy-framework'}}, {'email': {'*contains': 'frodo.baggins'}}])}&sort=first_name asc"
+    )
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert len(result["users"]) is 1
+    assert result["users"][0]["id"] == user_id
+    assert result["meta"]["page"] is 1
+    assert result["meta"]["limit"] is general.DEFAULT_LIMIT
+    assert result["meta"]["pages"] is 1
+    assert result["meta"]["records"] is 1
+
+    response = await authenticated_client.get(
+        f"/groups/{group_id}/users?where={dumps({'email': {'*contains': 'frodo.baggins'}})}&sort=first_name asc"
+    )
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert len(result["users"]) is 1
+    assert result["users"][0]["id"] == user_id
+    assert result["meta"]["page"] is 1
+    assert result["meta"]["limit"] is general.DEFAULT_LIMIT
+    assert result["meta"]["pages"] is 1
+    assert result["meta"]["records"] is 1
+
 
 @mark.asyncio
 @mark.dependency(depends=["test_alter_users_in_group"])

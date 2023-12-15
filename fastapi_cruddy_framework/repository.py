@@ -373,8 +373,8 @@ class AbstractRepository:
         if isinstance(query_conf["where"], dict) or isinstance(
             query_conf["where"], list
         ):
-            joinable.append(
-                *self.query_forge(model=relation_model, where=query_conf["where"])
+            joinable.extend(
+                self.query_forge(model=relation_model, where=query_conf["where"])
             )
         query = query.filter(and_(*joinable))
 
