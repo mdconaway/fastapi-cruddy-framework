@@ -517,7 +517,7 @@ class AbstractRepository:
                     )
                 )
                 count_query = select(func.count(1)).select_from(find_tgt_query)  # type: ignore
-                result = (await session.execute(count_query)).scalar() or 0
+                result: int = (await session.execute(count_query)).scalar() or 0
             else:
                 result = 0
 
@@ -541,7 +541,7 @@ class AbstractRepository:
         id: possible_id_values,
         relation: str,
         relations: list[possible_id_values],
-    ):
+    ) -> int:
         relation_conf = {"id": id, "relation": relation, "relations": relations}
 
         if exists(self.lifecycle["before_set_relations"]):
@@ -607,7 +607,7 @@ class AbstractRepository:
             await session.execute(
                 alter_query
             )  # .rowcount # also affected by removing returning
-            alter_result = (await session.execute(count_query)).scalar() or 0
+            alter_result: int = (await session.execute(count_query)).scalar() or 0
 
         if exists(self.lifecycle["after_set_relations"]):
             await self.lifecycle["after_set_relations"](  # type: ignore

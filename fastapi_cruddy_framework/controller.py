@@ -70,9 +70,9 @@ async def SaveRelationships(
                     id=id, relation=name, relations=new_relations
                 )
             )
-    results = await gather(*awaitables, return_exceptions=True)
+    results: list[Any] = await gather(*awaitables, return_exceptions=True)
     for result_or_exc in results:
-        if not isinstance(result_or_exc, Exception):
+        if isinstance(result_or_exc, int):
             modified_records += result_or_exc
     return modified_records
 

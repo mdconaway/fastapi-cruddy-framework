@@ -380,7 +380,7 @@ class Resource:
 
         # Expose the following schemas for further use
 
-        self.schemas = {
+        self.schemas = {  # type: ignore
             "single": SingleSchemaEnvelope,
             "many": ManySchemaEnvelope,
             "create": SingleCreateEnvelope,
