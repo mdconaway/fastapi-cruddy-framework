@@ -1,10 +1,12 @@
 import inspect
-from re import compile, Match
 from typing import Type, Coroutine, Any, Callable
+from json import dumps, loads
+from datetime import date, datetime, timezone, timedelta
+from re import compile, Match
 from pydantic.errors import PydanticErrorMixin
 from sqlalchemy.orm import class_mapper, object_mapper
-from datetime import datetime, timezone, timedelta
-from .schemas import UUID
+from fastapi import Request, WebSocket
+from uuid import UUID
 
 
 possible_id_types = Type[UUID] | Type[int] | Type[str]
@@ -150,3 +152,33 @@ def validate_utc_datetime(
     if value is None or (type(value) not in (datetime, str, bytes, int, float)):
         raise DateTimeError(f"Invalid datetime: {value}", code=None)
     return parse_and_coerce_to_utc_datetime(value)
+
+
+def json_serial(obj):
+    """JSON serializer for objects not serializable by default json code"""
+
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+    if isinstance(obj, UUID):
+        return f"{obj}"
+    return f"{obj}"
+
+
+def to_json_string(thing):
+    return dumps(thing, default=json_serial)
+
+
+def to_json_object(thing):
+    return loads(to_json_string(thing))
+
+
+def get_state(
+    connection: Request | WebSocket,
+    key: str,
+    default: Any | None = None,
+) -> Any:
+    return getattr(connection.state, key, default)
+
+
+def set_state(connection: Request | WebSocket, key: str, value: Any) -> None:
+    setattr(connection.state, key, value)

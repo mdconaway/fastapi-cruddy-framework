@@ -1,9 +1,12 @@
+from __future__ import annotations
+from typing import AsyncIterator, Literal
+from contextlib import asynccontextmanager
+from redis.asyncio import Redis, from_url
+from fakeredis.aioredis import FakeRedis
 from sqlalchemy.pool import StaticPool
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine, async_sessionmaker
-from contextlib import asynccontextmanager
 from sqlmodel import text
 from sqlmodel.ext.asyncio.session import AsyncSession
-from typing import AsyncIterator, Literal
 from .schemas import CruddyModel
 
 
@@ -74,8 +77,6 @@ class BaseAdapter:
 # -------------------------------------------------------------------------------------------
 # MYSQL ADAPTER
 # -------------------------------------------------------------------------------------------
-
-
 class MysqlAdapter(BaseAdapter):
     connection_uri: str
     engine: AsyncEngine
@@ -95,8 +96,6 @@ class MysqlAdapter(BaseAdapter):
 # -------------------------------------------------------------------------------------------
 # POSTGRESQL ADAPTER
 # -------------------------------------------------------------------------------------------
-
-
 class PostgresqlAdapter(MysqlAdapter):
     async def addPostgresqlExtension(self) -> None:
         query = text("CREATE EXTENSION IF NOT EXISTS pg_trgm")
@@ -130,3 +129,52 @@ class SqliteAdapter(BaseAdapter):
             future=True,
             **kwargs,
         )
+
+
+# -------------------------------------------------------------------------------------------
+# REDIS ADAPTER
+# -------------------------------------------------------------------------------------------
+# The adapter for all things websocket
+class RedisAdapter:
+    client: Redis | None = None
+    ADAPTER_MODE: Literal["redis"] | Literal["memory"]
+    REDIS_HOST: str
+    REDIS_PORT: int
+    REDIS_MAX_CONNECTIONS: int
+    ADDITIONAL_ADAPTER_ARGS: dict
+
+    def __init__(
+        self,
+        mode: Literal["redis"] | Literal["memory"] = "redis",
+        redis_host: str = "localhost",
+        redis_port: int = 6379,
+        redis_max_connections: int = 10000,
+        **kwargs,
+    ):
+        self.ADAPTER_MODE = mode
+        self.REDIS_HOST = redis_host
+        self.REDIS_PORT = redis_port
+        self.REDIS_MAX_CONNECTIONS = redis_max_connections
+        self.ADDITIONAL_ADAPTER_ARGS = kwargs
+
+    def get_client(self):
+        if not self.client:
+            # Other client options:
+            # encoding="utf8",
+            # decode_responses=True,
+            # These have not been set so that starlette sessions can
+            # determine encoding of the items it saves.
+            if self.ADAPTER_MODE == "redis":
+                self.client = from_url(
+                    url=f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}",
+                    max_connections=self.REDIS_MAX_CONNECTIONS,
+                    **self.ADDITIONAL_ADAPTER_ARGS,
+                )
+            else:
+                self.client = FakeRedis(
+                    host=self.REDIS_HOST,
+                    port=self.REDIS_PORT,
+                    max_connections=self.REDIS_MAX_CONNECTIONS,
+                    **self.ADDITIONAL_ADAPTER_ARGS,
+                )
+        return self.client

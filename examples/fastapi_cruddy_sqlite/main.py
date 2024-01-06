@@ -8,6 +8,8 @@ from examples.fastapi_cruddy_sqlite.config import general, http, sessions
 from examples.fastapi_cruddy_sqlite.router import application as application_router
 from examples.fastapi_cruddy_sqlite.middleware import RequestLogger
 from examples.fastapi_cruddy_sqlite.adapters import sqlite
+from examples.fastapi_cruddy_sqlite.services.websocket_1 import websocket_manager_1
+from examples.fastapi_cruddy_sqlite.services.websocket_2 import websocket_manager_2
 from starlette_session import SessionMiddleware
 from datetime import timedelta
 
@@ -22,13 +24,18 @@ async def bootstrap(application: FastAPI):
     # the application_router in the bootstrapper. Fortunately, routers can be added lazily, which
     # forces fastapi to re-index the routes and update the openapi.json.
     await sqlite.destroy_then_create_all_tables_unsafe()
+    # You must activate the websocket manager in your application bootstrapper.
+    # This .startup() function will spawn a listener loop that watches redis pub/sub channels.
+    await websocket_manager_1.startup()
+    await websocket_manager_2.startup()
     application.include_router(application_router)
     logger.info(f"{general.PROJECT_NAME}, {general.API_VERSION}: Bootstrap complete")
     # You can do any init hooks below
 
 
 async def shutdown():
-    pass
+    await websocket_manager_1.dispose()
+    await websocket_manager_2.dispose()
 
 
 @asynccontextmanager

@@ -8,7 +8,7 @@ from examples.fastapi_cruddy_sqlite.models.user import (
 )
 from examples.fastapi_cruddy_sqlite.controllers.user import UserController
 from examples.fastapi_cruddy_sqlite.policies.verify_session import verify_session
-from examples.fastapi_cruddy_sqlite.policies.naive_auth import auth_user_session
+from examples.fastapi_cruddy_sqlite.policies.naive_auth import naive_auth
 from examples.fastapi_cruddy_sqlite.policies.hash_user_password import (
     hash_user_password,
 )
@@ -24,7 +24,7 @@ resource = Resource(
     resource_model=User,
     protected_relationships=["posts"],
     policies_universal=[verify_session],
-    policies_create=[auth_user_session, hash_user_password],
+    policies_create=[naive_auth, hash_user_password],
     disable_delete=True,
     controller_extension=UserController,
     artificial_relationship_paths=["others"],

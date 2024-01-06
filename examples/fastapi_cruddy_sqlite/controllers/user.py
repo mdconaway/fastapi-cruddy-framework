@@ -4,7 +4,7 @@ from fastapi import Query, Request, Response, Path, HTTPException, status
 from fastapi.responses import JSONResponse
 from fastapi_cruddy_framework import CruddyController
 from examples.fastapi_cruddy_sqlite.policies.verify_session import verify_session
-from examples.fastapi_cruddy_sqlite.policies.naive_auth import auth_user_session
+from examples.fastapi_cruddy_sqlite.policies.naive_auth import naive_auth
 from examples.fastapi_cruddy_sqlite.utils.dependency_list import dependency_list
 from examples.fastapi_cruddy_sqlite.config.general import general
 
@@ -26,7 +26,7 @@ class UserController(CruddyController):
             "/authorization",
             description="Authorizes a client, returning a cookie to establish a sesssion as well as the session object",
             response_model=dict,
-            dependencies=dependency_list(verify_session, auth_user_session),
+            dependencies=dependency_list(verify_session, naive_auth),
         )
         async def get_authorization(request: Request):
             return JSONResponse(content=request.session)

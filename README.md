@@ -21,6 +21,8 @@ TODO: Additional documentation and tests. (General features covered by tests) Ma
 
 See the examples folder for a quick reference of high level setup. It currently contains a fully functional fastapi server which uses fastapi-cruddy-framework and the sqlite adapter. It even shows how to override incoming post data to do things like hash a user's password during initial registration using a simple drop-in policy function.
 
+Come for the websocket manager, stay for the CRUD!
+
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- VERSION COMPATIBILITY INFORMATION -->
@@ -90,6 +92,19 @@ BaseAdapter
 SqliteAdapter
 MysqlAdapter
 PostgresqlAdapter
+# CONSTANTS
+BROADCAST_EVENT
+CONTROL_EVENT
+ROOM_EVENT
+CLIENT_EVENT
+KILL_SOCKET_BY_ID
+KILL_SOCKET_BY_CLIENT
+KILL_ROOM_BY_ID
+JOIN_SOCKET_BY_ID
+JOIN_SOCKET_BY_CLIENT
+LEAVE_SOCKET_BY_ID
+LEAVE_SOCKET_BY_CLIENT
+CLIENT_MESSAGE_EVENT
 # TYPES / MODELS / SCHEMAS
 T
 UUID
@@ -104,10 +119,16 @@ CruddyCreatedUpdatedSignature
 CruddyCreatedUpdatedMixin
 CruddyIntIDModel
 CruddyUUIDModel
+SocketMessage
+SocketRoomConfiguration
 ExampleUpdate
 ExampleCreate
 ExampleView
 Example
+# WEBSOCKET MODULES
+PubSub
+WebsocketConnectionManager
+RedisAdapter
 # MODULE LOADER HELPERS
 getModuleDir
 getDirectoryModules
@@ -125,6 +146,11 @@ parse_datetime
 coerce_to_utc_datetime
 parse_and_coerce_to_utc_datetime
 validate_utc_datetime
+json_serial
+to_json_string
+to_json_object
+get_state
+set_state
 # TEST HELPERS
 BrowserTestClient
 TestClient
@@ -726,6 +752,20 @@ Generally, these functions do about what you would expect them to do. More docum
 ## Validators / Checkers
 
 `fastapi-cruddy-framework` includes validators and checkers useful to enrich your model definitions by exporting `field_checkers`, `field_validators`, and `field_errors` objects. These objects are all simple re-exports of the core `validators`, `checkers` and `errors` from [validator-collection](https://github.com/insightindustry/validator-collection/). For additional documentation on what is available, see that project's README.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+<!-- WebsocketConnectionManager -->
+
+## WebsocketConnectionManager
+
+`fastapi-cruddy-framework` includes a relatively full-featured `WebsocketConnectionManager` that offers many of the same features as other great websocket libraries, such as [socket.io](https://socket.io/). The easiest way to see the full capabilities of the websocket manager is to look at the example server used to test this library! For instance, [here](examples/fastapi_cruddy_sqlite/services/websocket_1.py) and [here](examples/fastapi_cruddy_sqlite/services/websocket_2.py) you can see how to instantiate a `WebsocketConnectionManager`. You can then bind an instance of a `WebsocketConnectionManager` to your `ApplicationRoute`, as seen [here](examples/fastapi_cruddy_sqlite/router/application.py), using the async context manager's `.connect()` function to initiate a bidirectional websocket context that supports broadcasts, rooms, direct socket-to-socket messages, kill commands, a custom socket identity hook (to identify or kill many sockets owned by the same user), and a horizontally scaling control plane where you can even plugin your own custom commands! Note that you need to `.startup()` and `.dispose()` of a `WebsocketConnectionManager` in your application's `lifespan` hook, as seen [here](examples/fastapi_cruddy_sqlite/main.py).
+
+
+The `WebsocketConnectionManager` will receive more thorough documentation in the future when it becomes more stable, but it is fully tested in it's current state and is very reliable!
+
+
+Note that currently the `WebsocketConnectionManager` requires `redis` to function. In the future, other broker types may be added as well! The pub/sub aspect is delegated to a separate class under the hood.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

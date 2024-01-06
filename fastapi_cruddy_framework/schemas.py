@@ -23,7 +23,18 @@ if TYPE_CHECKING:
 # -------------------------------------------------------------------------------------------
 # SCHEMAS / MODELS
 # -------------------------------------------------------------------------------------------
-
+BROADCAST_EVENT = "broadcast"
+CONTROL_EVENT = "control"
+ROOM_EVENT = "room"
+CLIENT_EVENT = "client"
+KILL_SOCKET_BY_ID = "killsocket_id"
+KILL_SOCKET_BY_CLIENT = "killsocket_client"
+KILL_ROOM_BY_ID = "killroom_id"
+JOIN_SOCKET_BY_ID = "joinsocket_id"
+JOIN_SOCKET_BY_CLIENT = "joinsocket_client"
+LEAVE_SOCKET_BY_ID = "leavesocket_id"
+LEAVE_SOCKET_BY_CLIENT = "leavesocket_client"
+CLIENT_MESSAGE_EVENT = "client_message"
 T = TypeVar("T")
 
 
@@ -53,6 +64,18 @@ class BulkDTO(CruddyGenericModel):
 
     class Config:
         arbitrary_types_allowed = True
+
+
+class SocketMessage(CruddyGenericModel):
+    route: str = BROADCAST_EVENT  # How to route this between the pubsub/connection_manager module (default to a broadcast)
+    target: str | None = None  # A target for the message (if route is "room" or "user")
+    type: str | None = None  # Message type
+    sender: str | None = None  # Sender (if any)
+    data: dict | None = None  # Message payload
+
+
+class SocketRoomConfiguration(CruddyGenericModel):
+    room_list: set
 
 
 class ResponseSchema(CruddyGenericModel):

@@ -10,6 +10,10 @@ FAKE_AUTH_TOKEN = "somefaketokenvalue"
 FAKE_AUTH_QP = f"?auth_token={FAKE_AUTH_TOKEN}"
 FAKE_AUTH_HEADERS = {"Authorization": f"Bearer {FAKE_AUTH_TOKEN}"}
 
+FAKE_AUTH_TOKEN2 = "anotherfaketokenvalue"
+FAKE_AUTH_QP2 = f"?auth_token={FAKE_AUTH_TOKEN2}"
+FAKE_AUTH_HEADERS2 = {"Authorization": f"Bearer {FAKE_AUTH_TOKEN2}"}
+
 
 @fixture(scope="session", autouse=True)
 def event_loop():
@@ -54,13 +58,39 @@ async def authenticated_client(client: TestClient):
     yield sessioned_client
 
 
+@fixture(scope="session", autouse=True)
+@mark.asyncio
+async def authenticated_client2(client: TestClient):
+    sessioned_client = BrowserTestClient(
+        client=client, cookies=None, headers=FAKE_AUTH_HEADERS2
+    )
+    await sessioned_client.get(f"/users/authorization{FAKE_AUTH_QP2}")
+    yield sessioned_client
+
+
 @fixture(scope="function")
 @mark.asyncio
-async def authenticated_websocket(authenticated_client: BrowserTestClient):
-    async with authenticated_client.websocket_connect("/ws") as websocket:
+async def authenticated_websocket_by_id(authenticated_client: BrowserTestClient):
+    async with authenticated_client.websocket_connect("/ws1") as websocket:
         # For example: data = await websocket.receive_json()
         # Or await websocket.send_json(data)
         # If your server sends any kind of "welcome" messages, make
         # sure you purge them here BEFORE yielding the socket back
         # to whatever function needs to run tests
+        # Like so:
+        message = await websocket.receive_json()
+        while message["type"] != "socket_connect":
+            message = await websocket.receive_json()
+        # This will ensure the socket is fully drained before handing it
+        # back to the test function.
+        yield websocket
+
+
+@fixture(scope="function")
+@mark.asyncio
+async def authenticated_websocket_by_client(authenticated_client2: BrowserTestClient):
+    async with authenticated_client2.websocket_connect("/ws2") as websocket:
+        message = await websocket.receive_json()
+        while message["type"] != "socket_connect":
+            message = await websocket.receive_json()
         yield websocket
