@@ -61,6 +61,7 @@ pylint = "^3.0.3"
 pytest-asyncio = "0.21.1"
 pytest-dependency = "^0.5.1"
 coverage = "^7.3.3"
+mkdocs-material = "^9.5.3"
 
 [tool.poetry.scripts]
 start_sqlite = "examples.fastapi_cruddy_sqlite.bootloader:start"
