@@ -36,3 +36,11 @@ format: ## Format all code in this repository using the black code formatter
 run-example-sqlite: ## Run the example sqlite / cruddy framework server locally to explore the framework
 	@echo "Running $@"
 	poetry run start_sqlite
+
+build-docs: ## Build the static site from the Markdown files
+	@echo "Running $@"
+	poetry run mkdocs build
+
+serve-docs: ## Preview the documentation as the Markdown files are being edited
+	@echo "Running $@"
+	poetry run mkdocs serve

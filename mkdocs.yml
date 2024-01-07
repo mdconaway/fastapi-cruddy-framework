@@ -1,0 +1,3 @@
+site_name: FastAPI Cruddy
+theme:
+  name: material
