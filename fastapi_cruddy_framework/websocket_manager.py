@@ -218,7 +218,7 @@ class WebsocketConnectionManager:
         return sockets
 
     def get_sockets_by_room(self, room_id: str):
-        sockets = []
+        sockets: list[WebSocket] = []
         for socket in self.active_connections:
             room_config: SocketRoomConfiguration = get_state(
                 socket,
