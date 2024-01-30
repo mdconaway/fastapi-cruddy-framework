@@ -22,6 +22,7 @@ from .schemas import (
     LEAVE_SOCKET_BY_ID,
     LEAVE_SOCKET_BY_CLIENT,
     CLIENT_MESSAGE_EVENT,
+    DISCONNECT_EVENT,
     T,
     RelationshipConfig,
     CruddyGenericModel,

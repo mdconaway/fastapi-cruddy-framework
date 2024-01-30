@@ -25,6 +25,7 @@ if TYPE_CHECKING:
 # -------------------------------------------------------------------------------------------
 BROADCAST_EVENT = "broadcast"
 CONTROL_EVENT = "control"
+DISCONNECT_EVENT = "disconnect"
 ROOM_EVENT = "room"
 CLIENT_EVENT = "client"
 KILL_SOCKET_BY_ID = "killsocket_id"
