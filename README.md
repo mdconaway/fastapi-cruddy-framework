@@ -25,6 +25,16 @@ Come for the websocket manager, stay for the CRUD!
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
+<!-- FRONT END PACKAGES -->
+
+## Front-end Libraries
+
+If you are a front-end developer, you may be interested in using the following modules to help with making a UI that may communicate with a back-end server built with `fastapi-cruddy-framework`.
+
+- `cruddy-types` [npm](https://www.npmjs.com/package/cruddy-types), [Github](https://github.com/ukitake/cruddy-types)
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 <!-- VERSION COMPATIBILITY INFORMATION -->
 
 ## FastAPI, SQLModel, Pydantic and SQL Alchemy Compatibility:
