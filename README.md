@@ -894,7 +894,7 @@ To add a `tsvector` field to your cruddy data model, complete with proper indexi
 ```python
 # models/example.py
 from typing import Any
-from sqlmodel import Field, DateTime, cast, func, Text
+from sqlmodel import Field, cast, func, Text
 from sqlalchemy import Column, Index, literal_column
 from sqlalchemy.dialects.postgresql import JSONB, UUID as psqlUUID
 from fastapi_cruddy_framework import  CruddyModel, CruddyCreatedUpdatedMixin, UUID, uuid7
