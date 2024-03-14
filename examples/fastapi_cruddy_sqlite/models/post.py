@@ -13,6 +13,7 @@ from fastapi_cruddy_framework import (
 
 if TYPE_CHECKING:
     from examples.fastapi_cruddy_sqlite.models.user import User
+    from examples.fastapi_cruddy_sqlite.models.section import Section
 
 
 EXAMPLE_POST = {
@@ -50,6 +51,7 @@ class PostUpdate(CruddyModel):
         default={},
         schema_extra={"examples": [EXAMPLE_POST["tags"]]},
     )
+    section_id: UUID | None = Field(foreign_key="Section.id", default=None)
 
     @field_validator("event_date", mode="before")
     @classmethod
@@ -74,6 +76,7 @@ class PostCreate(PostUpdate):
 # fields need to be optional.
 class PostView(CruddyCreatedUpdatedSignature, CruddyUUIDModel):
     user_id: UUID | None = None
+    section_id: UUID | None = None
     content: str | None = Field(
         default=None, schema_extra={"examples": [EXAMPLE_POST["content"]]}
     )
@@ -90,6 +93,6 @@ class PostView(CruddyCreatedUpdatedSignature, CruddyUUIDModel):
 # in JSON representations, as it may contain hidden fields like passwords
 # or other server-internal state or tracking information. Keep your "Base"
 # models separated from all other interactive derivations.
-class Post(CruddyCreatedUpdatedMixin(), CruddyUUIDModel, PostCreate, table=True):  # type: ignore
-    # is the below needed??
+class Post(CruddyCreatedUpdatedMixin(), CruddyUUIDModel, PostCreate, table=True):
     user: "User" = Relationship(back_populates="posts")
+    section: "Section" = Relationship(back_populates="posts")

@@ -67,6 +67,7 @@ class Resource:
     disabled_endpoints: dict[str, bool]
     disable_nested_objects: bool
     schemas: SchemaDict
+    controller_lifecycles: dict[str, lifecycle_types]
 
     def __init__(
         self,
@@ -108,6 +109,7 @@ class Resource:
         disable_get_many: bool = False,
         disable_nested_objects: bool = False,
         default_limit: int = 10,
+        # Repository lifecycle actions
         lifecycle_before_create: lifecycle_types = None,
         lifecycle_after_create: lifecycle_types = None,
         lifecycle_before_update: lifecycle_types = None,
@@ -120,6 +122,17 @@ class Resource:
         lifecycle_after_get_all: lifecycle_types = None,
         lifecycle_before_set_relations: lifecycle_types = None,
         lifecycle_after_set_relations: lifecycle_types = None,
+        # Controller lifecycle actions
+        lifecycle_before_controller_create: lifecycle_types = None,
+        lifecycle_after_controller_create: lifecycle_types = None,
+        lifecycle_before_controller_update: lifecycle_types = None,
+        lifecycle_after_controller_update: lifecycle_types = None,
+        lifecycle_before_controller_delete: lifecycle_types = None,
+        lifecycle_after_controller_delete: lifecycle_types = None,
+        lifecycle_before_controller_get_one: lifecycle_types = None,
+        lifecycle_after_controller_get_one: lifecycle_types = None,
+        lifecycle_before_controller_get_all: lifecycle_types = None,
+        lifecycle_after_controller_get_all: lifecycle_types = None,
         controller_extension: Type[CruddyController] | None = None,
     ):
         possible_tag = f"{resource_model.__name__}".lower()
@@ -153,6 +166,19 @@ class Resource:
             "delete": disable_delete,
             "get_one": disable_get_one,
             "get_many": disable_get_many,
+        }
+
+        self.controller_lifecycles = {
+            "before_create": lifecycle_before_controller_create,
+            "after_create": lifecycle_after_controller_create,
+            "before_update": lifecycle_before_controller_update,
+            "after_update": lifecycle_after_controller_update,
+            "before_delete": lifecycle_before_controller_delete,
+            "after_delete": lifecycle_after_controller_delete,
+            "before_get_one": lifecycle_before_controller_get_one,
+            "after_get_one": lifecycle_after_controller_get_one,
+            "before_get_all": lifecycle_before_controller_get_all,
+            "after_get_all": lifecycle_after_controller_get_all,
         }
 
         self.disable_nested_objects = disable_nested_objects
@@ -265,11 +291,15 @@ class Resource:
                     }
                 ),
             )
-            if (
-                v.orm_relationship.direction == MANYTOMANY
-                or v.orm_relationship.direction == ONETOMANY
-            ) and k not in self._protected_relationships:
-                false_attrs[k] = (list[v.foreign_resource._id_type | dict] | None, None)
+            if k not in self._protected_relationships:
+                if v.orm_relationship.direction in [MANYTOMANY, ONETOMANY]:
+                    false_attrs[k] = (
+                        list[v.foreign_resource._id_type | dict] | None,
+                        None,
+                    )
+                else:
+                    # then it is many to one
+                    false_attrs[k] = (dict | v.foreign_resource._id_type | None, None)
         for item in self._artificial_relationship_paths:
             link_object[item] = (
                 str,
@@ -474,6 +504,7 @@ class Resource:
             meta_schema=self._meta_schema,
             relations=self._relations,
             default_limit=self._default_limit,
+            lifecycle=self.controller_lifecycles,
         )
 
         if self.controller_extension != None and issubclass(

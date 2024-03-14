@@ -238,7 +238,7 @@ The `Resource` class is the fundamental building block of fastapi-cruddy-framewo
 - `policies_get_one`
 - `policies_get_many`
 
-<b>Available ASYNC Lifecycle Hooks:</b>
+<b>Available ASYNC Repository Level Lifecycle Hooks:</b>
 
 - `lifecycle_before_create`
 - `lifecycle_after_create`
@@ -253,6 +253,19 @@ The `Resource` class is the fundamental building block of fastapi-cruddy-framewo
 - `lifecycle_before_set_relations`
 - `lifecycle_after_set_relations`
 
+<b>Available ASYNC Controller Level Lifecycle Hooks:</b>
+
+- `lifecycle_before_controller_create`
+- `lifecycle_after_controller_create`
+- `lifecycle_before_controller_update`
+- `lifecycle_after_controller_update`
+- `lifecycle_before_controller_delete`
+- `lifecycle_after_controller_delete`
+- `lifecycle_before_controller_get_one`
+- `lifecycle_after_controller_get_one`
+- `lifecycle_before_controller_get_all`
+- `lifecycle_after_controller_get_all`
+
 <b>Available Relationship Blocks:</b>
 
 - `protected_relationships`
@@ -263,7 +276,7 @@ The `Resource` class is the fundamental building block of fastapi-cruddy-framewo
 
 As you will discover, your resource's create and update models will automatically gain "shadow" properties where one-to-many and many-to-many relationships exist. These properties expect a client to send a list of IDs that specify the foreign records that relate to the target record. So - if a user is a member of many groups, and a group can have many users, you could update the users in a group by sending a property `"users": [1,2,3,4,5]` within the `group` payload object you send to the `POST /groups` or `PATCH /groups` routes/actions. It will all be clear when you look at the SWAGGER docs generated for your API.
 
-<b>Lifecycle hooks</b>
+<b>Repository Lifecycle hooks</b>
 
 The following lifecycle hook methods, which can be defined in user-space code, receive the following information from fastapi-cruddy-framework:
 
@@ -293,7 +306,7 @@ The following lifecycle hook methods, which can be defined in user-space code, r
 {
     "id": id, # The database id whos relationship are about to be altered (of your defined PK type)
     "relation": relation, # The relationship that is about to change (string)
-    "relations": relations # An array of foreign ids that will now define this relationship (Framework will attempt to discard old relations)
+    "relations": relations # An array of foreign ids, or record dictionaries that will now define this relationship (Framework will attempt to discard old relations)
 }
 ```
 
@@ -309,6 +322,31 @@ The following lifecycle hook methods, which can be defined in user-space code, r
     "updated_db_count": result # The number of records now in the database associated with this relationship. If the number is different than the length of relation_conf.relations, you probably have a non-nullable field on the far-side of this relationship.
 }
 ```
+
+<b>Controller Lifecycle hooks</b>
+
+The following lifecycle hook methods, which can be defined in user-space code, receive the following information from fastapi-cruddy-framework:
+
+`lifecycle_before_controller_create` - request (a FastAPI Request), context (A mutable action context dictionary)
+
+`lifecycle_after_controller_create` - request (a FastAPI Request), context (A mutable action context dictionary)
+
+`lifecycle_before_controller_update` - request (a FastAPI Request), context (A mutable action context dictionary)
+
+`lifecycle_after_controller_update` - request (a FastAPI Request), context (A mutable action context dictionary)
+
+`lifecycle_before_controller_delete` - request (a FastAPI Request), context (A mutable action context dictionary)
+
+`lifecycle_after_controller_delete` - request (a FastAPI Request), context (A mutable action context dictionary)
+
+`lifecycle_before_controller_get_one` - request (a FastAPI Request), context (A mutable action context dictionary)
+
+`lifecycle_after_controller_get_one` - request (a FastAPI Request), context (A mutable action context dictionary)
+
+`lifecycle_before_controller_get_all` - request (a FastAPI Request), context (A mutable action context dictionary)
+
+`lifecycle_after_controller_get_all` - request (a FastAPI Request), context (A mutable action context dictionary)
+
 
 Resource Definition Options (And Defaults!):
 
@@ -406,10 +444,10 @@ default_limit: int = 10,
 # controller/router. Pass in your class definition and it will be instantiated at the appropriate
 # time! See "CruddyController" example below!
 controller_extension: CruddyController = None,
-# The following lifecycle hooks can each recieve an async function which will be invoked before or
-# after the target lifecycle event. Generally, whatever values are passed to the lifecycle hook are
-# alterable WITHIN the hook so that userspace code can alter the behavior of the lifecycle based on
-# app level concerns. This allows apps to do things like: hash a user password, force certain
+# The following REPOSITORY lifecycle hooks can each recieve an async function which will be invoked
+# before or after the target lifecycle event. Generally, whatever values are passed to the lifecycle
+# hook are alterable WITHIN the hook so that userspace code can alter the behavior of the lifecycle
+# based on app level concerns. This allows apps to do things like: hash a user password, force certain
 # relationships to always exist, force "many" queries to obey sensible limits, commit log entries,
 # send messages to queues for processing based on CRUD events, or generally handle unforseen
 # circumstances.
@@ -425,6 +463,22 @@ lifecycle_before_get_all: Callable[..., Coroutine[Any, Any, Any]] | None = None,
 lifecycle_after_get_all: Callable[..., Coroutine[Any, Any, Any]] | None = None,
 lifecycle_before_set_relations: Callable[..., Coroutine[Any, Any, Any]] | None = None,
 lifecycle_after_set_relations: Callable[..., Coroutine[Any, Any, Any]] | None = None,
+# The following CONTROLLER lifecycle hooks can each recieve an async function which will be invoked
+# before or after the target lifecycle event. Generally, whatever values are passed to the lifecycle
+# hook are alterable WITHIN the hook so that userspace code can alter the behavior of the lifecycle
+# based on app level concerns. CONTROLLER lifecycles hooks will also receive the REQUEST context,
+# allowing the hook to take actions that consider the user and their priveleges, while still
+# interleaving that logic within the cruddy action.
+lifecycle_before_controller_create: Callable[..., Coroutine[Any, Any, Any]] | None = None,
+lifecycle_after_controller_create: Callable[..., Coroutine[Any, Any, Any]] | None = None,
+lifecycle_before_controller_update: Callable[..., Coroutine[Any, Any, Any]] | None = None,
+lifecycle_after_controller_update: Callable[..., Coroutine[Any, Any, Any]] | None = None,
+lifecycle_before_controller_delete: Callable[..., Coroutine[Any, Any, Any]] | None = None,
+lifecycle_after_controller_delete: Callable[..., Coroutine[Any, Any, Any]] | None = None,
+lifecycle_before_controller_get_one: Callable[..., Coroutine[Any, Any, Any]] | None = None,
+lifecycle_after_controller_get_one: Callable[..., Coroutine[Any, Any, Any]] | None = None,
+lifecycle_before_controller_get_all: Callable[..., Coroutine[Any, Any, Any]] | None = None,
+lifecycle_after_controller_get_all: Callable[..., Coroutine[Any, Any, Any]] | None = None,
 ```
 
 Below is an example for creating a `user` resource. The best way to organize your app would be to place the definition for your user resource in a folder like `my_app/resources/user.py`, where the name of your application is `my_app`. As you saw earlier in the description for `CreateRouterFromResources` you would then load this user resource file by simply specifying `application_module=my_app` and `resource_path="resources"`. Your `fastapi-cruddy-framework` project would then auto-magically load your resource file(s), create dynamic routes to create, read, update, and delete this resource, and further create sub-routes within this resource to browse, query and update all of the relationships for your resource.
