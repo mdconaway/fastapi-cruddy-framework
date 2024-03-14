@@ -615,6 +615,7 @@ class AbstractRepository:
             )  # .returning(join_foreign_col) # RETURNING DOESNT WORK ON ALL ADAPTERS
             await session.execute(clear_relations_query)
 
+        async with self.adapter.getSession() as session:
             check_ids = [f"{x._mapping[foreign_key]}" for x in db_ids]  # type: ignore
             if len(insertable) > 0:
                 await session.execute(create_relations_query)
@@ -704,14 +705,14 @@ class AbstractRepository:
             )
         )
         count_query = select(func.count(1)).select_from(find_tgt_query)  # type: ignore
-        async with self.adapter.getSession() as session:
-            if far_col.nullable:
+        if far_col.nullable:
+            async with self.adapter.getSession() as session:
                 await session.execute(clear_query)
-            else:
-                LOGGER.warn(
-                    f"Unable to clear relations for {related_model.name}.{far_col_name}. Column does not allow null values"
-                )
-
+        else:
+            LOGGER.warn(
+                f"Unable to clear relations for {related_model.name}.{far_col_name}. Column does not allow null values"
+            )
+        async with self.adapter.getSession() as session:
             await session.execute(
                 alter_query
             )  # .rowcount # also affected by removing returning

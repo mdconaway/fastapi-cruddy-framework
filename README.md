@@ -375,12 +375,12 @@ artificial_relationship_paths: list[str] = [],
 # from triggering other APIs and services, protecting endpoints to ensure only the correct
 # users can alter data, or to intercept and even modify data before it gets to a default CRUD
 # action! (Like hashing a user's password based on the plain-text password they send to register)
-policies_universal: list[Callable] = [],
-policies_create: list[Callable] = [],
-policies_update: list[Callable] = [],
-policies_delete: list[Callable] = [],
-policies_get_one: list[Callable] = [],
-policies_get_many: list[Callable] = [],
+policies_universal: Sequence[Callable] = [],
+policies_create: Sequence[Callable] = [],
+policies_update: Sequence[Callable] = [],
+policies_delete: Sequence[Callable] = [],
+policies_get_one: Sequence[Callable] = [],
+policies_get_many: Sequence[Callable] = [],
 # The disable_<endpoint> options allow app developers to simply abort automatic generation of select
 # CRUD endpoints on the resource's controller. For instance, to make a write-once collection a
 # developercould set disable_update to True, which would cause the resource to abort building a route
@@ -390,6 +390,12 @@ disable_update: bool = False,
 disable_delete: bool = False,
 disable_get_one: bool = False,
 disable_get_many: bool = False,
+# The disable_nested_objects flag prevents users from sending dictionaries inside of relationship arrays
+# which the server will automatically unpack by default into an attempted create or update of the related
+# resource. Any nested objects sent will still flow through the entire policy chain of the target resource!
+# Any dictionary send with a primary key field will be handled as if it is an update. To create a new
+# object via an embedded relationship, send the nested object without a primary key set!
+disable_nested_objects: bool = False,
 # Default limit will only set a limit on incoming queries if the user DOES NOT specify one. You should
 # implement POLICIES to enforce a MAX limit, as you will ultimately have to re-use any max limit
 # policies in your own custom controller functions for consistency. Max limit policies can be implemented

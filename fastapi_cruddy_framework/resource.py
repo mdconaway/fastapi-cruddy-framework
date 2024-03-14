@@ -1,6 +1,7 @@
 # pyright: reportShadowedImports=false
 import asyncio
 import re
+from typing import Any, Sequence, TypedDict, Callable, Literal, Type
 from fastapi import APIRouter
 from sqlalchemy.orm import (
     RelationshipProperty,
@@ -8,7 +9,6 @@ from sqlalchemy.orm import (
     MANYTOMANY,
 )
 from sqlmodel import Field, inspect
-from typing import TypedDict, Callable, Literal, Type
 from enum import Enum
 from pydantic import create_model
 from .inflector import pluralizer
@@ -63,7 +63,9 @@ class Resource:
     repository: AbstractRepository
     controller: APIRouter
     controller_extension: Type[CruddyController] | None = None
-    policies: dict[str, list[Callable]]
+    policies: dict[str, Sequence[Callable]]
+    disabled_endpoints: dict[str, bool]
+    disable_nested_objects: bool
     schemas: SchemaDict
 
     def __init__(
@@ -93,17 +95,18 @@ class Resource:
         tags: list[str | Enum] | None = None,
         protected_relationships: list[str] = [],
         artificial_relationship_paths: list[str] = [],
-        policies_universal: list[Callable] = [],
-        policies_create: list[Callable] = [],
-        policies_update: list[Callable] = [],
-        policies_delete: list[Callable] = [],
-        policies_get_one: list[Callable] = [],
-        policies_get_many: list[Callable] = [],
+        policies_universal: Sequence[Callable] = [],
+        policies_create: Sequence[Callable] = [],
+        policies_update: Sequence[Callable] = [],
+        policies_delete: Sequence[Callable] = [],
+        policies_get_one: Sequence[Callable] = [],
+        policies_get_many: Sequence[Callable] = [],
         disable_create: bool = False,
         disable_update: bool = False,
         disable_delete: bool = False,
         disable_get_one: bool = False,
         disable_get_many: bool = False,
+        disable_nested_objects: bool = False,
         default_limit: int = 10,
         lifecycle_before_create: lifecycle_types = None,
         lifecycle_after_create: lifecycle_types = None,
@@ -151,6 +154,8 @@ class Resource:
             "get_one": disable_get_one,
             "get_many": disable_get_many,
         }
+
+        self.disable_nested_objects = disable_nested_objects
 
         if None != adapter:
             self.adapter = adapter  # type: ignore
@@ -264,7 +269,7 @@ class Resource:
                 v.orm_relationship.direction == MANYTOMANY
                 or v.orm_relationship.direction == ONETOMANY
             ) and k not in self._protected_relationships:
-                false_attrs[k] = (list[v.foreign_resource._id_type] | None, None)
+                false_attrs[k] = (list[v.foreign_resource._id_type | dict] | None, None)
         for item in self._artificial_relationship_paths:
             link_object[item] = (
                 str,
@@ -323,6 +328,7 @@ class Resource:
             __base__=CruddyGenericModel,
             **{
                 resource_model_name: (SingleSchemaLinked | None, None),
+                "meta": (dict[str, Any] | None, None),
             },  # type: ignore
         )
 
@@ -426,11 +432,17 @@ class Resource:
             if key_count == 0:
                 return {"data": None}
 
+            meta = args.get("meta", None)
+
             if resource_model_name in args:
-                return {resource_model_name: args[resource_model_name], "data": None}
+                return {
+                    resource_model_name: args[resource_model_name],
+                    "meta": meta,
+                    "data": None,
+                }
 
             if key_count == 1 and args["data"] == None:
-                return {"data": None}
+                return {"data": None, "meta": meta}
 
             thing_to_convert = data_destructure(args["data"])
             id = thing_to_convert[self.repository.primary_key]
@@ -439,6 +451,7 @@ class Resource:
                     **thing_to_convert,
                     links=self._link_builder(id=id),
                 ),
+                "meta": meta,
                 "data": None,
             }
 
@@ -449,6 +462,7 @@ class Resource:
 
         self.actions = Actions(
             id_type=self._id_type,
+            disable_nested_objects=self.disable_nested_objects,
             single_name=self._model_name_single,
             repository=self.repository,
             create_model=self.schemas["create"],

@@ -1,12 +1,22 @@
+from typing import Any, Literal, Sequence, Type, TYPE_CHECKING
 from asyncio import gather
-from fastapi import APIRouter, Path, Query, Depends, HTTPException, status
+from fastapi import (
+    FastAPI,
+    APIRouter,
+    Request,
+    Path,
+    Query,
+    Depends,
+    HTTPException,
+    status,
+)
+from .test_helpers import TestClient, BrowserTestClient
 from sqlalchemy.sql.schema import Column, ForeignKey
 from sqlalchemy.orm import (
     ONETOMANY,
     MANYTOMANY,
     MANYTOONE,
 )
-from typing import Any, Type, TYPE_CHECKING
 from pydantic.types import Json
 from .inflector import pluralizer
 from .schemas import (
@@ -30,8 +40,9 @@ if TYPE_CHECKING:
 # -------------------------------------------------------------------------------------------
 
 
-def GetRelationships(
-    record: Type[CruddyModel], relation_config_map: dict[str, RelationshipConfig]
+def get_relationships(
+    record: CruddyModel | CruddyGenericModel,
+    relation_config_map: dict[str, RelationshipConfig],
 ):
     record_relations = {}
     for k, v in relation_config_map.items():
@@ -45,36 +56,107 @@ def GetRelationships(
     return record_relations
 
 
-async def SaveRelationships(
+async def create_or_update_relation(request: Request, resource: "Resource", data: dict):
+    app: FastAPI = request.app
+    client = BrowserTestClient(client=TestClient(app, use_cookies=False))
+    routing_path = f"{resource._resource_path}"
+    pk = resource.repository.primary_key
+    payload_key = resource._model_name_single
+    payload = {payload_key: data}
+    query_value = str(request.query_params)
+    query_string = f"?{query_value}" if len(query_value) > 0 else ""
+    create_schema: CruddyModel = resource._create_schema
+    update_schema: CruddyModel = resource._update_schema
+    try:
+        _id = data.get(pk, None)
+        if _id is None:
+            # Don't even try to forward it if its not possible
+            create_schema.model_validate(data)
+            response = await client.post(
+                f"{routing_path}{query_string}",
+                headers=dict(request.headers.items()),
+                json=payload,
+            )
+            if response.status_code == status.HTTP_200_OK:
+                response_json: dict = response.json()
+                obj: dict = response_json.get(payload_key, {})
+                value: str | int | Literal[False] = obj.get(pk, False)
+                return True, value
+            return False, data
+        # Don't even try to forward it if its not possible
+        update_schema.model_validate(data)
+        response = await client.patch(
+            f"{routing_path}/{_id}{query_string}",
+            headers=dict(request.headers.items()),
+            json=payload,
+        )
+        if response.status_code == status.HTTP_200_OK:
+            response_json: dict = response.json()
+            obj: dict = response_json.get(payload_key, {})
+            value: str | int | Literal[False] = obj.get(pk, False)
+            return True, value
+        # the return statement 3 lines below will now return...
+    except Exception:
+        return False, data
+    return False, data
+
+
+async def save_relationships(
+    request: Request,
     id: possible_id_values,
-    record: Type[CruddyModel],
+    record: CruddyModel | CruddyGenericModel,
     relation_config_map: dict[str, RelationshipConfig],
     repository: "AbstractRepository",
+    disable_nested_objects: bool,
 ):
-    relationship_lists = GetRelationships(record, relation_config_map)
+    relationship_lists = get_relationships(record, relation_config_map)
     modified_records = 0
     awaitables = []
+    overall_failures = {}
     for k, v in relationship_lists.items():
         name: str = k
-        new_relations: list[possible_id_values] = v
+        new_relations: list[Any] = v
+        settled_relations: list[possible_id_values] = []
         config: RelationshipConfig = relation_config_map[name]
+        foreign_resource: "Resource" = config.foreign_resource
+        inner_awaitables = []
+        field_failures = []
+        for relation in new_relations:
+            if not isinstance(relation, dict):
+                settled_relations.append(relation)
+            elif not disable_nested_objects:
+                inner_awaitables.append(
+                    create_or_update_relation(
+                        request=request, resource=foreign_resource, data=relation
+                    )
+                )
+        if len(inner_awaitables) > 0:
+            results = await gather(*inner_awaitables, return_exceptions=True)
+            # possibly bubble failures back out somehow? meta? (they will be in the value variable)
+            for status, value in results:
+                if status == True:
+                    settled_relations.append(value)
+                else:
+                    field_failures.append(value)
         if config.orm_relationship.direction == MANYTOMANY:
             awaitables.append(
                 repository.set_many_many_relations(
-                    id=id, relation=name, relations=new_relations
+                    id=id, relation=name, relations=settled_relations
                 )
             )
         elif config.orm_relationship.direction == ONETOMANY:
             awaitables.append(
                 repository.set_one_many_relations(
-                    id=id, relation=name, relations=new_relations
+                    id=id, relation=name, relations=settled_relations
                 )
             )
+        if len(field_failures) > 0:
+            overall_failures[name] = field_failures
     results: list[Any] = await gather(*awaitables, return_exceptions=True)
     for result_or_exc in results:
         if isinstance(result_or_exc, int):
             modified_records += result_or_exc
-    return modified_records
+    return modified_records, overall_failures
 
 
 # -------------------------------------------------------------------------------------------
@@ -87,6 +169,7 @@ class Actions:
         self,
         id_type: possible_id_types,
         single_name: str,
+        disable_nested_objects: bool,
         repository: "AbstractRepository",
         create_model: Type[CruddyGenericModel],
         create_model_proxy: Type[CruddyModel],
@@ -100,21 +183,35 @@ class Actions:
     ):
         self.default_limit = default_limit
 
-        async def create(data: create_model):
-            the_thing_with_rels = getattr(data, single_name)
+        async def create(request: Request, data: create_model):
+            the_thing_with_rels: CruddyGenericModel = getattr(data, single_name)
             the_thing = create_model_proxy(**the_thing_with_rels.model_dump())
             result = await repository.create(data=the_thing)
-            relations_modified = await SaveRelationships(
+            relations_modified, field_failures = await save_relationships(
+                request=request,
                 id=getattr(result, str(repository.primary_key)),
                 record=the_thing_with_rels,
                 relation_config_map=relations,
                 repository=repository,
+                disable_nested_objects=disable_nested_objects,
             )
             # Add error logic?
-            return single_schema(**{"data": result})
+            return single_schema(
+                **{
+                    "data": result,
+                    "meta": {
+                        "relationships": {
+                            "modified": relations_modified,
+                            "failed": field_failures,
+                        },
+                    },
+                }
+            )
 
-        async def update(id: id_type = Path(..., alias="id"), *, data: update_model):
-            the_thing_with_rels = getattr(data, single_name)
+        async def update(
+            request: Request, id: id_type = Path(..., alias="id"), *, data: update_model
+        ):
+            the_thing_with_rels: CruddyGenericModel = getattr(data, single_name)
             the_thing = update_model_proxy(**the_thing_with_rels.model_dump())
             result = await repository.update(id=id, data=the_thing)
             # Add error logic?
@@ -124,14 +221,26 @@ class Actions:
                     detail=f"Record id {id} not found",
                 )
 
-            relations_modified = await SaveRelationships(
+            relations_modified, field_failures = await save_relationships(
+                request=request,
                 id=getattr(result, str(repository.primary_key)),
                 record=the_thing_with_rels,
                 relation_config_map=relations,
                 repository=repository,
+                disable_nested_objects=disable_nested_objects,
             )
 
-            return single_schema(**{"data": result})
+            return single_schema(
+                **{
+                    "data": result,
+                    "meta": {
+                        "relationships": {
+                            "modified": relations_modified,
+                            "failed": field_failures,
+                        },
+                    },
+                }
+            )
 
         async def delete(
             id: id_type = Path(..., alias="id"),
@@ -227,7 +336,7 @@ class CruddyController:
 # -------------------------------------------------------------------------------------------
 
 
-def assemblePolicies(*args: (list)):
+def assemblePolicies(*args: (Sequence)):
     merged = []
     for policy_set in args:
         for individual_policy in policy_set:
