@@ -1,3 +1,4 @@
+from logging import getLogger
 from typing import Any, Literal, Sequence, Type, TYPE_CHECKING
 from asyncio import gather
 from fastapi import (
@@ -40,6 +41,7 @@ if TYPE_CHECKING:
     from .resource import Resource
     from .adapters import BaseAdapter, MysqlAdapter, PostgresqlAdapter, SqliteAdapter
 
+logger = getLogger(__name__)
 DATA_KEY = "data"
 META_KEY = "meta"
 META_ID_KEY = "id"
@@ -384,6 +386,29 @@ class Actions:
                 record_relations[k] = getattr(record, k)
         return record_relations
 
+    def filter_headers(self, header_dict: dict):
+        blacklist = [
+            "host",
+            "connection",
+            "content-length",
+            "sec-ch-ua",
+            "accept",
+            "content-type",
+            "sec-ch-ua-mobile",
+            "sec-ch-ua-platform",
+            "origin",
+            "sec-fetch-site",
+            "sec-fetch-mode",
+            "sec-fetch-dest",
+            "referer",
+            "accept-encoding",
+            "accept-language",
+        ]
+        for key in blacklist:
+            if key in header_dict:
+                del header_dict[key]
+        return header_dict
+
     async def create_or_update_relation(
         self, request: Request, resource: "Resource", data: dict
     ):
@@ -397,33 +422,47 @@ class Actions:
         query_value = str(request.query_params)
         query_string = f"?{query_value}" if len(query_value) > 0 else ""
         try:
+            header_dict = self.filter_headers(dict(request.headers.items()))
             _id = data.get(pk, None)
             if _id is None:
                 response = await client.post(
                     f"{routing_path}{query_string}",
-                    headers=dict(request.headers.items()),
+                    headers=header_dict,
                     json=payload,
                 )
                 if response.status_code == status.HTTP_200_OK:
                     response_json: dict = response.json()
                     obj: dict = response_json.get(payload_key, {})
                     value = f"{obj.get(pk, '')}"
-                    return True, value, view_model(**obj).model_dump(), None
+                    return (
+                        True,
+                        value,
+                        view_model.model_validate(obj).model_dump(exclude_none=True),
+                        None,
+                    )
                 else:
                     return False, data, None, response.json()
             response = await client.patch(
                 f"{routing_path}/{_id}{query_string}",
-                headers=dict(request.headers.items()),
+                headers=header_dict,
                 json=payload,
             )
             if response.status_code == status.HTTP_200_OK:
                 response_json: dict = response.json()
                 obj: dict = response_json.get(payload_key, {})
                 value = f"{obj.get(pk, '')}"
-                return True, value, view_model(**obj).model_dump(), None
+                return (
+                    True,
+                    value,
+                    view_model.model_validate(obj).model_dump(exclude_none=True),
+                    None,
+                )
             else:
                 return False, data, None, response.json()
-        except Exception:
+        except Exception as e:
+            logger.warning(
+                "Error when attempting to save nested relationship object: %s", e
+            )
             return False, data, None, None
 
     async def save_list_relationships(
