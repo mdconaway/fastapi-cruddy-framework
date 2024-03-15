@@ -6,13 +6,12 @@ from fastapi_cruddy_framework import (
     CruddyCreatedUpdatedSignature,
     CruddyCreatedUpdatedMixin,
 )
-from examples.fastapi_cruddy_sqlite.models.common.relationships import GroupUserLink
 
 if TYPE_CHECKING:
-    from examples.fastapi_cruddy_sqlite.models.user import User
+    from examples.fastapi_cruddy_sqlite.models.post import Post
 
 
-EXAMPLE_GROUP = {"name": "Cruddy Fans"}
+EXAMPLE_SECTION = {"name": "Opinions"}
 
 # The way the CRUD Router works, it needs an update, create, and base model.
 # If you always structure model files in this order, you can extend from the
@@ -26,15 +25,15 @@ EXAMPLE_GROUP = {"name": "Cruddy Fans"}
 # The "Update" model variant describes all fields that can be affected by a
 # client's PATCH action. Generally, the update model should have the fewest
 # number of available fields for a client to manipulate.
-class GroupUpdate(CruddyModel):
-    name: str = Field(schema_extra={"examples": [EXAMPLE_GROUP["name"]]})
+class SectionUpdate(CruddyModel):
+    name: str = Field(schema_extra={"examples": [EXAMPLE_SECTION["name"]]})
 
 
 # The "Create" model variant expands on the update model, above, and adds
 # any new fields that may be writeable only the first time a record is
 # generated. This allows the POST action to accept update-able fields, as
 # well as one-time writeable fields.
-class GroupCreate(GroupUpdate):
+class SectionCreate(SectionUpdate):
     pass
 
 
@@ -45,9 +44,9 @@ class GroupCreate(GroupUpdate):
 # fields. This should be used when defining single responses and paged
 # responses, as in the schemas below. To support column clipping, all
 # fields need to be optional.
-class GroupView(CruddyCreatedUpdatedSignature, CruddyUUIDModel):
+class SectionView(CruddyCreatedUpdatedSignature, CruddyUUIDModel):
     name: str | None = Field(
-        default=None, schema_extra={"examples": [EXAMPLE_GROUP["name"]]}
+        default=None, schema_extra={"examples": [EXAMPLE_SECTION["name"]]}
     )
 
 
@@ -56,8 +55,6 @@ class GroupView(CruddyCreatedUpdatedSignature, CruddyUUIDModel):
 # in JSON representations, as it may contain hidden fields like passwords
 # or other server-internal state or tracking information. Keep your "Base"
 # models separated from all other interactive derivations.
-class Group(CruddyCreatedUpdatedMixin(), CruddyUUIDModel, GroupCreate, table=True):
+class Section(CruddyCreatedUpdatedMixin(), CruddyUUIDModel, SectionCreate, table=True):
     # is the below needed??
-    users: list["User"] = Relationship(
-        back_populates="groups", link_model=GroupUserLink
-    )
+    posts: list["Post"] = Relationship(back_populates="section")

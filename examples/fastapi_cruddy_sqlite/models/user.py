@@ -119,7 +119,7 @@ class UserView(CruddyCreatedUpdatedSignature, CruddyUUIDModel):
 # in JSON representations, as it may contain hidden fields like passwords
 # or other server-internal state or tracking information. Keep your "Base"
 # models separated from all other interactive derivations.
-class User(CruddyCreatedUpdatedMixin(), CruddyUUIDModel, UserCreate, table=True):  # type: ignore
+class User(CruddyCreatedUpdatedMixin(), CruddyUUIDModel, UserCreate, table=True):
     password: str = Field(nullable=False, index=True)
     posts: list["Post"] = Relationship(back_populates="user")
     groups: list["Group"] = Relationship(

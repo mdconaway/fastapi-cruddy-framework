@@ -45,9 +45,11 @@ class UserController(CruddyController):
         # 1. Override the action key
         old_delete = self.actions.delete
 
-        async def new_delete(id: id_type = Path(..., alias="id"), confirm: str = "N"):
+        async def new_delete(
+            request: Request, id: id_type = Path(..., alias="id"), confirm: str = "N"
+        ):
             if confirm == "Y":
-                return await old_delete(id=id)
+                return await old_delete(request=request, id=id)
             else:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -83,6 +85,7 @@ class UserController(CruddyController):
             dependencies=dependency_list(verify_session),
         )
         async def get_all_again(
+            request: Request,
             page: int = 1,
             limit: int = general.DEFAULT_LIMIT,
             columns: list[str] = Query(None, alias="columns"),
@@ -91,7 +94,12 @@ class UserController(CruddyController):
         ):
             # You can do any pre-action logic required here, like persisting a file!
             return await self.actions.get_all(
-                page=page, limit=limit, columns=columns, sort=sort, where=where
+                request=request,
+                page=page,
+                limit=limit,
+                columns=columns,
+                sort=sort,
+                where=where,
             )
 
         @self.controller.get(
@@ -102,6 +110,7 @@ class UserController(CruddyController):
             dependencies=dependency_list(verify_session),
         )
         async def get_fake_relationship(
+            request: Request,
             id: id_type = Path(..., alias="id"),
             page: int = 1,
             limit: int = general.DEFAULT_LIMIT,
@@ -120,6 +129,7 @@ class UserController(CruddyController):
             new_where_query.append({"id": {"*neq": str(id)}})
             # You can do any pre-action logic required here, like persisting a file!
             return await self.actions.get_all(
+                request=request,
                 page=page,
                 limit=limit,
                 columns=columns,

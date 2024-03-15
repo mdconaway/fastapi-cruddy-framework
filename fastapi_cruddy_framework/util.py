@@ -122,7 +122,7 @@ def parse_datetime(value: datetime | str | bytes | int | float) -> datetime:
 
 def get_pk(model):
     model_mapper = (
-        class_mapper(model) if inspect.isclass(model) else object_mapper(model)
+        class_mapper(model) if inspect.isclass(model) else object_mapper(model)  # type: ignore
     )
     primary_key = model_mapper.primary_key[0].key
     return primary_key

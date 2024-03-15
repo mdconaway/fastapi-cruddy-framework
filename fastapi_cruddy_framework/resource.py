@@ -1,14 +1,15 @@
 # pyright: reportShadowedImports=false
 import asyncio
 import re
+from typing import Any, Sequence, TypedDict, Callable, Literal, Type
 from fastapi import APIRouter
 from sqlalchemy.orm import (
     RelationshipProperty,
+    RelationshipDirection,
     ONETOMANY,
     MANYTOMANY,
 )
 from sqlmodel import Field, inspect
-from typing import TypedDict, Callable, Literal, Type
 from enum import Enum
 from pydantic import create_model
 from .inflector import pluralizer
@@ -63,8 +64,11 @@ class Resource:
     repository: AbstractRepository
     controller: APIRouter
     controller_extension: Type[CruddyController] | None = None
-    policies: dict[str, list[Callable]]
+    policies: dict[str, Sequence[Callable]]
+    disabled_endpoints: dict[str, bool]
+    disable_nested_objects: bool
     schemas: SchemaDict
+    controller_lifecycles: dict[str, lifecycle_types]
 
     def __init__(
         self,
@@ -92,19 +96,23 @@ class Resource:
         path: str | None = None,
         tags: list[str | Enum] | None = None,
         protected_relationships: list[str] = [],
+        protected_create_relationships: list[str] = [],
+        protected_update_relationships: list[str] = [],
         artificial_relationship_paths: list[str] = [],
-        policies_universal: list[Callable] = [],
-        policies_create: list[Callable] = [],
-        policies_update: list[Callable] = [],
-        policies_delete: list[Callable] = [],
-        policies_get_one: list[Callable] = [],
-        policies_get_many: list[Callable] = [],
+        policies_universal: Sequence[Callable] = [],
+        policies_create: Sequence[Callable] = [],
+        policies_update: Sequence[Callable] = [],
+        policies_delete: Sequence[Callable] = [],
+        policies_get_one: Sequence[Callable] = [],
+        policies_get_many: Sequence[Callable] = [],
         disable_create: bool = False,
         disable_update: bool = False,
         disable_delete: bool = False,
         disable_get_one: bool = False,
         disable_get_many: bool = False,
+        disable_nested_objects: bool = False,
         default_limit: int = 10,
+        # Repository lifecycle actions
         lifecycle_before_create: lifecycle_types = None,
         lifecycle_after_create: lifecycle_types = None,
         lifecycle_before_update: lifecycle_types = None,
@@ -117,6 +125,17 @@ class Resource:
         lifecycle_after_get_all: lifecycle_types = None,
         lifecycle_before_set_relations: lifecycle_types = None,
         lifecycle_after_set_relations: lifecycle_types = None,
+        # Controller lifecycle actions
+        lifecycle_before_controller_create: lifecycle_types = None,
+        lifecycle_after_controller_create: lifecycle_types = None,
+        lifecycle_before_controller_update: lifecycle_types = None,
+        lifecycle_after_controller_update: lifecycle_types = None,
+        lifecycle_before_controller_delete: lifecycle_types = None,
+        lifecycle_after_controller_delete: lifecycle_types = None,
+        lifecycle_before_controller_get_one: lifecycle_types = None,
+        lifecycle_after_controller_get_one: lifecycle_types = None,
+        lifecycle_before_controller_get_all: lifecycle_types = None,
+        lifecycle_after_controller_get_all: lifecycle_types = None,
         controller_extension: Type[CruddyController] | None = None,
     ):
         possible_tag = f"{resource_model.__name__}".lower()
@@ -132,6 +151,8 @@ class Resource:
         self._id_type = id_type
         self._relations = {}
         self._protected_relationships = protected_relationships
+        self._protected_create_relationships = protected_create_relationships
+        self._protected_update_relationships = protected_update_relationships
         self._artificial_relationship_paths = artificial_relationship_paths
         self._default_limit = default_limit
 
@@ -151,6 +172,21 @@ class Resource:
             "get_one": disable_get_one,
             "get_many": disable_get_many,
         }
+
+        self.controller_lifecycles = {
+            "before_create": lifecycle_before_controller_create,
+            "after_create": lifecycle_after_controller_create,
+            "before_update": lifecycle_before_controller_update,
+            "after_update": lifecycle_after_controller_update,
+            "before_delete": lifecycle_before_controller_delete,
+            "after_delete": lifecycle_after_controller_delete,
+            "before_get_one": lifecycle_before_controller_get_one,
+            "after_get_one": lifecycle_after_controller_get_one,
+            "before_get_all": lifecycle_before_controller_get_all,
+            "after_get_all": lifecycle_after_controller_get_all,
+        }
+
+        self.disable_nested_objects = disable_nested_objects
 
         if None != adapter:
             self.adapter = adapter  # type: ignore
@@ -248,7 +284,14 @@ class Resource:
 
         # Create shared link model
         link_object = {}
-        false_attrs = {}
+        false_create_attrs = {}
+        false_update_attrs = {}
+        create_protected_relationships = (
+            self._protected_relationships + self._protected_create_relationships
+        )
+        update_protected_relationships = (
+            self._protected_relationships + self._protected_update_relationships
+        )
         for k, v in self._relations.items():
             link_object[k] = (
                 str,
@@ -260,11 +303,13 @@ class Resource:
                     }
                 ),
             )
-            if (
-                v.orm_relationship.direction == MANYTOMANY
-                or v.orm_relationship.direction == ONETOMANY
-            ) and k not in self._protected_relationships:
-                false_attrs[k] = (list[v.foreign_resource._id_type] | None, None)
+            rel_def = self._derive_shadow_relationship(
+                v.orm_relationship.direction, v.foreign_resource._id_type
+            )
+            if k not in create_protected_relationships:
+                false_create_attrs[k] = rel_def
+            if k not in update_protected_relationships:
+                false_update_attrs[k] = rel_def
         for item in self._artificial_relationship_paths:
             link_object[item] = (
                 str,
@@ -282,7 +327,7 @@ class Resource:
         # End shared link model
 
         SingleCreateSchema = create_model(
-            f"{resource_create_name}Proxy", __base__=create_schema, **false_attrs
+            f"{resource_create_name}Proxy", __base__=create_schema, **false_create_attrs
         )
 
         # Create record envelope schema
@@ -296,7 +341,7 @@ class Resource:
         # End create record envelope schema
 
         SingleUpdateSchema = create_model(
-            f"{resource_update_name}Proxy", __base__=update_schema, **false_attrs
+            f"{resource_update_name}Proxy", __base__=update_schema, **false_update_attrs
         )
 
         # Update record envelope schema
@@ -323,6 +368,7 @@ class Resource:
             __base__=CruddyGenericModel,
             **{
                 resource_model_name: (SingleSchemaLinked | None, None),
+                "meta": (dict[str, Any] | None, None),
             },  # type: ignore
         )
 
@@ -389,6 +435,21 @@ class Resource:
             "update_relations": SingleUpdateSchema,
         }
 
+    def _derive_shadow_relationship(
+        self, direction: RelationshipDirection, id_type: Any
+    ):
+        return (
+            (
+                list[id_type | dict] | None,
+                None,
+            )
+            if direction in [MANYTOMANY, ONETOMANY]
+            else (
+                dict | id_type | None,
+                None,
+            )
+        )
+
     def _link_builder(self, id: possible_id_values):
         # During "many" lookups, and depending on DB type, the id value return is a mapping
         # from the DB, so the id value is not properly "dasherized" into UUID format. This
@@ -426,11 +487,17 @@ class Resource:
             if key_count == 0:
                 return {"data": None}
 
+            meta = args.get("meta", None)
+
             if resource_model_name in args:
-                return {resource_model_name: args[resource_model_name], "data": None}
+                return {
+                    resource_model_name: args[resource_model_name],
+                    "meta": meta,
+                    "data": None,
+                }
 
             if key_count == 1 and args["data"] == None:
-                return {"data": None}
+                return {"data": None, "meta": meta}
 
             thing_to_convert = data_destructure(args["data"])
             id = thing_to_convert[self.repository.primary_key]
@@ -439,6 +506,7 @@ class Resource:
                     **thing_to_convert,
                     links=self._link_builder(id=id),
                 ),
+                "meta": meta,
                 "data": None,
             }
 
@@ -449,6 +517,7 @@ class Resource:
 
         self.actions = Actions(
             id_type=self._id_type,
+            disable_nested_objects=self.disable_nested_objects,
             single_name=self._model_name_single,
             repository=self.repository,
             create_model=self.schemas["create"],
@@ -460,6 +529,7 @@ class Resource:
             meta_schema=self._meta_schema,
             relations=self._relations,
             default_limit=self._default_limit,
+            lifecycle=self.controller_lifecycles,
         )
 
         if self.controller_extension != None and issubclass(

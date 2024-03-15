@@ -455,9 +455,597 @@ async def test_guarded_relationship(authenticated_client: BrowserTestClient):
     assert result["post"]["user_id"] == user_id
 
 
-# The below functions are mainly cleanup based on the create functions above
 @mark.asyncio
 @mark.dependency(depends=["test_guarded_relationship"])
+async def test_nested_create_single_objects(authenticated_client: BrowserTestClient):
+    global user_id
+
+    response = await authenticated_client.post(
+        "/posts",
+        json={
+            "post": {
+                "content": "Today I learned I can create nested objects with my POST requests.",
+                "event_date": "2023-12-11T15:27:39.984Z",
+                "tags": {
+                    "categories": ["blog"],
+                },
+                "user_id": user_id,
+                "section": {
+                    "name": "Opinons",
+                },
+            }
+        },
+    )
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result["meta"], dict)
+    assert isinstance(result["meta"]["relations"], dict)
+    assert isinstance(result["meta"]["relations"]["records"], dict)
+    assert isinstance(result["meta"]["relations"]["records"]["section"], dict)
+    assert isinstance(result["meta"]["relations"]["records"]["section"]["id"], str)
+    assert isinstance(result["meta"]["relations"]["total_modified"], int)
+    assert isinstance(result["meta"]["relations"]["invalid"], dict)
+    assert isinstance(result["meta"]["relations"]["messages"], dict)
+    assert result["meta"]["relations"]["total_modified"] == 1
+    section_id = result["meta"]["relations"]["records"]["section"]["id"]
+    assert result["post"]["section_id"] == section_id
+    post_id = result["post"]["id"]
+
+    response = await authenticated_client.get(f"/posts/{post_id}/section")
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result, dict)
+    assert isinstance(result["section"], dict)
+    assert result["section"]["id"] == section_id
+
+    response = await authenticated_client.delete(f"/posts/{post_id}")
+    assert response.status_code == status.HTTP_200_OK
+    response = await authenticated_client.delete(f"/sections/{section_id}")
+    assert response.status_code == status.HTTP_200_OK
+
+    response = await authenticated_client.post(
+        "/posts",
+        json={
+            "post": {
+                "content": "Today I learned I can create nested objects with my POST requests.",
+                "event_date": "2023-12-11T15:27:39.984Z",
+                "tags": {
+                    "categories": ["blog"],
+                },
+                "user_id": user_id,
+            }
+        },
+    )
+    assert response.status_code == status.HTTP_200_OK
+    create_result = response.json()
+    response = await authenticated_client.patch(
+        f"/posts/{create_result['post']['id']}",
+        json={
+            "post": {
+                "content": "Today I learned I can create nested objects with my POST requests.",
+                "event_date": "2023-12-11T15:27:39.984Z",
+                "tags": {
+                    "categories": ["blog"],
+                },
+                "user_id": user_id,
+                "section": {
+                    "name": "Opinons",
+                },
+            }
+        },
+    )
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+
+    assert isinstance(result["meta"], dict)
+    assert isinstance(result["meta"]["relations"], dict)
+    assert isinstance(result["meta"]["relations"]["records"], dict)
+    assert isinstance(result["meta"]["relations"]["records"]["section"], dict)
+    assert isinstance(result["meta"]["relations"]["records"]["section"]["id"], str)
+    assert isinstance(result["meta"]["relations"]["total_modified"], int)
+    assert isinstance(result["meta"]["relations"]["invalid"], dict)
+    assert isinstance(result["meta"]["relations"]["messages"], dict)
+    assert result["meta"]["relations"]["total_modified"] == 1
+    section_id = result["meta"]["relations"]["records"]["section"]["id"]
+    assert result["post"]["section_id"] == section_id
+    post_id = result["post"]["id"]
+
+    response = await authenticated_client.get(f"/posts/{post_id}/section")
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result, dict)
+    assert isinstance(result["section"], dict)
+    assert result["section"]["id"] == section_id
+
+    response = await authenticated_client.delete(f"/posts/{post_id}")
+    assert response.status_code == status.HTTP_200_OK
+    response = await authenticated_client.delete(f"/sections/{section_id}")
+    assert response.status_code == status.HTTP_200_OK
+
+
+@mark.asyncio
+@mark.dependency(depends=["test_nested_create_single_objects"])
+async def test_nested_create_multiple_objects(authenticated_client: BrowserTestClient):
+    global user_id
+    response = await authenticated_client.post(
+        "/sections",
+        json={
+            "section": {
+                "name": "Opinions",
+                "posts": [
+                    {
+                        "content": "Today I learned I can create nested objects with my POST requests.",
+                        "event_date": "2023-12-11T15:27:39.984Z",
+                        "tags": {
+                            "categories": ["blog"],
+                        },
+                        "user_id": user_id,
+                    },
+                    {
+                        "content": "Seriously! I can create nested objects with my POST requests.",
+                        "event_date": "2023-12-11T15:27:39.984Z",
+                        "tags": {
+                            "categories": ["blog"],
+                        },
+                        "user_id": user_id,
+                    },
+                ],
+            }
+        },
+    )
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result["meta"], dict)
+    assert isinstance(result["meta"]["relations"], dict)
+    assert isinstance(result["meta"]["relations"]["records"], dict)
+    assert isinstance(result["meta"]["relations"]["records"]["posts"], list)
+    assert isinstance(result["meta"]["relations"]["records"]["posts"][0]["id"], str)
+    assert isinstance(result["meta"]["relations"]["total_modified"], int)
+    assert isinstance(result["meta"]["relations"]["invalid"], dict)
+    assert isinstance(result["meta"]["relations"]["messages"], dict)
+    assert result["meta"]["relations"]["total_modified"] == 2
+    post_id1 = result["meta"]["relations"]["records"]["posts"][0]["id"]
+    post_id2 = result["meta"]["relations"]["records"]["posts"][1]["id"]
+    section_id = result["section"]["id"]
+
+    response = await authenticated_client.get(f"/sections/{section_id}/posts")
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result, dict)
+    assert isinstance(result["posts"], list)
+    assert len(result["posts"]) == 2
+    assert post_id1 in [result["posts"][0]["id"], result["posts"][1]["id"]]
+    assert post_id2 in [result["posts"][0]["id"], result["posts"][1]["id"]]
+
+    response = await authenticated_client.delete(f"/posts/{post_id1}")
+    assert response.status_code == status.HTTP_200_OK
+    response = await authenticated_client.delete(f"/posts/{post_id2}")
+    assert response.status_code == status.HTTP_200_OK
+    response = await authenticated_client.delete(f"/sections/{section_id}")
+    assert response.status_code == status.HTTP_200_OK
+
+    response = await authenticated_client.post(
+        "/sections",
+        json={
+            "section": {
+                "name": "Opinions",
+            }
+        },
+    )
+    assert response.status_code == status.HTTP_200_OK
+    create_result = response.json()
+    response = await authenticated_client.patch(
+        f"/sections/{create_result['section']['id']}",
+        json={
+            "section": {
+                "name": "Opinions",
+                "posts": [
+                    {
+                        "content": "Today I learned I can create nested objects with my POST requests.",
+                        "event_date": "2023-12-11T15:27:39.984Z",
+                        "tags": {
+                            "categories": ["blog"],
+                        },
+                        "user_id": user_id,
+                    },
+                    {
+                        "content": "Seriously! I can create nested objects with my POST requests.",
+                        "event_date": "2023-12-11T15:27:39.984Z",
+                        "tags": {
+                            "categories": ["blog"],
+                        },
+                        "user_id": user_id,
+                    },
+                ],
+            }
+        },
+    )
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result["meta"], dict)
+    assert isinstance(result["meta"]["relations"], dict)
+    assert isinstance(result["meta"]["relations"]["records"], dict)
+    assert isinstance(result["meta"]["relations"]["records"]["posts"], list)
+    assert isinstance(result["meta"]["relations"]["records"]["posts"][0]["id"], str)
+    assert isinstance(result["meta"]["relations"]["total_modified"], int)
+    assert isinstance(result["meta"]["relations"]["invalid"], dict)
+    assert isinstance(result["meta"]["relations"]["messages"], dict)
+    assert result["meta"]["relations"]["total_modified"] == 2
+    post_id1 = result["meta"]["relations"]["records"]["posts"][0]["id"]
+    post_id2 = result["meta"]["relations"]["records"]["posts"][1]["id"]
+    section_id = result["section"]["id"]
+
+    response = await authenticated_client.get(f"/sections/{section_id}/posts")
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result, dict)
+    assert isinstance(result["posts"], list)
+    assert len(result["posts"]) == 2
+    assert post_id1 in [result["posts"][0]["id"], result["posts"][1]["id"]]
+    assert post_id2 in [result["posts"][0]["id"], result["posts"][1]["id"]]
+
+    response = await authenticated_client.delete(f"/posts/{post_id1}")
+    assert response.status_code == status.HTTP_200_OK
+    response = await authenticated_client.delete(f"/posts/{post_id2}")
+    assert response.status_code == status.HTTP_200_OK
+    response = await authenticated_client.delete(f"/sections/{section_id}")
+    assert response.status_code == status.HTTP_200_OK
+
+
+@mark.asyncio
+@mark.dependency(depends=["test_nested_create_multiple_objects"])
+async def test_nested_update_single_objects(authenticated_client: BrowserTestClient):
+    global user_id
+    response = await authenticated_client.post(
+        "/sections",
+        json={
+            "section": {
+                "name": "Opinions",
+            }
+        },
+    )
+    assert response.status_code == status.HTTP_200_OK
+    section_result = response.json()
+    response = await authenticated_client.post(
+        "/posts",
+        json={
+            "post": {
+                "content": "Today I learned I can create nested objects with my POST requests.",
+                "event_date": "2023-12-11T15:27:39.984Z",
+                "tags": {
+                    "categories": ["blog"],
+                },
+                "user_id": user_id,
+                "section": {
+                    "id": section_result["section"]["id"],
+                    "name": "Deep Thoughts",
+                },
+            }
+        },
+    )
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result["meta"], dict)
+    assert isinstance(result["meta"]["relations"], dict)
+    assert isinstance(result["meta"]["relations"]["records"], dict)
+    assert isinstance(result["meta"]["relations"]["records"]["section"], dict)
+    assert isinstance(result["meta"]["relations"]["records"]["section"]["id"], str)
+    assert isinstance(result["meta"]["relations"]["total_modified"], int)
+    assert isinstance(result["meta"]["relations"]["invalid"], dict)
+    assert isinstance(result["meta"]["relations"]["messages"], dict)
+    assert result["meta"]["relations"]["total_modified"] == 1
+    section_id = result["meta"]["relations"]["records"]["section"]["id"]
+    assert result["post"]["section_id"] == section_id
+    assert section_result["section"]["id"] == section_id
+    post_id = result["post"]["id"]
+
+    response = await authenticated_client.get(f"/posts/{post_id}/section")
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result, dict)
+    assert isinstance(result["section"], dict)
+    assert result["section"]["id"] == section_id
+
+    response = await authenticated_client.delete(f"/posts/{post_id}")
+    assert response.status_code == status.HTTP_200_OK
+    response = await authenticated_client.delete(f"/sections/{section_id}")
+    assert response.status_code == status.HTTP_200_OK
+
+    response = await authenticated_client.post(
+        "/sections",
+        json={
+            "section": {
+                "name": "Opinions",
+            }
+        },
+    )
+    assert response.status_code == status.HTTP_200_OK
+    section_result = response.json()
+    response = await authenticated_client.post(
+        "/posts",
+        json={
+            "post": {
+                "content": "Today I learned I can create nested objects with my POST requests.",
+                "event_date": "2023-12-11T15:27:39.984Z",
+                "tags": {
+                    "categories": ["blog"],
+                },
+                "user_id": user_id,
+            }
+        },
+    )
+    assert response.status_code == status.HTTP_200_OK
+    create_result = response.json()
+    response = await authenticated_client.patch(
+        f"/posts/{create_result['post']['id']}",
+        json={
+            "post": {
+                "content": "Today I learned I can create nested objects with my POST requests.",
+                "event_date": "2023-12-11T15:27:39.984Z",
+                "tags": {
+                    "categories": ["blog"],
+                },
+                "user_id": user_id,
+                "section": {
+                    "id": section_result["section"]["id"],
+                    "name": "Deep Thoughts",
+                },
+            }
+        },
+    )
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result["meta"], dict)
+    assert isinstance(result["meta"]["relations"], dict)
+    assert isinstance(result["meta"]["relations"]["records"], dict)
+    assert isinstance(result["meta"]["relations"]["records"]["section"], dict)
+    assert isinstance(result["meta"]["relations"]["records"]["section"]["id"], str)
+    assert isinstance(result["meta"]["relations"]["total_modified"], int)
+    assert isinstance(result["meta"]["relations"]["invalid"], dict)
+    assert isinstance(result["meta"]["relations"]["messages"], dict)
+    assert result["meta"]["relations"]["total_modified"] == 1
+    section_id = result["meta"]["relations"]["records"]["section"]["id"]
+    assert result["post"]["section_id"] == section_id
+    assert section_result["section"]["id"] == section_id
+    post_id = result["post"]["id"]
+
+    response = await authenticated_client.get(f"/posts/{post_id}/section")
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result, dict)
+    assert isinstance(result["section"], dict)
+    assert result["section"]["id"] == section_id
+
+    response = await authenticated_client.delete(f"/posts/{post_id}")
+    assert response.status_code == status.HTTP_200_OK
+    response = await authenticated_client.delete(f"/sections/{section_id}")
+    assert response.status_code == status.HTTP_200_OK
+
+
+@mark.asyncio
+@mark.dependency(depends=["test_nested_update_single_objects"])
+async def test_nested_update_multiple_objects(authenticated_client: BrowserTestClient):
+    global user_id
+    response = await authenticated_client.post(
+        "/posts",
+        json={
+            "post": {
+                "content": "Today I learned I can create nested objects with my POST requests.",
+                "event_date": "2023-12-11T15:27:39.984Z",
+                "tags": {
+                    "categories": ["blog"],
+                },
+                "user_id": user_id,
+            }
+        },
+    )
+    assert response.status_code == status.HTTP_200_OK
+    post_result1 = response.json()
+    response = await authenticated_client.post(
+        "/posts",
+        json={
+            "post": {
+                "content": "Seriously! I can create nested objects with my POST requests.",
+                "event_date": "2023-12-11T15:27:39.984Z",
+                "tags": {
+                    "categories": ["blog"],
+                },
+                "user_id": user_id,
+            }
+        },
+    )
+    assert response.status_code == status.HTTP_200_OK
+    post_result2 = response.json()
+
+    update_post_1 = {**post_result1["post"]}
+    update_post_1.pop("links", None)
+    update_post_1["content"] = "I've updated this POST via a related POST!"
+
+    update_post_2 = {**post_result2["post"]}
+    update_post_2.pop("links", None)
+    update_post_2["content"] = "I've updated this POST via a related POST TOOOO!"
+
+    response = await authenticated_client.post(
+        "/sections",
+        json={
+            "section": {
+                "name": "Opinion",
+                "posts": [
+                    update_post_1,
+                    update_post_2,
+                    {},
+                ],
+            }
+        },
+    )
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result["meta"], dict)
+    assert isinstance(result["meta"]["relations"], dict)
+    assert isinstance(result["meta"]["relations"]["records"], dict)
+    assert isinstance(result["meta"]["relations"]["records"]["posts"], list)
+    assert isinstance(result["meta"]["relations"]["records"]["posts"][0], dict)
+    assert isinstance(result["meta"]["relations"]["records"]["posts"][0]["id"], str)
+    assert isinstance(result["meta"]["relations"]["records"]["posts"][1], dict)
+    assert isinstance(result["meta"]["relations"]["records"]["posts"][1]["id"], str)
+    assert isinstance(result["meta"]["relations"]["total_modified"], int)
+    assert isinstance(result["meta"]["relations"]["invalid"], dict)
+    assert isinstance(result["meta"]["relations"]["messages"], dict)
+    assert result["meta"]["relations"]["total_modified"] == 2
+    assert len(result["meta"]["relations"]["invalid"]) == 1
+    assert len(result["meta"]["relations"]["messages"]) == 1
+    post_id1 = result["meta"]["relations"]["records"]["posts"][0]["id"]
+    post_id2 = result["meta"]["relations"]["records"]["posts"][1]["id"]
+    assert post_id1 in [post_result1["post"]["id"], post_result2["post"]["id"]]
+    assert post_id2 in [post_result1["post"]["id"], post_result2["post"]["id"]]
+    assert (
+        result["meta"]["relations"]["records"]["posts"][0]["content"]
+        == "I've updated this POST via a related POST!"
+    )
+    assert (
+        result["meta"]["relations"]["records"]["posts"][1]["content"]
+        == "I've updated this POST via a related POST TOOOO!"
+    )
+    section_id = result["section"]["id"]
+
+    response = await authenticated_client.get(f"/posts/{post_id1}/section")
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result, dict)
+    assert isinstance(result["section"], dict)
+    assert result["section"]["id"] == section_id
+
+    response = await authenticated_client.get(f"/posts/{post_id2}/section")
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result, dict)
+    assert isinstance(result["section"], dict)
+    assert result["section"]["id"] == section_id
+
+    response = await authenticated_client.delete(f"/posts/{post_id1}")
+    assert response.status_code == status.HTTP_200_OK
+    response = await authenticated_client.delete(f"/posts/{post_id2}")
+    assert response.status_code == status.HTTP_200_OK
+    response = await authenticated_client.delete(f"/sections/{section_id}")
+    assert response.status_code == status.HTTP_200_OK
+
+    response = await authenticated_client.post(
+        "/posts",
+        json={
+            "post": {
+                "content": "Today I learned I can create nested objects with my POST requests.",
+                "event_date": "2023-12-11T15:27:39.984Z",
+                "tags": {
+                    "categories": ["blog"],
+                },
+                "user_id": user_id,
+            }
+        },
+    )
+    assert response.status_code == status.HTTP_200_OK
+    post_result1 = response.json()
+    response = await authenticated_client.post(
+        "/posts",
+        json={
+            "post": {
+                "content": "Seriously! I can create nested objects with my POST requests.",
+                "event_date": "2023-12-11T15:27:39.984Z",
+                "tags": {
+                    "categories": ["blog"],
+                },
+                "user_id": user_id,
+            }
+        },
+    )
+    assert response.status_code == status.HTTP_200_OK
+    post_result2 = response.json()
+
+    update_post_1 = {**post_result1["post"]}
+    update_post_1.pop("links", None)
+    update_post_1["content"] = "I've updated this POST via a related POST!"
+
+    update_post_2 = {**post_result2["post"]}
+    update_post_2.pop("links", None)
+    update_post_2["content"] = "I've updated this POST via a related POST TOOOO!"
+
+    response = await authenticated_client.post(
+        "/sections",
+        json={
+            "section": {
+                "name": "Opinion",
+            }
+        },
+    )
+    assert response.status_code == status.HTTP_200_OK
+    create_result = response.json()
+    response = await authenticated_client.patch(
+        f"/sections/{create_result['section']['id']}",
+        json={
+            "section": {
+                "name": "Opinion",
+                "posts": [
+                    update_post_1,
+                    update_post_2,
+                    {},
+                ],
+            }
+        },
+    )
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result["meta"], dict)
+    assert isinstance(result["meta"]["relations"], dict)
+    assert isinstance(result["meta"]["relations"]["records"], dict)
+    assert isinstance(result["meta"]["relations"]["records"]["posts"], list)
+    assert isinstance(result["meta"]["relations"]["records"]["posts"][0], dict)
+    assert isinstance(result["meta"]["relations"]["records"]["posts"][0]["id"], str)
+    assert isinstance(result["meta"]["relations"]["records"]["posts"][1], dict)
+    assert isinstance(result["meta"]["relations"]["records"]["posts"][1]["id"], str)
+    assert isinstance(result["meta"]["relations"]["total_modified"], int)
+    assert isinstance(result["meta"]["relations"]["invalid"], dict)
+    assert isinstance(result["meta"]["relations"]["messages"], dict)
+    assert result["meta"]["relations"]["total_modified"] == 2
+    assert len(result["meta"]["relations"]["invalid"]) == 1
+    assert len(result["meta"]["relations"]["messages"]) == 1
+    post_id1 = result["meta"]["relations"]["records"]["posts"][0]["id"]
+    post_id2 = result["meta"]["relations"]["records"]["posts"][1]["id"]
+    assert post_id1 in [post_result1["post"]["id"], post_result2["post"]["id"]]
+    assert post_id2 in [post_result1["post"]["id"], post_result2["post"]["id"]]
+    assert (
+        result["meta"]["relations"]["records"]["posts"][0]["content"]
+        == "I've updated this POST via a related POST!"
+    )
+    assert (
+        result["meta"]["relations"]["records"]["posts"][1]["content"]
+        == "I've updated this POST via a related POST TOOOO!"
+    )
+    section_id = result["section"]["id"]
+
+    response = await authenticated_client.get(f"/posts/{post_id1}/section")
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result, dict)
+    assert isinstance(result["section"], dict)
+    assert result["section"]["id"] == section_id
+
+    response = await authenticated_client.get(f"/posts/{post_id2}/section")
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result, dict)
+    assert isinstance(result["section"], dict)
+    assert result["section"]["id"] == section_id
+
+    response = await authenticated_client.delete(f"/posts/{post_id1}")
+    assert response.status_code == status.HTTP_200_OK
+    response = await authenticated_client.delete(f"/posts/{post_id2}")
+    assert response.status_code == status.HTTP_200_OK
+    response = await authenticated_client.delete(f"/sections/{section_id}")
+    assert response.status_code == status.HTTP_200_OK
+
+
+# The below functions are mainly cleanup based on the create functions above
+@mark.asyncio
+@mark.dependency(depends=["test_nested_update_single_objects"])
 async def test_cleanup(authenticated_client: BrowserTestClient):
     global user_id
     global alt_user_id
