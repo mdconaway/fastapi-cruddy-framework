@@ -5,6 +5,7 @@ from typing import Any, Sequence, TypedDict, Callable, Literal, Type
 from fastapi import APIRouter
 from sqlalchemy.orm import (
     RelationshipProperty,
+    RelationshipDirection,
     ONETOMANY,
     MANYTOMANY,
 )
@@ -95,6 +96,8 @@ class Resource:
         path: str | None = None,
         tags: list[str | Enum] | None = None,
         protected_relationships: list[str] = [],
+        protected_create_relationships: list[str] = [],
+        protected_update_relationships: list[str] = [],
         artificial_relationship_paths: list[str] = [],
         policies_universal: Sequence[Callable] = [],
         policies_create: Sequence[Callable] = [],
@@ -148,6 +151,8 @@ class Resource:
         self._id_type = id_type
         self._relations = {}
         self._protected_relationships = protected_relationships
+        self._protected_create_relationships = protected_create_relationships
+        self._protected_update_relationships = protected_update_relationships
         self._artificial_relationship_paths = artificial_relationship_paths
         self._default_limit = default_limit
 
@@ -279,7 +284,14 @@ class Resource:
 
         # Create shared link model
         link_object = {}
-        false_attrs = {}
+        false_create_attrs = {}
+        false_update_attrs = {}
+        create_protected_relationships = (
+            self._protected_relationships + self._protected_create_relationships
+        )
+        update_protected_relationships = (
+            self._protected_relationships + self._protected_update_relationships
+        )
         for k, v in self._relations.items():
             link_object[k] = (
                 str,
@@ -291,15 +303,13 @@ class Resource:
                     }
                 ),
             )
-            if k not in self._protected_relationships:
-                if v.orm_relationship.direction in [MANYTOMANY, ONETOMANY]:
-                    false_attrs[k] = (
-                        list[v.foreign_resource._id_type | dict] | None,
-                        None,
-                    )
-                else:
-                    # then it is many to one
-                    false_attrs[k] = (dict | v.foreign_resource._id_type | None, None)
+            rel_def = self._derive_shadow_relationship(
+                v.orm_relationship.direction, v.foreign_resource._id_type
+            )
+            if k not in create_protected_relationships:
+                false_create_attrs[k] = rel_def
+            if k not in update_protected_relationships:
+                false_update_attrs[k] = rel_def
         for item in self._artificial_relationship_paths:
             link_object[item] = (
                 str,
@@ -317,7 +327,7 @@ class Resource:
         # End shared link model
 
         SingleCreateSchema = create_model(
-            f"{resource_create_name}Proxy", __base__=create_schema, **false_attrs
+            f"{resource_create_name}Proxy", __base__=create_schema, **false_create_attrs
         )
 
         # Create record envelope schema
@@ -331,7 +341,7 @@ class Resource:
         # End create record envelope schema
 
         SingleUpdateSchema = create_model(
-            f"{resource_update_name}Proxy", __base__=update_schema, **false_attrs
+            f"{resource_update_name}Proxy", __base__=update_schema, **false_update_attrs
         )
 
         # Update record envelope schema
@@ -424,6 +434,21 @@ class Resource:
             "update": SingleUpdateEnvelope,
             "update_relations": SingleUpdateSchema,
         }
+
+    def _derive_shadow_relationship(
+        self, direction: RelationshipDirection, id_type: Any
+    ):
+        return (
+            (
+                list[id_type | dict] | None,
+                None,
+            )
+            if direction in [MANYTOMANY, ONETOMANY]
+            else (
+                dict | id_type | None,
+                None,
+            )
+        )
 
     def _link_builder(self, id: possible_id_values):
         # During "many" lookups, and depending on DB type, the id value return is a mapping

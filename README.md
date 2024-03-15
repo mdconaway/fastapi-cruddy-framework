@@ -225,7 +225,7 @@ The `Resource` class is the fundamental building block of fastapi-cruddy-framewo
 - Each endpoint is protected by `policies_universal` + `policies_<action>`.
 - One-to-Many and Many-to-Many sub-routes (like /users/{id}/posts) will be protected by the policy chain: `user.policies_universal` + `user.policies_get_one` + `posts.policies_get_many`. Security, security, security!
 - Blocking user REST modification of certain relationships via the default CRUD controller is also done at definition time!
-- `protected_relationships` is a `list[str]` with each string indicating a one-to-many or many-to-many relationship that should not be allowed to update via the default CRUD actions.
+- `protected_relationships`, `protected_create_relationships` and `protected_update_relationships` are `list[str]` types with each string indicating a one-to-many, many-to-one, or many-to-many relationship that should not be allowed to create or update via the default CRUD actions. (protected_relationships alone blocks BOTH)
 - You should define your application-wide adapter elsewhere and pass it into the resource instance.
 - Resources cannot span different databases.
 
@@ -269,6 +269,8 @@ The `Resource` class is the fundamental building block of fastapi-cruddy-framewo
 <b>Available Relationship Blocks:</b>
 
 - `protected_relationships`
+- `protected_create_relationships`
+- `protected_update_relationships`
 
 <b>Updating Relationships:</b>
 
@@ -394,11 +396,15 @@ response_schema: CruddyModel = ExampleView,
 # any paginated routes. You shouldn't NEED to change this, but you can if you want.
 response_meta_schema: CruddyGenericModel = MetaObject,
 # 'protected_relationships' will ban-hammer relationship fields specified from gaining
-# an auto-magic update property. This will prevent users from creating or updating these
-# relationships via the default CRUD actions. You will need to build other business logic
+# an auto-magic create or update property. This will prevent users from creating or updating
+# these relationships via the default CRUD actions. You will need to build other business logic
 # to manage creating or changing protected relationships elsewhere in your application.
 # Protected relationships will still be viewable at their designated GET routes.
+# 'protected_create_relationships' and 'protected_update_relationships' only prevent embedded
+# relational changes at the CREATE and UPDATE routes, respectively.
 protected_relationships: list[str] = [],
+protected_create_relationships: list[str] = [],
+protected_update_relationships: list[str] = [],
 # 'artificial_relationship_paths' will add an arbitrary list of sub-paths to each CRUD object's
 # relationship "links" attribute. For example, adding "artificial_relationship_paths": ["fake"]
 # would cause each object's "links" attribute to contain a key-value pair of:

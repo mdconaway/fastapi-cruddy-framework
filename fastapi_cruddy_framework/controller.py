@@ -11,7 +11,9 @@ from fastapi import (
     status,
 )
 from .test_helpers import TestClient, BrowserTestClient
+from sqlalchemy import Row
 from sqlalchemy.sql.schema import Column, ForeignKey
+from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.orm import (
     RelationshipDirection,
     ONETOMANY,
@@ -40,6 +42,7 @@ if TYPE_CHECKING:
 
 DATA_KEY = "data"
 META_KEY = "meta"
+META_ID_KEY = "id"
 META_RELATION_INFO_KEY = "relations"
 META_NUM_RELATION_MODIFIED_KEY = "total_modified"
 META_RELATED_RECORDS_KEY = "records"
@@ -91,8 +94,11 @@ class Actions:
         self.disable_nested_objects = disable_nested_objects
 
         async def create(request: Request, data: create_model):
-            context_data = {DATA_KEY: {}, META_KEY: None}
             the_thing_with_rels: CruddyGenericModel = getattr(data, single_name)
+            context_data = {DATA_KEY: the_thing_with_rels, META_KEY: None}
+            # If there is a user space lifecycle hook, run it (allows context mutations)
+            if self.lifecycle["before_create"]:
+                await self.lifecycle["before_create"](request, context_data)
             # Update the many-to-one relationships
             (
                 single_num_relations_modified,
@@ -115,9 +121,6 @@ class Actions:
                     META_VALIDATION_MESSAGES_KEY: single_failure_responses,
                 }
             }
-            # If there is a user space lifecycle hook, run it (allows context mutations)
-            if self.lifecycle["before_create"]:
-                await self.lifecycle["before_create"](request, context_data)
             # Create the core object in the repository
             result = await repository.create(data=context_data[DATA_KEY])
             # Update the operating context
@@ -167,8 +170,13 @@ class Actions:
         async def update(
             request: Request, id: id_type = Path(..., alias="id"), *, data: update_model
         ):
-            context_data = {DATA_KEY: {}, META_KEY: None}
             the_thing_with_rels: CruddyGenericModel = getattr(data, single_name)
+            context_data = {DATA_KEY: the_thing_with_rels, META_KEY: {META_ID_KEY: id}}
+            # If there is a user space lifecycle hook, run it (allows context mutations)
+            if self.lifecycle["before_update"]:
+                await self.lifecycle["before_update"](request, context_data)
+            # If the hosting app altered the id, grab it
+            _id = context_data[META_KEY][META_ID_KEY]
             # Update the many-to-one relationships
             (
                 single_num_relations_modified,
@@ -191,11 +199,10 @@ class Actions:
                     META_VALIDATION_MESSAGES_KEY: single_failure_responses,
                 }
             }
-            # If there is a user space lifecycle hook, run it (allows context mutations)
-            if self.lifecycle["before_update"]:
-                await self.lifecycle["before_update"](request, context_data)
             # Update the core object in the repository
-            result = await repository.update(id=id, data=context_data[DATA_KEY])
+            result: CruddyModel | None = await repository.update(
+                id=_id, data=context_data[DATA_KEY]
+            )
             # Add error logic?
             if result is None:
                 raise HTTPException(
@@ -620,7 +627,7 @@ def _ControllerConfigManyToOne(
     policies_universal: list,
     policies_get_one: list,
 ):
-    col: Column = next(iter(config.orm_relationship.local_columns))  # type: ignore
+    col: ColumnElement = next(iter(config.orm_relationship.local_columns))
     far_side: ForeignKey = next(iter(col.foreign_keys))
     far_col: Column = far_side.column
     far_col_name = far_col.name
@@ -648,7 +655,7 @@ def _ControllerConfigManyToOne(
         columns: list[str] = Query(None, alias="columns"),
         where: Json = Query(None, alias="where"),
     ):
-        origin_record = await repository.get_by_id(id=id)
+        origin_record: CruddyModel | None = await repository.get_by_id(id=id)
 
         # Consider raising 404 here and in get by ID
         if origin_record == None:
@@ -689,10 +696,12 @@ def _ControllerConfigManyToOne(
         )
 
         # If we get a result, grab the first value. There should only be one in many to one.
-        data = None
+        data: dict[str, Any] | None = None
         if len(result.data) != 0:
-            data: Any = result.data[0]
-            table_record = config.foreign_resource.repository.model(**data._mapping)
+            row_data: Row = result.data[0]
+            table_record: CruddyModel = config.foreign_resource.repository.model(
+                **row_data._mapping
+            )
             if foreign_lifecycle_after != None:
                 await foreign_lifecycle_after(table_record)
             data = table_record.model_dump()
@@ -720,8 +729,8 @@ def _ControllerConfigOneToMany(
     policies_get_one: list = [],
     default_limit: int = 10,
 ):
-    far_col: Column = next(iter(config.orm_relationship.remote_side))  # type: ignore
-    col: Column = next(iter(config.orm_relationship.local_columns))  # type: ignore
+    far_col: ColumnElement = next(iter(config.orm_relationship.remote_side))
+    col: ColumnElement = next(iter(config.orm_relationship.local_columns))
     far_col_name = far_col.name
     near_col_name = col.name
     resource_model_name = f"{repository.model.__name__}".lower()
@@ -752,7 +761,7 @@ def _ControllerConfigOneToMany(
         sort: list[str] = Query(None, alias="sort"),
         where: Json = Query(None, alias="where"),
     ):
-        origin_record = await repository.get_by_id(id=id)
+        origin_record: CruddyModel | None = await repository.get_by_id(id=id)
 
         # Consider raising 404 here and in get by ID
         if origin_record == None:
