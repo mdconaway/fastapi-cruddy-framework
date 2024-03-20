@@ -1,14 +1,24 @@
 from typing import Any, TYPE_CHECKING
 from datetime import datetime
-from pydantic import field_validator
-from sqlmodel import Column, DateTime, Field, JSON, Relationship
 from fastapi_cruddy_framework import (
     UUID,
     CruddyModel,
     CruddyUUIDModel,
     CruddyCreatedUpdatedSignature,
+    CruddyCreatedUpdatedQLOverrides,
     CruddyCreatedUpdatedMixin,
     validate_utc_datetime,
+)
+from pydantic import field_validator, ConfigDict
+from sqlmodel import Column, DateTime, Field, JSON, Relationship
+from strawberry.scalars import JSON as StrawberryJSON
+from strawberry.experimental.pydantic import type as strawberry_pydantic_type
+from examples.fastapi_cruddy_sqlite.services.graphql_resolver import graphql_resolver
+from examples.fastapi_cruddy_sqlite.models.common.graphql import (
+    SECTION_LIST_TYPE,
+    SECTION_CLASS_LOADER,
+    USER_LIST_TYPE,
+    USER_CLASS_LOADER,
 )
 
 if TYPE_CHECKING:
@@ -96,3 +106,36 @@ class PostView(CruddyCreatedUpdatedSignature, CruddyUUIDModel):
 class Post(CruddyCreatedUpdatedMixin(), CruddyUUIDModel, PostCreate, table=True):
     user: "User" = Relationship(back_populates="posts")
     section: "Section" = Relationship(back_populates="posts")
+
+
+# --------------------------------------------------------------------------------------
+# BEGIN GRAPHQL DEFINITIONS ------------------------------------------------------------
+# --------------------------------------------------------------------------------------
+
+
+class PostQLOverrides(CruddyCreatedUpdatedQLOverrides, PostView):
+    model_config = ConfigDict(arbitrary_types_allowed=True)  # type: ignore
+    event_date: str | None = None
+    tags: StrawberryJSON | None = None
+
+
+@strawberry_pydantic_type(model=PostQLOverrides, name="Post", all_fields=True)
+class PostQL:
+    user = graphql_resolver.generate_resolver(
+        type_name="user",
+        graphql_type=USER_LIST_TYPE,
+        # You must define your prefererd internal API path to find the relation
+        # Your route generator will be passed an instance of a post record
+        route_generator=lambda x: f"users/{getattr(x, 'user_id')}",
+        class_loader=USER_CLASS_LOADER,
+        is_singular=True,
+    )
+    section = graphql_resolver.generate_resolver(
+        type_name="section",
+        graphql_type=SECTION_LIST_TYPE,
+        # You must define your prefererd internal API path to find the relation
+        # Your route generator will be passed an instance of a post record
+        route_generator=lambda x: f"sections/{getattr(x, 'section_id')}",
+        class_loader=SECTION_CLASS_LOADER,
+        is_singular=True,
+    )

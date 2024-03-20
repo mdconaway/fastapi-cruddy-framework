@@ -1,10 +1,18 @@
 from typing import TYPE_CHECKING
-from sqlmodel import Field, Relationship
 from fastapi_cruddy_framework import (
     CruddyModel,
     CruddyUUIDModel,
     CruddyCreatedUpdatedSignature,
+    CruddyCreatedUpdatedQLOverrides,
     CruddyCreatedUpdatedMixin,
+)
+from pydantic import ConfigDict
+from sqlmodel import Field, Relationship
+from strawberry.experimental.pydantic import type as strawberry_pydantic_type
+from examples.fastapi_cruddy_sqlite.services.graphql_resolver import graphql_resolver
+from examples.fastapi_cruddy_sqlite.models.common.graphql import (
+    POST_LIST_TYPE,
+    POST_CLASS_LOADER,
 )
 
 if TYPE_CHECKING:
@@ -58,3 +66,24 @@ class SectionView(CruddyCreatedUpdatedSignature, CruddyUUIDModel):
 class Section(CruddyCreatedUpdatedMixin(), CruddyUUIDModel, SectionCreate, table=True):
     # is the below needed??
     posts: list["Post"] = Relationship(back_populates="section")
+
+
+# --------------------------------------------------------------------------------------
+# BEGIN GRAPHQL DEFINITIONS ------------------------------------------------------------
+# --------------------------------------------------------------------------------------
+
+
+class SectionQLOverrides(CruddyCreatedUpdatedQLOverrides, SectionView):
+    model_config = ConfigDict(arbitrary_types_allowed=True)  # type: ignore
+
+
+@strawberry_pydantic_type(model=SectionQLOverrides, name="Section", all_fields=True)
+class SectionQL:
+    posts = graphql_resolver.generate_resolver(
+        type_name="post",
+        graphql_type=POST_LIST_TYPE,
+        # You must define your prefererd internal API path to find the relation
+        # Your route generator will be passed an instance of a section record
+        route_generator=lambda x: f"sections/{getattr(x, 'id')}/posts",
+        class_loader=POST_CLASS_LOADER,
+    )

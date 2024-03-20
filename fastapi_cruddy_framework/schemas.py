@@ -4,6 +4,7 @@ from typing import (
     TypeVar,
     Generic,
     Sequence,
+    NewType,
     TYPE_CHECKING,
 )
 from datetime import datetime
@@ -12,7 +13,9 @@ from uuid_extensions import uuid7
 from sqlalchemy import Column
 from sqlalchemy.orm import declared_attr, RelationshipProperty
 from sqlalchemy.engine.row import Row
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator
+from strawberry import scalar
+from strawberry.scalars import JSON
 from sqlmodel import Field, SQLModel, DateTime
 from .util import build_tz_aware_date, parse_and_coerce_to_utc_datetime
 
@@ -37,6 +40,13 @@ LEAVE_SOCKET_BY_ID = "leavesocket_id"
 LEAVE_SOCKET_BY_CLIENT = "leavesocket_client"
 CLIENT_MESSAGE_EVENT = "client_message"
 T = TypeVar("T")
+
+
+CruddyGQLDateTime = scalar(
+    NewType("CruddyGQLDateTime", str),
+    serialize=lambda v: v,
+    parse_value=lambda v: v,
+)
 
 
 class RelationshipConfig:
@@ -148,6 +158,18 @@ def CruddyCreatedUpdatedMixin() -> type[CruddyCreatedUpdatedSignature]:
             return parse_and_coerce_to_utc_datetime(v)
 
     return CruddyCreatedUpdatedInstance
+
+
+class CruddyGraphQLOverrides(CruddyModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)  # type: ignore
+    links: JSON | None = None
+
+
+class CruddyCreatedUpdatedQLOverrides(CruddyModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)  # type: ignore
+    links: JSON | None = None
+    created_at: CruddyGQLDateTime | None = None
+    updated_at: CruddyGQLDateTime | None = None
 
 
 class ExampleUpdate(CruddyModel):

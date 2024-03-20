@@ -1,12 +1,20 @@
 from typing import TYPE_CHECKING
-from sqlmodel import Field, Relationship
 from fastapi_cruddy_framework import (
     CruddyModel,
     CruddyUUIDModel,
     CruddyCreatedUpdatedSignature,
+    CruddyCreatedUpdatedQLOverrides,
     CruddyCreatedUpdatedMixin,
 )
+from pydantic import ConfigDict
+from sqlmodel import Field, Relationship
+from strawberry.experimental.pydantic import type as strawberry_pydantic_type
+from examples.fastapi_cruddy_sqlite.services.graphql_resolver import graphql_resolver
 from examples.fastapi_cruddy_sqlite.models.common.relationships import GroupUserLink
+from examples.fastapi_cruddy_sqlite.models.common.graphql import (
+    USER_LIST_TYPE,
+    USER_CLASS_LOADER,
+)
 
 if TYPE_CHECKING:
     from examples.fastapi_cruddy_sqlite.models.user import User
@@ -60,4 +68,25 @@ class Group(CruddyCreatedUpdatedMixin(), CruddyUUIDModel, GroupCreate, table=Tru
     # is the below needed??
     users: list["User"] = Relationship(
         back_populates="groups", link_model=GroupUserLink
+    )
+
+
+# --------------------------------------------------------------------------------------
+# BEGIN GRAPHQL DEFINITIONS ------------------------------------------------------------
+# --------------------------------------------------------------------------------------
+
+
+class GroupQLOverrides(CruddyCreatedUpdatedQLOverrides, GroupView):
+    model_config = ConfigDict(arbitrary_types_allowed=True)  # type: ignore
+
+
+@strawberry_pydantic_type(model=GroupQLOverrides, name="Group", all_fields=True)
+class GroupQL:
+    users = graphql_resolver.generate_resolver(
+        type_name="user",
+        graphql_type=USER_LIST_TYPE,
+        # You must define your prefererd internal API path to find the relation
+        # Your route generator will be passed an instance of a group record
+        route_generator=lambda x: f"groups/{getattr(x, 'id')}/users",
+        class_loader=USER_CLASS_LOADER,
     )

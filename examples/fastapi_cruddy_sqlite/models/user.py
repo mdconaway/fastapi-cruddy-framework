@@ -1,15 +1,24 @@
 from typing import Any, TYPE_CHECKING
 from datetime import datetime
-from pydantic import field_validator
-from sqlmodel import Field, Relationship, Column, DateTime
 from fastapi_cruddy_framework import (
     CruddyModel,
     CruddyUUIDModel,
     CruddyCreatedUpdatedSignature,
+    CruddyCreatedUpdatedQLOverrides,
     CruddyCreatedUpdatedMixin,
     validate_utc_datetime,
 )
+from pydantic import field_validator, ConfigDict
+from strawberry.experimental.pydantic import type as strawberry_pydantic_type
+from sqlmodel import Field, Relationship, Column, DateTime
+from examples.fastapi_cruddy_sqlite.services.graphql_resolver import graphql_resolver
 from examples.fastapi_cruddy_sqlite.models.common.relationships import GroupUserLink
+from examples.fastapi_cruddy_sqlite.models.common.graphql import (
+    GROUP_LIST_TYPE,
+    GROUP_CLASS_LOADER,
+    POST_LIST_TYPE,
+    POST_CLASS_LOADER,
+)
 
 if TYPE_CHECKING:
     from examples.fastapi_cruddy_sqlite.models.post import Post
@@ -124,4 +133,34 @@ class User(CruddyCreatedUpdatedMixin(), CruddyUUIDModel, UserCreate, table=True)
     posts: list["Post"] = Relationship(back_populates="user")
     groups: list["Group"] = Relationship(
         back_populates="users", link_model=GroupUserLink
+    )
+
+
+# --------------------------------------------------------------------------------------
+# BEGIN GRAPHQL DEFINITIONS ------------------------------------------------------------
+# --------------------------------------------------------------------------------------
+
+
+class UserQLOverrides(CruddyCreatedUpdatedQLOverrides, UserView):
+    model_config = ConfigDict(arbitrary_types_allowed=True)  # type: ignore
+    birthdate: str | None = None
+
+
+@strawberry_pydantic_type(model=UserQLOverrides, name="User", all_fields=True)
+class UserQL:
+    posts = graphql_resolver.generate_resolver(
+        type_name="post",
+        graphql_type=POST_LIST_TYPE,
+        # You must define your prefererd internal API path to find the relation
+        # Your route generator will be passed an instance of a user record
+        route_generator=lambda x: f"users/{getattr(x, 'id')}/posts",
+        class_loader=POST_CLASS_LOADER,
+    )
+    groups = graphql_resolver.generate_resolver(
+        type_name="group",
+        graphql_type=GROUP_LIST_TYPE,
+        # You must define your prefererd internal API path to find the relation
+        # Your route generator will be passed an instance of a user record
+        route_generator=lambda x: f"users/{getattr(x, 'id')}/groups",
+        class_loader=GROUP_CLASS_LOADER,
     )

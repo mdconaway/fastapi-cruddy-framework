@@ -609,9 +609,8 @@ You can re-use CRUD actions in your controllers as follows:
 from pydantic.types import Json
 from fastapi_cruddy_framework import CruddyController
 from fastapi import Query, Path, HTTPException, status
-from fastapi_cruddy_framework import CruddyController
+from fastapi_cruddy_framework import CruddyController, dependency_list
 from examples.fastapi_cruddy_sqlite.policies.verify_session import verify_session
-from examples.fastapi_cruddy_sqlite.utils.dependency_list import dependency_list
 
 
 class UserController(CruddyController):

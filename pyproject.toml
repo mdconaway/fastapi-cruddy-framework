@@ -49,6 +49,7 @@ redis = ">=5.0.1,<6.0.0"
 fakeredis = ">=2.20.1"
 async-timeout = ">=4.0.0,<5.0.0"
 pymitter = ">=0.5.0"
+strawberry-graphql = {extras = ["fastapi"], version = ">=0.220.0"}
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.12.0"
