@@ -5,7 +5,7 @@ from fastapi_cruddy_framework import (
     CruddyModel,
     CruddyUUIDModel,
     CruddyCreatedUpdatedSignature,
-    CruddyCreatedUpdatedQLOverrides,
+    CruddyCreatedUpdatedGQLOverrides,
     CruddyCreatedUpdatedMixin,
     validate_utc_datetime,
     CruddyGQLObject,
@@ -113,7 +113,7 @@ class Post(CruddyCreatedUpdatedMixin(), CruddyUUIDModel, PostCreate, table=True)
 # --------------------------------------------------------------------------------------
 
 
-class PostQLOverrides(CruddyCreatedUpdatedQLOverrides, PostView):
+class PostQLOverrides(CruddyCreatedUpdatedGQLOverrides, PostView):
     model_config = ConfigDict(arbitrary_types_allowed=True)  # type: ignore
     event_date: str | None = None
     tags: CruddyGQLObject | None = None

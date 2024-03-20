@@ -3,7 +3,7 @@ from fastapi_cruddy_framework import (
     CruddyModel,
     CruddyUUIDModel,
     CruddyCreatedUpdatedSignature,
-    CruddyCreatedUpdatedQLOverrides,
+    CruddyCreatedUpdatedGQLOverrides,
     CruddyCreatedUpdatedMixin,
 )
 from pydantic import ConfigDict
@@ -76,7 +76,7 @@ class Group(CruddyCreatedUpdatedMixin(), CruddyUUIDModel, GroupCreate, table=Tru
 # --------------------------------------------------------------------------------------
 
 
-class GroupQLOverrides(CruddyCreatedUpdatedQLOverrides, GroupView):
+class GroupQLOverrides(CruddyCreatedUpdatedGQLOverrides, GroupView):
     model_config = ConfigDict(arbitrary_types_allowed=True)  # type: ignore
 
 

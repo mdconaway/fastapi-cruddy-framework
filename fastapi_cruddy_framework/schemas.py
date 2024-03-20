@@ -172,12 +172,12 @@ def CruddyCreatedUpdatedMixin() -> type[CruddyCreatedUpdatedSignature]:
     return CruddyCreatedUpdatedInstance
 
 
-class CruddyGraphQLOverrides(CruddyModel):
+class CruddyGQLOverrides(CruddyModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)  # type: ignore
     links: CruddyGQLObject | None = None
 
 
-class CruddyCreatedUpdatedQLOverrides(CruddyModel):
+class CruddyCreatedUpdatedGQLOverrides(CruddyModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)  # type: ignore
     links: CruddyGQLObject | None = None
     created_at: CruddyGQLDateTime | None = None

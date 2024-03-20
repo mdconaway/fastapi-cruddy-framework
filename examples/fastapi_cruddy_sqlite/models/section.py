@@ -3,7 +3,7 @@ from fastapi_cruddy_framework import (
     CruddyModel,
     CruddyUUIDModel,
     CruddyCreatedUpdatedSignature,
-    CruddyCreatedUpdatedQLOverrides,
+    CruddyCreatedUpdatedGQLOverrides,
     CruddyCreatedUpdatedMixin,
 )
 from pydantic import ConfigDict
@@ -73,7 +73,7 @@ class Section(CruddyCreatedUpdatedMixin(), CruddyUUIDModel, SectionCreate, table
 # --------------------------------------------------------------------------------------
 
 
-class SectionQLOverrides(CruddyCreatedUpdatedQLOverrides, SectionView):
+class SectionQLOverrides(CruddyCreatedUpdatedGQLOverrides, SectionView):
     model_config = ConfigDict(arbitrary_types_allowed=True)  # type: ignore
 
 

@@ -4,7 +4,7 @@ from fastapi_cruddy_framework import (
     CruddyModel,
     CruddyUUIDModel,
     CruddyCreatedUpdatedSignature,
-    CruddyCreatedUpdatedQLOverrides,
+    CruddyCreatedUpdatedGQLOverrides,
     CruddyCreatedUpdatedMixin,
     validate_utc_datetime,
 )
@@ -141,7 +141,7 @@ class User(CruddyCreatedUpdatedMixin(), CruddyUUIDModel, UserCreate, table=True)
 # --------------------------------------------------------------------------------------
 
 
-class UserQLOverrides(CruddyCreatedUpdatedQLOverrides, UserView):
+class UserQLOverrides(CruddyCreatedUpdatedGQLOverrides, UserView):
     model_config = ConfigDict(arbitrary_types_allowed=True)  # type: ignore
     birthdate: str | None = None
 
