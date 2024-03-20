@@ -34,7 +34,7 @@ from .schemas import (
     CruddyModel,
     CruddyGenericModel,
 )
-from .util import possible_id_types, possible_id_values, lifecycle_types
+from .util import filter_headers, possible_id_types, possible_id_values, lifecycle_types
 
 if TYPE_CHECKING:
     from .repository import AbstractRepository
@@ -71,6 +71,7 @@ class Actions:
     default_limit: int
     relations: dict[str, RelationshipConfig]
     repository: "AbstractRepository"
+    header_blacklist: list[str] | None
 
     def __init__(
         self,
@@ -88,7 +89,9 @@ class Actions:
         relations: dict[str, RelationshipConfig],
         lifecycle: dict[str, lifecycle_types],
         default_limit: int = 10,
+        header_blacklist: list[str] | None = None,
     ):
+        self.header_blacklist = header_blacklist
         self.default_limit = default_limit
         self.lifecycle = lifecycle
         self.relations = relations
@@ -387,27 +390,7 @@ class Actions:
         return record_relations
 
     def filter_headers(self, header_dict: dict):
-        blacklist = [
-            "host",
-            "connection",
-            "content-length",
-            "sec-ch-ua",
-            "accept",
-            "content-type",
-            "sec-ch-ua-mobile",
-            "sec-ch-ua-platform",
-            "origin",
-            "sec-fetch-site",
-            "sec-fetch-mode",
-            "sec-fetch-dest",
-            "referer",
-            "accept-encoding",
-            "accept-language",
-        ]
-        for key in blacklist:
-            if key in header_dict:
-                del header_dict[key]
-        return header_dict
+        return filter_headers(header_dict=header_dict, blacklist=self.header_blacklist)
 
     async def create_or_update_relation(
         self, request: Request, resource: "Resource", data: dict

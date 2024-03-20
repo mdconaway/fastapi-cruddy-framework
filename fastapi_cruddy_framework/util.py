@@ -1,12 +1,12 @@
 import inspect
 from typing import Type, Coroutine, Any, Callable
 from json import dumps, loads
+from uuid import UUID
 from datetime import date, datetime, timezone, timedelta
 from re import compile, Match
+from fastapi import Request, WebSocket, Depends
 from pydantic.errors import PydanticErrorMixin
 from sqlalchemy.orm import class_mapper, object_mapper
-from fastapi import Request, WebSocket
-from uuid import UUID
 
 
 possible_id_types = Type[UUID] | Type[int] | Type[str]
@@ -35,6 +35,38 @@ class PydanticValueError(PydanticErrorMixin, ValueError):
 
 class DateTimeError(PydanticValueError):
     msg_template = "invalid datetime format"
+
+
+def dependency_list(*args):
+    return [Depends(x) for x in args]
+
+
+def filter_headers(header_dict: dict, blacklist: list[str] | None = None):
+    blacklist = (
+        [
+            "host",
+            "connection",
+            "content-length",
+            "sec-ch-ua",
+            "accept",
+            "content-type",
+            "sec-ch-ua-mobile",
+            "sec-ch-ua-platform",
+            "origin",
+            "sec-fetch-site",
+            "sec-fetch-mode",
+            "sec-fetch-dest",
+            "referer",
+            "accept-encoding",
+            "accept-language",
+        ]
+        if blacklist is None
+        else blacklist
+    )
+    for key in blacklist:
+        if key in header_dict:
+            del header_dict[key]
+    return header_dict
 
 
 def get_numeric(

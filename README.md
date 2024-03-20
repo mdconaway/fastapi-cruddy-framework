@@ -15,13 +15,15 @@
 
 [![Product Name Screen Shot][product-screenshot]](https://github.com/mdconaway/fastapi-cruddy-framework)
 
+<b>Cruddy Framework now supports GraphQL! For examples, see the [example server](examples/fastapi_cruddy_sqlite)!</b>
+
 `fastapi-cruddy-framework` is a companion library to [FastAPI](https://fastapi.tiangolo.com/) designed to bring the development productivity of [Ruby on Rails](https://rubyonrails.org/), [Ember.js](https://emberjs.com/) or [Sails.js](https://sailsjs.com/) to the [FastAPI](https://fastapi.tiangolo.com/) ecosystem. Many of the design patterns base themselves on [Sails.js](https://sailsjs.com/) "policies," [Sails.js](https://sailsjs.com/) model lifecycle events, [sails-ember-rest](https://github.com/mdconaway/sails-ember-rest) automatic CRUD routing, and [Ember.js](https://emberjs.com/) [REST-Adapter](https://api.emberjs.com/ember-data/release/classes/RESTAdapter) feature sets. By default, data sent to and from the auto-magic CRUD routes are expected to conform to the [Ember.js](https://emberjs.com/) Rest Envelope and Linked-data relationship specification. This specification is highly readable for front-end developers, allows for an expressive over-the-wire query syntax, and embeds self-describing relationship URL links in each over-the-wire record to help data stores automatically generate requests to fetch or update related records. This library is still in an alpha/beta phase, so use at your own risk. All CRUD actions and relationship types are currently supported, though there may be unexpected bugs. Please report any bugs under "issues."
 
 TODO: Additional documentation and tests. (General features covered by tests) Maybe more comments. Maybe more features.
 
 See the examples folder for a quick reference of high level setup. It currently contains a fully functional fastapi server which uses fastapi-cruddy-framework and the sqlite adapter. It even shows how to override incoming post data to do things like hash a user's password during initial registration using a simple drop-in policy function.
 
-Come for the websocket manager, stay for the CRUD!
+Come for the GraphQL and websocket managers, stay for the CRUD!
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -166,6 +168,19 @@ set_state
 BrowserTestClient
 TestClient
 WebSocketSession
+# GRAPHQL EXPORTS
+GraphQLController
+GraphQLRequestCache
+GraphQLResolverService
+create_module_resolver
+graphql_where_synthesizer
+generate_gql_loader_and_type
+GQL_WHERE_REPLACEMENT_CHARACTER
+CruddyGQLDateTime
+CruddyGQLObject
+CruddyGQLArray
+CruddyCreatedUpdatedGQLOverrides
+CruddyGQLOverrides
 ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -609,9 +624,8 @@ You can re-use CRUD actions in your controllers as follows:
 from pydantic.types import Json
 from fastapi_cruddy_framework import CruddyController
 from fastapi import Query, Path, HTTPException, status
-from fastapi_cruddy_framework import CruddyController
+from fastapi_cruddy_framework import CruddyController, dependency_list
 from examples.fastapi_cruddy_sqlite.policies.verify_session import verify_session
-from examples.fastapi_cruddy_sqlite.utils.dependency_list import dependency_list
 
 
 class UserController(CruddyController):
@@ -1081,6 +1095,36 @@ where = {"datetime_column": {"*gt": {"*datetime": "2024-02-14T19:17:40.860657Z"}
 Datetime value without timezone:
 ```python
 where = {"datetime_column": {"*gt": {"*datetime_naive": "2024-02-14T19:17:40.860657Z"}}}
+```
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+
+<!-- GraphQL -->
+
+## GraphQL
+
+Cruddy now supports GraphQL Read Operations! The GraphQL class APIs are considered unstable at the moment, but the GraphQL feature set is still <i>secure</i>, so it is safe to add it on top of your APIs!
+
+
+For examples on how to integrate GraphQL functionality with your cruddy-based app, inspect the [example server](examples/fastapi_cruddy_sqlite).
+
+
+Additional documentation will be added once the GraphQL API stabilizes! The cruddy exports that are directly needed to enable GraphQL are:
+
+```
+GraphQLController
+GraphQLRequestCache
+GraphQLResolverService
+create_module_resolver
+graphql_where_synthesizer
+generate_gql_loader_and_type
+GQL_WHERE_REPLACEMENT_CHARACTER
+CruddyGQLDateTime
+CruddyGQLObject
+CruddyGQLArray
+CruddyCreatedUpdatedGQLOverrides
+CruddyGQLOverrides
 ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>

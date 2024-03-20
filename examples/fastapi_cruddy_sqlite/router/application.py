@@ -7,6 +7,7 @@ from fastapi_cruddy_framework import (
     CreateRouterFromResources,
     CruddyResourceRegistry,
 )
+from examples.fastapi_cruddy_sqlite.controllers.graphql import graphql_controller
 from examples.fastapi_cruddy_sqlite.services.websocket_1 import websocket_manager_1
 from examples.fastapi_cruddy_sqlite.services.websocket_2 import websocket_manager_2
 from examples.fastapi_cruddy_sqlite.utils.session import get_client_identity
@@ -23,6 +24,8 @@ logger = getLogger(__name__)
 router: APIRouter = CreateRouterFromResources(
     application_module=examples.fastapi_cruddy_sqlite, resource_path="resources"
 )
+
+router.include_router(graphql_controller.router)
 
 
 # You can now bind additional routes to "router" below, as its a normal APIRouter

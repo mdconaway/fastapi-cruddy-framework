@@ -1,11 +1,9 @@
 from pydantic.types import Json
-from fastapi_cruddy_framework import CruddyController
 from fastapi import Query, Request, Response, Path, HTTPException, status
 from fastapi.responses import JSONResponse
-from fastapi_cruddy_framework import CruddyController
+from fastapi_cruddy_framework import CruddyController, dependency_list
 from examples.fastapi_cruddy_sqlite.policies.verify_session import verify_session
 from examples.fastapi_cruddy_sqlite.policies.naive_auth import naive_auth
-from examples.fastapi_cruddy_sqlite.utils.dependency_list import dependency_list
 from examples.fastapi_cruddy_sqlite.config.general import general
 
 
