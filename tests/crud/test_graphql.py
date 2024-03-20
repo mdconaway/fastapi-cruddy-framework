@@ -104,7 +104,7 @@ async def test_graphql_read(authenticated_client: BrowserTestClient):
                 links
                 created_at
                 updated_at
-                users {
+                users(where: { email: { __contains: "orc.peasant" } }, limit: 1, page: 1, sort: ["email asc"]) {
                     id
                     email
                     first_name
