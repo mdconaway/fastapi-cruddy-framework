@@ -15,7 +15,6 @@ from sqlalchemy.orm import declared_attr, RelationshipProperty
 from sqlalchemy.engine.row import Row
 from pydantic import BaseModel, ConfigDict, field_validator
 from strawberry import scalar
-from strawberry.scalars import JSON
 from sqlmodel import Field, SQLModel, DateTime
 from .util import build_tz_aware_date, parse_and_coerce_to_utc_datetime
 
@@ -41,9 +40,22 @@ LEAVE_SOCKET_BY_CLIENT = "leavesocket_client"
 CLIENT_MESSAGE_EVENT = "client_message"
 T = TypeVar("T")
 
-
+# The below graphQL types are basically pass-through types to improve performance
+# The base resource responders will have already formatted these elements properly
 CruddyGQLDateTime = scalar(
     NewType("CruddyGQLDateTime", str),
+    serialize=lambda v: v,
+    parse_value=lambda v: v,
+)
+
+CruddyGQLObject = scalar(
+    NewType("CruddyGQLObject", dict),
+    serialize=lambda v: v,
+    parse_value=lambda v: v,
+)
+
+CruddyGQLArray = scalar(
+    NewType("CruddyGQLArray", list),
     serialize=lambda v: v,
     parse_value=lambda v: v,
 )
@@ -162,12 +174,12 @@ def CruddyCreatedUpdatedMixin() -> type[CruddyCreatedUpdatedSignature]:
 
 class CruddyGraphQLOverrides(CruddyModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)  # type: ignore
-    links: JSON | None = None
+    links: CruddyGQLObject | None = None
 
 
 class CruddyCreatedUpdatedQLOverrides(CruddyModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)  # type: ignore
-    links: JSON | None = None
+    links: CruddyGQLObject | None = None
     created_at: CruddyGQLDateTime | None = None
     updated_at: CruddyGQLDateTime | None = None
 

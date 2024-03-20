@@ -25,6 +25,8 @@ from .schemas import (
     DISCONNECT_EVENT,
     T,
     CruddyGQLDateTime,
+    CruddyGQLObject,
+    CruddyGQLArray,
     RelationshipConfig,
     CruddyGenericModel,
     BulkDTO,

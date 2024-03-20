@@ -8,10 +8,10 @@ from fastapi_cruddy_framework import (
     CruddyCreatedUpdatedQLOverrides,
     CruddyCreatedUpdatedMixin,
     validate_utc_datetime,
+    CruddyGQLObject,
 )
 from pydantic import field_validator, ConfigDict
 from sqlmodel import Column, DateTime, Field, JSON, Relationship
-from strawberry.scalars import JSON as StrawberryJSON
 from strawberry.experimental.pydantic import type as strawberry_pydantic_type
 from examples.fastapi_cruddy_sqlite.services.graphql_resolver import graphql_resolver
 from examples.fastapi_cruddy_sqlite.models.common.graphql import (
@@ -116,7 +116,7 @@ class Post(CruddyCreatedUpdatedMixin(), CruddyUUIDModel, PostCreate, table=True)
 class PostQLOverrides(CruddyCreatedUpdatedQLOverrides, PostView):
     model_config = ConfigDict(arbitrary_types_allowed=True)  # type: ignore
     event_date: str | None = None
-    tags: StrawberryJSON | None = None
+    tags: CruddyGQLObject | None = None
 
 
 @strawberry_pydantic_type(model=PostQLOverrides, name="Post", all_fields=True)

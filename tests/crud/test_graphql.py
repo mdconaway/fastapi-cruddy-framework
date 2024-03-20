@@ -150,6 +150,7 @@ async def test_graphql_read(authenticated_client: BrowserTestClient):
     assert len(result["data"]["users"]) == 1
     assert isinstance(result["data"]["groups"][0]["created_at"], str)
     assert isinstance(result["data"]["groups"][0]["updated_at"], str)
+    assert isinstance(result["data"]["groups"][0]["links"], dict)
     assert len(result["data"]["sections"][0]["posts"]) == 1
     assert isinstance(result["data"]["sections"][0]["posts"][0]["created_at"], str)
     assert isinstance(result["data"]["sections"][0]["posts"][0]["updated_at"], str)
