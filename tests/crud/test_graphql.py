@@ -136,7 +136,7 @@ async def test_graphql_read(authenticated_client: BrowserTestClient):
                     last_name
                 }
             }
-        """
+            """
         },
     )
     assert response.status_code == status.HTTP_200_OK
