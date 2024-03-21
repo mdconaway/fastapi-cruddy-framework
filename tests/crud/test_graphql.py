@@ -99,43 +99,44 @@ async def test_graphql_read(authenticated_client: BrowserTestClient):
         f"/graphql",
         json={
             "query": """query TestQuery {
-            groups {
-                id
-                links
-                created_at
-                updated_at
-                users(where: { email: { __contains: "orc.peasant" } }, limit: 1, page: 1, sort: ["email asc"]) {
+                groups {
+                    id
+                    links
+                    created_at
+                    updated_at
+                    users(where: { email: { __contains: "orc.peasant" } }, limit: 1, page: 1, sort: ["email asc"]) {
+                        id
+                        email
+                        first_name
+                        last_name
+                        created_at
+                        updated_at
+                    }
+                    name
+                }
+                sections {
+                    id
+                    posts {
+                        id
+                        content
+                        created_at
+                        updated_at
+                        sections {
+                            name
+                        }
+                    }
+                    name
+                    created_at
+                    updated_at
+                }
+                users {
                     id
                     email
                     first_name
                     last_name
-                    created_at
-                    updated_at
                 }
-                name
             }
-            sections {
-                id
-                posts {
-                    id
-                    content
-                    created_at
-                    updated_at
-                    sections {
-                        name
-                    }
-                }
-                name
-                created_at
-                updated_at
-            }
-            users {
-                id
-                email
-                first_name
-                last_name
-            }
-        }"""
+        """
         },
     )
     assert response.status_code == status.HTTP_200_OK
