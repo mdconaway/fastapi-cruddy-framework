@@ -4,6 +4,7 @@ from typing import (
     TypeVar,
     Generic,
     Sequence,
+    NewType,
     TYPE_CHECKING,
 )
 from datetime import datetime
@@ -12,7 +13,8 @@ from uuid_extensions import uuid7
 from sqlalchemy import Column
 from sqlalchemy.orm import declared_attr, RelationshipProperty
 from sqlalchemy.engine.row import Row
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator
+from strawberry import scalar
 from sqlmodel import Field, SQLModel, DateTime
 from .util import build_tz_aware_date, parse_and_coerce_to_utc_datetime
 
@@ -25,6 +27,7 @@ if TYPE_CHECKING:
 # -------------------------------------------------------------------------------------------
 BROADCAST_EVENT = "broadcast"
 CONTROL_EVENT = "control"
+DISCONNECT_EVENT = "disconnect"
 ROOM_EVENT = "room"
 CLIENT_EVENT = "client"
 KILL_SOCKET_BY_ID = "killsocket_id"
@@ -36,6 +39,26 @@ LEAVE_SOCKET_BY_ID = "leavesocket_id"
 LEAVE_SOCKET_BY_CLIENT = "leavesocket_client"
 CLIENT_MESSAGE_EVENT = "client_message"
 T = TypeVar("T")
+
+# The below graphQL types are basically pass-through types to improve performance
+# The base resource responders will have already formatted these elements properly
+CruddyGQLDateTime = scalar(
+    NewType("CruddyGQLDateTime", str),
+    serialize=lambda v: v,
+    parse_value=lambda v: v,
+)
+
+CruddyGQLObject = scalar(
+    NewType("CruddyGQLObject", dict),
+    serialize=lambda v: v,
+    parse_value=lambda v: v,
+)
+
+CruddyGQLArray = scalar(
+    NewType("CruddyGQLArray", list),
+    serialize=lambda v: v,
+    parse_value=lambda v: v,
+)
 
 
 class RelationshipConfig:
@@ -147,6 +170,18 @@ def CruddyCreatedUpdatedMixin() -> type[CruddyCreatedUpdatedSignature]:
             return parse_and_coerce_to_utc_datetime(v)
 
     return CruddyCreatedUpdatedInstance
+
+
+class CruddyGQLOverrides(CruddyModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)  # type: ignore
+    links: CruddyGQLObject | None = None
+
+
+class CruddyCreatedUpdatedGQLOverrides(CruddyModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)  # type: ignore
+    links: CruddyGQLObject | None = None
+    created_at: CruddyGQLDateTime | None = None
+    updated_at: CruddyGQLDateTime | None = None
 
 
 class ExampleUpdate(CruddyModel):

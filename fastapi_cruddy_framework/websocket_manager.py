@@ -25,6 +25,7 @@ from .schemas import (
     LEAVE_SOCKET_BY_ID,
     LEAVE_SOCKET_BY_CLIENT,
     CLIENT_MESSAGE_EVENT,
+    DISCONNECT_EVENT,
 )
 from .util import to_json_object, get_state, set_state
 
@@ -134,7 +135,7 @@ class WebsocketConnectionManager:
                 if isinstance(data, dict):
                     await self.emit(CLIENT_MESSAGE_EVENT, websocket, data)
         except WebSocketDisconnect as e:
-            self._unlink_socket(websocket)
+            await self._unlink_socket(websocket)
             logger.info("Websocket client %s disconnected %s", socket_id, str(e))
             await self._eval_disconnect_settings(
                 disconnect_message_type, disconnect_message_data
@@ -145,7 +146,7 @@ class WebsocketConnectionManager:
                 "Killing websocket client %s for sending malformed JSON or generally misbehaving",
                 socket_id,
             )
-        self._unlink_socket(websocket)
+        await self._unlink_socket(websocket)
         logger.info("Websocket client %s force closed", socket_id)
         await websocket.close()
         await self._eval_disconnect_settings(
@@ -203,6 +204,14 @@ class WebsocketConnectionManager:
             )
         )
 
+    def get_room_config(self, socket: WebSocket):
+        room_config: SocketRoomConfiguration = get_state(
+            socket,
+            self.room_configuration_object_key,
+            default=SocketRoomConfiguration(room_list=set()),
+        )
+        return room_config
+
     def get_sockets_by_id(self, id: str):
         sockets: list[WebSocket] = []
         for socket in self.active_connections:
@@ -218,13 +227,9 @@ class WebsocketConnectionManager:
         return sockets
 
     def get_sockets_by_room(self, room_id: str):
-        sockets = []
+        sockets: list[WebSocket] = []
         for socket in self.active_connections:
-            room_config: SocketRoomConfiguration = get_state(
-                socket,
-                self.room_configuration_object_key,
-                default=SocketRoomConfiguration(room_list=set()),
-            )
+            room_config = self.get_room_config(socket)
             if room_id in room_config.room_list:
                 sockets.append(socket)
         return sockets
@@ -232,11 +237,7 @@ class WebsocketConnectionManager:
     def get_room_list(self) -> set[str]:
         rooms = set()
         for socket in self.active_connections:
-            room_config: SocketRoomConfiguration = get_state(
-                socket,
-                self.room_configuration_object_key,
-                default=SocketRoomConfiguration(room_list=set()),
-            )
+            room_config = self.get_room_config(socket)
             rooms.update(room_config.room_list)
         return rooms
 
@@ -346,8 +347,9 @@ class WebsocketConnectionManager:
                 type=disconnect_message_type, data=disconnect_message_data
             )
 
-    def _unlink_socket(self, websocket: WebSocket):
+    async def _unlink_socket(self, websocket: WebSocket):
         self.active_connections.remove(websocket)
+        await self.emit(DISCONNECT_EVENT, websocket)
 
     def _exec_custom_getter(self, socket: WebSocket):
         if self.custom_client_identifier is not None:
@@ -397,20 +399,12 @@ class WebsocketConnectionManager:
 
     def _join_sockets(self, sockets: list[WebSocket], room_id: str):
         for socket in sockets:
-            room_config: SocketRoomConfiguration = get_state(
-                socket,
-                self.room_configuration_object_key,
-                default=SocketRoomConfiguration(room_list=set()),
-            )
+            room_config = self.get_room_config(socket)
             room_config.room_list.add(room_id)
 
     def _leave_sockets(self, sockets: list[WebSocket], room_id: str):
         for socket in sockets:
-            room_config: SocketRoomConfiguration = get_state(
-                socket,
-                self.room_configuration_object_key,
-                default=SocketRoomConfiguration(room_list=set()),
-            )
+            room_config = self.get_room_config(socket)
             room_config.room_list.remove(room_id)
 
     async def _send_to_sockets(self, sockets: list[WebSocket], message: str):

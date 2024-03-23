@@ -15,13 +15,25 @@
 
 [![Product Name Screen Shot][product-screenshot]](https://github.com/mdconaway/fastapi-cruddy-framework)
 
+<b>Cruddy Framework now supports GraphQL! For examples, see the [example server](examples/fastapi_cruddy_sqlite)!</b>
+
 `fastapi-cruddy-framework` is a companion library to [FastAPI](https://fastapi.tiangolo.com/) designed to bring the development productivity of [Ruby on Rails](https://rubyonrails.org/), [Ember.js](https://emberjs.com/) or [Sails.js](https://sailsjs.com/) to the [FastAPI](https://fastapi.tiangolo.com/) ecosystem. Many of the design patterns base themselves on [Sails.js](https://sailsjs.com/) "policies," [Sails.js](https://sailsjs.com/) model lifecycle events, [sails-ember-rest](https://github.com/mdconaway/sails-ember-rest) automatic CRUD routing, and [Ember.js](https://emberjs.com/) [REST-Adapter](https://api.emberjs.com/ember-data/release/classes/RESTAdapter) feature sets. By default, data sent to and from the auto-magic CRUD routes are expected to conform to the [Ember.js](https://emberjs.com/) Rest Envelope and Linked-data relationship specification. This specification is highly readable for front-end developers, allows for an expressive over-the-wire query syntax, and embeds self-describing relationship URL links in each over-the-wire record to help data stores automatically generate requests to fetch or update related records. This library is still in an alpha/beta phase, so use at your own risk. All CRUD actions and relationship types are currently supported, though there may be unexpected bugs. Please report any bugs under "issues."
 
 TODO: Additional documentation and tests. (General features covered by tests) Maybe more comments. Maybe more features.
 
 See the examples folder for a quick reference of high level setup. It currently contains a fully functional fastapi server which uses fastapi-cruddy-framework and the sqlite adapter. It even shows how to override incoming post data to do things like hash a user's password during initial registration using a simple drop-in policy function.
 
-Come for the websocket manager, stay for the CRUD!
+Come for the GraphQL and websocket managers, stay for the CRUD!
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+<!-- FRONT END PACKAGES -->
+
+## Front-end Libraries
+
+If you are a front-end developer, you may be interested in using the following modules to help with making a UI that may communicate with a back-end server built with `fastapi-cruddy-framework`.
+
+- `cruddy-types` [npm](https://www.npmjs.com/package/cruddy-types), [Github](https://github.com/ukitake/cruddy-types)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -105,6 +117,7 @@ JOIN_SOCKET_BY_CLIENT
 LEAVE_SOCKET_BY_ID
 LEAVE_SOCKET_BY_CLIENT
 CLIENT_MESSAGE_EVENT
+DISCONNECT_EVENT
 # TYPES / MODELS / SCHEMAS
 T
 UUID
@@ -155,6 +168,19 @@ set_state
 BrowserTestClient
 TestClient
 WebSocketSession
+# GRAPHQL EXPORTS
+GraphQLController
+GraphQLRequestCache
+GraphQLResolverService
+create_module_resolver
+graphql_where_synthesizer
+generate_gql_loader_and_type
+GQL_WHERE_REPLACEMENT_CHARACTER
+CruddyGQLDateTime
+CruddyGQLObject
+CruddyGQLArray
+CruddyCreatedUpdatedGQLOverrides
+CruddyGQLOverrides
 ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -214,7 +240,7 @@ The `Resource` class is the fundamental building block of fastapi-cruddy-framewo
 - Each endpoint is protected by `policies_universal` + `policies_<action>`.
 - One-to-Many and Many-to-Many sub-routes (like /users/{id}/posts) will be protected by the policy chain: `user.policies_universal` + `user.policies_get_one` + `posts.policies_get_many`. Security, security, security!
 - Blocking user REST modification of certain relationships via the default CRUD controller is also done at definition time!
-- `protected_relationships` is a `list[str]` with each string indicating a one-to-many or many-to-many relationship that should not be allowed to update via the default CRUD actions.
+- `protected_relationships`, `protected_create_relationships` and `protected_update_relationships` are `list[str]` types with each string indicating a one-to-many, many-to-one, or many-to-many relationship that should not be allowed to create or update via the default CRUD actions. (protected_relationships alone blocks BOTH)
 - You should define your application-wide adapter elsewhere and pass it into the resource instance.
 - Resources cannot span different databases.
 
@@ -227,7 +253,7 @@ The `Resource` class is the fundamental building block of fastapi-cruddy-framewo
 - `policies_get_one`
 - `policies_get_many`
 
-<b>Available ASYNC Lifecycle Hooks:</b>
+<b>Available ASYNC Repository Level Lifecycle Hooks:</b>
 
 - `lifecycle_before_create`
 - `lifecycle_after_create`
@@ -242,9 +268,24 @@ The `Resource` class is the fundamental building block of fastapi-cruddy-framewo
 - `lifecycle_before_set_relations`
 - `lifecycle_after_set_relations`
 
+<b>Available ASYNC Controller Level Lifecycle Hooks:</b>
+
+- `lifecycle_before_controller_create`
+- `lifecycle_after_controller_create`
+- `lifecycle_before_controller_update`
+- `lifecycle_after_controller_update`
+- `lifecycle_before_controller_delete`
+- `lifecycle_after_controller_delete`
+- `lifecycle_before_controller_get_one`
+- `lifecycle_after_controller_get_one`
+- `lifecycle_before_controller_get_all`
+- `lifecycle_after_controller_get_all`
+
 <b>Available Relationship Blocks:</b>
 
 - `protected_relationships`
+- `protected_create_relationships`
+- `protected_update_relationships`
 
 <b>Updating Relationships:</b>
 
@@ -252,7 +293,7 @@ The `Resource` class is the fundamental building block of fastapi-cruddy-framewo
 
 As you will discover, your resource's create and update models will automatically gain "shadow" properties where one-to-many and many-to-many relationships exist. These properties expect a client to send a list of IDs that specify the foreign records that relate to the target record. So - if a user is a member of many groups, and a group can have many users, you could update the users in a group by sending a property `"users": [1,2,3,4,5]` within the `group` payload object you send to the `POST /groups` or `PATCH /groups` routes/actions. It will all be clear when you look at the SWAGGER docs generated for your API.
 
-<b>Lifecycle hooks</b>
+<b>Repository Lifecycle hooks</b>
 
 The following lifecycle hook methods, which can be defined in user-space code, receive the following information from fastapi-cruddy-framework:
 
@@ -282,7 +323,7 @@ The following lifecycle hook methods, which can be defined in user-space code, r
 {
     "id": id, # The database id whos relationship are about to be altered (of your defined PK type)
     "relation": relation, # The relationship that is about to change (string)
-    "relations": relations # An array of foreign ids that will now define this relationship (Framework will attempt to discard old relations)
+    "relations": relations # An array of foreign ids, or record dictionaries that will now define this relationship (Framework will attempt to discard old relations)
 }
 ```
 
@@ -298,6 +339,31 @@ The following lifecycle hook methods, which can be defined in user-space code, r
     "updated_db_count": result # The number of records now in the database associated with this relationship. If the number is different than the length of relation_conf.relations, you probably have a non-nullable field on the far-side of this relationship.
 }
 ```
+
+<b>Controller Lifecycle hooks</b>
+
+The following lifecycle hook methods, which can be defined in user-space code, receive the following information from fastapi-cruddy-framework:
+
+`lifecycle_before_controller_create` - request (a FastAPI Request), context (A mutable action context dictionary)
+
+`lifecycle_after_controller_create` - request (a FastAPI Request), context (A mutable action context dictionary)
+
+`lifecycle_before_controller_update` - request (a FastAPI Request), context (A mutable action context dictionary)
+
+`lifecycle_after_controller_update` - request (a FastAPI Request), context (A mutable action context dictionary)
+
+`lifecycle_before_controller_delete` - request (a FastAPI Request), context (A mutable action context dictionary)
+
+`lifecycle_after_controller_delete` - request (a FastAPI Request), context (A mutable action context dictionary)
+
+`lifecycle_before_controller_get_one` - request (a FastAPI Request), context (A mutable action context dictionary)
+
+`lifecycle_after_controller_get_one` - request (a FastAPI Request), context (A mutable action context dictionary)
+
+`lifecycle_before_controller_get_all` - request (a FastAPI Request), context (A mutable action context dictionary)
+
+`lifecycle_after_controller_get_all` - request (a FastAPI Request), context (A mutable action context dictionary)
+
 
 Resource Definition Options (And Defaults!):
 
@@ -345,11 +411,15 @@ response_schema: CruddyModel = ExampleView,
 # any paginated routes. You shouldn't NEED to change this, but you can if you want.
 response_meta_schema: CruddyGenericModel = MetaObject,
 # 'protected_relationships' will ban-hammer relationship fields specified from gaining
-# an auto-magic update property. This will prevent users from creating or updating these
-# relationships via the default CRUD actions. You will need to build other business logic
+# an auto-magic create or update property. This will prevent users from creating or updating
+# these relationships via the default CRUD actions. You will need to build other business logic
 # to manage creating or changing protected relationships elsewhere in your application.
 # Protected relationships will still be viewable at their designated GET routes.
+# 'protected_create_relationships' and 'protected_update_relationships' only prevent embedded
+# relational changes at the CREATE and UPDATE routes, respectively.
 protected_relationships: list[str] = [],
+protected_create_relationships: list[str] = [],
+protected_update_relationships: list[str] = [],
 # 'artificial_relationship_paths' will add an arbitrary list of sub-paths to each CRUD object's
 # relationship "links" attribute. For example, adding "artificial_relationship_paths": ["fake"]
 # would cause each object's "links" attribute to contain a key-value pair of:
@@ -364,12 +434,12 @@ artificial_relationship_paths: list[str] = [],
 # from triggering other APIs and services, protecting endpoints to ensure only the correct
 # users can alter data, or to intercept and even modify data before it gets to a default CRUD
 # action! (Like hashing a user's password based on the plain-text password they send to register)
-policies_universal: list[Callable] = [],
-policies_create: list[Callable] = [],
-policies_update: list[Callable] = [],
-policies_delete: list[Callable] = [],
-policies_get_one: list[Callable] = [],
-policies_get_many: list[Callable] = [],
+policies_universal: Sequence[Callable] = [],
+policies_create: Sequence[Callable] = [],
+policies_update: Sequence[Callable] = [],
+policies_delete: Sequence[Callable] = [],
+policies_get_one: Sequence[Callable] = [],
+policies_get_many: Sequence[Callable] = [],
 # The disable_<endpoint> options allow app developers to simply abort automatic generation of select
 # CRUD endpoints on the resource's controller. For instance, to make a write-once collection a
 # developercould set disable_update to True, which would cause the resource to abort building a route
@@ -379,6 +449,12 @@ disable_update: bool = False,
 disable_delete: bool = False,
 disable_get_one: bool = False,
 disable_get_many: bool = False,
+# The disable_nested_objects flag prevents users from sending dictionaries inside of relationship arrays
+# which the server will automatically unpack by default into an attempted create or update of the related
+# resource. Any nested objects sent will still flow through the entire policy chain of the target resource!
+# Any dictionary send with a primary key field will be handled as if it is an update. To create a new
+# object via an embedded relationship, send the nested object without a primary key set!
+disable_nested_objects: bool = False,
 # Default limit will only set a limit on incoming queries if the user DOES NOT specify one. You should
 # implement POLICIES to enforce a MAX limit, as you will ultimately have to re-use any max limit
 # policies in your own custom controller functions for consistency. Max limit policies can be implemented
@@ -389,10 +465,10 @@ default_limit: int = 10,
 # controller/router. Pass in your class definition and it will be instantiated at the appropriate
 # time! See "CruddyController" example below!
 controller_extension: CruddyController = None,
-# The following lifecycle hooks can each recieve an async function which will be invoked before or
-# after the target lifecycle event. Generally, whatever values are passed to the lifecycle hook are
-# alterable WITHIN the hook so that userspace code can alter the behavior of the lifecycle based on
-# app level concerns. This allows apps to do things like: hash a user password, force certain
+# The following REPOSITORY lifecycle hooks can each recieve an async function which will be invoked
+# before or after the target lifecycle event. Generally, whatever values are passed to the lifecycle
+# hook are alterable WITHIN the hook so that userspace code can alter the behavior of the lifecycle
+# based on app level concerns. This allows apps to do things like: hash a user password, force certain
 # relationships to always exist, force "many" queries to obey sensible limits, commit log entries,
 # send messages to queues for processing based on CRUD events, or generally handle unforseen
 # circumstances.
@@ -408,6 +484,22 @@ lifecycle_before_get_all: Callable[..., Coroutine[Any, Any, Any]] | None = None,
 lifecycle_after_get_all: Callable[..., Coroutine[Any, Any, Any]] | None = None,
 lifecycle_before_set_relations: Callable[..., Coroutine[Any, Any, Any]] | None = None,
 lifecycle_after_set_relations: Callable[..., Coroutine[Any, Any, Any]] | None = None,
+# The following CONTROLLER lifecycle hooks can each recieve an async function which will be invoked
+# before or after the target lifecycle event. Generally, whatever values are passed to the lifecycle
+# hook are alterable WITHIN the hook so that userspace code can alter the behavior of the lifecycle
+# based on app level concerns. CONTROLLER lifecycles hooks will also receive the REQUEST context,
+# allowing the hook to take actions that consider the user and their priveleges, while still
+# interleaving that logic within the cruddy action.
+lifecycle_before_controller_create: Callable[..., Coroutine[Any, Any, Any]] | None = None,
+lifecycle_after_controller_create: Callable[..., Coroutine[Any, Any, Any]] | None = None,
+lifecycle_before_controller_update: Callable[..., Coroutine[Any, Any, Any]] | None = None,
+lifecycle_after_controller_update: Callable[..., Coroutine[Any, Any, Any]] | None = None,
+lifecycle_before_controller_delete: Callable[..., Coroutine[Any, Any, Any]] | None = None,
+lifecycle_after_controller_delete: Callable[..., Coroutine[Any, Any, Any]] | None = None,
+lifecycle_before_controller_get_one: Callable[..., Coroutine[Any, Any, Any]] | None = None,
+lifecycle_after_controller_get_one: Callable[..., Coroutine[Any, Any, Any]] | None = None,
+lifecycle_before_controller_get_all: Callable[..., Coroutine[Any, Any, Any]] | None = None,
+lifecycle_after_controller_get_all: Callable[..., Coroutine[Any, Any, Any]] | None = None,
 ```
 
 Below is an example for creating a `user` resource. The best way to organize your app would be to place the definition for your user resource in a folder like `my_app/resources/user.py`, where the name of your application is `my_app`. As you saw earlier in the description for `CreateRouterFromResources` you would then load this user resource file by simply specifying `application_module=my_app` and `resource_path="resources"`. Your `fastapi-cruddy-framework` project would then auto-magically load your resource file(s), create dynamic routes to create, read, update, and delete this resource, and further create sub-routes within this resource to browse, query and update all of the relationships for your resource.
@@ -532,9 +624,8 @@ You can re-use CRUD actions in your controllers as follows:
 from pydantic.types import Json
 from fastapi_cruddy_framework import CruddyController
 from fastapi import Query, Path, HTTPException, status
-from fastapi_cruddy_framework import CruddyController
+from fastapi_cruddy_framework import CruddyController, dependency_list
 from examples.fastapi_cruddy_sqlite.policies.verify_session import verify_session
-from examples.fastapi_cruddy_sqlite.utils.dependency_list import dependency_list
 
 
 class UserController(CruddyController):
@@ -843,6 +934,197 @@ async def authenticated_websocket(authenticated_client: BrowserTestClient):
         # to whatever function needs to run tests
         yield websocket
 
+```
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+
+<!-- Where Queries -->
+
+## Where Queries
+
+Additional documentation will be added soon on complete functionality supported via the CRUD endpoint / AbstractRepository `where` parameter.
+
+### NEW QUERY FEATURES
+
+#### Column casting!
+
+
+To cast a column to a different type during a query, send a where payload like one of the examples below.
+
+
+A `tsvector` cast:
+```python
+where = {"column_name:tsvector:english": {"*websearch_to_tsquery": "foo or bar -baz"}}
+```
+
+
+The query stage's casting key name for `tsvector` should match the format `<column_name>:tsvector:<vector language>`.
+
+
+`tsvector` is the most complicated form of casting, as it requires the cast type (tsvector) as well as the tsvector language (english, or another langauge) in the key definition.
+
+
+`tsvector` then supports the following query operators at the next level: `*websearch_to_tsquery` and `*match`, both of which mirror the sqlalchemy docs regarding functionality.
+
+
+To add a `tsvector` field to your cruddy data model, complete with proper indexing for performance, add the following to your table model class:
+
+
+```python
+# models/example.py
+from typing import Any
+from sqlmodel import Field, cast, func, Text
+from sqlalchemy import Column, Index, literal_column
+from sqlalchemy.dialects.postgresql import JSONB, UUID as psqlUUID
+from fastapi_cruddy_framework import  CruddyModel, CruddyCreatedUpdatedMixin, UUID, uuid7
+
+
+class ExampleUpdate(CruddyModel):
+    data: Any = Field(
+        schema_extra={
+            "examples": [
+                {
+                    "some": {
+                        "key": "value"
+                    }
+                }
+            ]
+        }
+    )
+
+
+class ExampleCreate(ExampleUpdate):
+    pass
+
+
+class Example(CruddyCreatedUpdatedMixin(), ExampleCreate, table=True):  # type: ignore
+    id: UUID =  Field(
+        sa_column=Column(
+            psqlUUID(as_uuid=True),
+            primary_key=True,
+            index=True,
+            nullable=False,
+            default=uuid7,
+        )
+    )
+    data: Any = Field(
+        default=None,
+        sa_column=Column(JSONB, nullable=True, default=None),
+    )
+    __table_args__ = (
+        Index("ix_Example_data_gin", "data", postgresql_using="gin"),
+        Index('ix_Example_data_tsvector', func.to_tsvector(literal_column("'english'"), cast(data.sa_column, Text)), postgresql_using="gin"),
+    )
+```
+
+
+A `Text` (or any other) cast:
+```python
+where = {"a_json_column_name:Text": {"*icontains": "some substring"}}
+```
+
+
+The query stage's casting key name should match the format `<column_name>:<cast type>`.
+
+
+Generally cast types are straightforward and expect a query operator and input type that can be mapped to the column's casted type. Supported column cast types are:
+
+
+```python
+array
+tsvector
+BigInteger
+Boolean
+Date
+DateTime
+Double
+Enum
+Float
+Integer
+Interval
+LargeBinary
+MatchType
+Numeric
+SmallInteger
+String
+Text
+Time
+Unicode
+UnicodeText
+Uuid
+ARRAY
+BIGINT
+BINARY
+BLOB
+BOOLEAN
+CHAR
+CLOB
+DATE
+DATETIME
+DECIMAL
+DOUBLE
+DOUBLE_PRECISION
+FLOAT
+INT
+INTEGER
+JSON
+NCHAR
+NUMERIC
+NVARCHAR
+REAL
+SMALLINT
+TEXT
+TIME
+TIMESTAMP
+UUID
+VARBINARY
+VARCHAR
+```
+
+
+#### Value casting!
+
+
+Datetime value with timezone:
+```python
+where = {"datetime_column": {"*gt": {"*datetime": "2024-02-14T19:17:40.860657Z"}}}
+```
+
+
+Datetime value without timezone:
+```python
+where = {"datetime_column": {"*gt": {"*datetime_naive": "2024-02-14T19:17:40.860657Z"}}}
+```
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+
+<!-- GraphQL -->
+
+## GraphQL
+
+Cruddy now supports GraphQL Read Operations! The GraphQL class APIs are considered unstable at the moment, but the GraphQL feature set is still <i>secure</i>, so it is safe to add it on top of your APIs!
+
+
+For examples on how to integrate GraphQL functionality with your cruddy-based app, inspect the [example server](examples/fastapi_cruddy_sqlite).
+
+
+Additional documentation will be added once the GraphQL API stabilizes! The cruddy exports that are directly needed to enable GraphQL are:
+
+```
+GraphQLController
+GraphQLRequestCache
+GraphQLResolverService
+create_module_resolver
+graphql_where_synthesizer
+generate_gql_loader_and_type
+GQL_WHERE_REPLACEMENT_CHARACTER
+CruddyGQLDateTime
+CruddyGQLObject
+CruddyGQLArray
+CruddyCreatedUpdatedGQLOverrides
+CruddyGQLOverrides
 ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>

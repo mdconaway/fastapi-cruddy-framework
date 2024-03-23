@@ -10,17 +10,16 @@ from pydantic import ConfigDict
 from sqlmodel import Field, Relationship
 from strawberry.experimental.pydantic import type as strawberry_pydantic_type
 from examples.fastapi_cruddy_sqlite.services.graphql_resolver import graphql_resolver
-from examples.fastapi_cruddy_sqlite.models.common.relationships import GroupUserLink
 from examples.fastapi_cruddy_sqlite.models.common.graphql import (
-    USER_LIST_TYPE,
-    USER_CLASS_LOADER,
+    POST_LIST_TYPE,
+    POST_CLASS_LOADER,
 )
 
 if TYPE_CHECKING:
-    from examples.fastapi_cruddy_sqlite.models.user import User
+    from examples.fastapi_cruddy_sqlite.models.post import Post
 
 
-EXAMPLE_GROUP = {"name": "Cruddy Fans"}
+EXAMPLE_SECTION = {"name": "Opinions"}
 
 # The way the CRUD Router works, it needs an update, create, and base model.
 # If you always structure model files in this order, you can extend from the
@@ -34,15 +33,15 @@ EXAMPLE_GROUP = {"name": "Cruddy Fans"}
 # The "Update" model variant describes all fields that can be affected by a
 # client's PATCH action. Generally, the update model should have the fewest
 # number of available fields for a client to manipulate.
-class GroupUpdate(CruddyModel):
-    name: str = Field(schema_extra={"examples": [EXAMPLE_GROUP["name"]]})
+class SectionUpdate(CruddyModel):
+    name: str = Field(schema_extra={"examples": [EXAMPLE_SECTION["name"]]})
 
 
 # The "Create" model variant expands on the update model, above, and adds
 # any new fields that may be writeable only the first time a record is
 # generated. This allows the POST action to accept update-able fields, as
 # well as one-time writeable fields.
-class GroupCreate(GroupUpdate):
+class SectionCreate(SectionUpdate):
     pass
 
 
@@ -53,9 +52,9 @@ class GroupCreate(GroupUpdate):
 # fields. This should be used when defining single responses and paged
 # responses, as in the schemas below. To support column clipping, all
 # fields need to be optional.
-class GroupView(CruddyCreatedUpdatedSignature, CruddyUUIDModel):
+class SectionView(CruddyCreatedUpdatedSignature, CruddyUUIDModel):
     name: str | None = Field(
-        default=None, schema_extra={"examples": [EXAMPLE_GROUP["name"]]}
+        default=None, schema_extra={"examples": [EXAMPLE_SECTION["name"]]}
     )
 
 
@@ -64,11 +63,9 @@ class GroupView(CruddyCreatedUpdatedSignature, CruddyUUIDModel):
 # in JSON representations, as it may contain hidden fields like passwords
 # or other server-internal state or tracking information. Keep your "Base"
 # models separated from all other interactive derivations.
-class Group(CruddyCreatedUpdatedMixin(), CruddyUUIDModel, GroupCreate, table=True):
+class Section(CruddyCreatedUpdatedMixin(), CruddyUUIDModel, SectionCreate, table=True):
     # is the below needed??
-    users: list["User"] = Relationship(
-        back_populates="groups", link_model=GroupUserLink
-    )
+    posts: list["Post"] = Relationship(back_populates="section")
 
 
 # --------------------------------------------------------------------------------------
@@ -76,17 +73,17 @@ class Group(CruddyCreatedUpdatedMixin(), CruddyUUIDModel, GroupCreate, table=Tru
 # --------------------------------------------------------------------------------------
 
 
-class GroupQLOverrides(CruddyCreatedUpdatedGQLOverrides, GroupView):
+class SectionQLOverrides(CruddyCreatedUpdatedGQLOverrides, SectionView):
     model_config = ConfigDict(arbitrary_types_allowed=True)  # type: ignore
 
 
-@strawberry_pydantic_type(model=GroupQLOverrides, name="Group", all_fields=True)
-class GroupQL:
-    users = graphql_resolver.generate_resolver(
-        type_name="user",
-        graphql_type=USER_LIST_TYPE,
+@strawberry_pydantic_type(model=SectionQLOverrides, name="Section", all_fields=True)
+class SectionQL:
+    posts = graphql_resolver.generate_resolver(
+        type_name="post",
+        graphql_type=POST_LIST_TYPE,
         # You must define your prefererd internal API path to find the relation
-        # Your route generator will be passed an instance of a group record
-        route_generator=lambda x: f"groups/{getattr(x, 'id')}/users",
-        class_loader=USER_CLASS_LOADER,
+        # Your route generator will be passed an instance of a section record
+        route_generator=lambda x: f"sections/{getattr(x, 'id')}/posts",
+        class_loader=POST_CLASS_LOADER,
     )

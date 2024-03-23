@@ -1,4 +1,5 @@
 import math
+from typing import Any
 from asyncio import gather
 from logging import getLogger
 from sqlalchemy import (
@@ -8,12 +9,61 @@ from sqlalchemy import (
     and_,
     not_,
     func,
+    Cast,
+    literal_column,
 )
 from sqlalchemy.dialects.postgresql import JSONB, array
 from sqlalchemy.engine import Result
 from sqlalchemy.sql import select, update
 from sqlalchemy.sql.schema import Table, Column
-from sqlalchemy.types import JSON, VARCHAR  # ARRAY, CHAR
+from sqlalchemy.types import (
+    ARRAY,
+    BIGINT,
+    BINARY,
+    BLOB,
+    BOOLEAN,
+    CHAR,
+    CLOB,
+    DATE,
+    DATETIME,
+    DECIMAL,
+    DOUBLE,
+    DOUBLE_PRECISION,
+    FLOAT,
+    INT,
+    INTEGER,
+    JSON,
+    NCHAR,
+    NUMERIC,
+    NVARCHAR,
+    REAL,
+    SMALLINT,
+    TEXT,
+    TIME,
+    TIMESTAMP,
+    UUID,
+    VARBINARY,
+    VARCHAR,
+    BigInteger,
+    Boolean,
+    Date,
+    DateTime,
+    Double,
+    Enum,
+    Float,
+    Integer,
+    Interval,
+    LargeBinary,
+    MatchType,
+    Numeric,
+    SmallInteger,
+    String,
+    Text,
+    Time,
+    Unicode,
+    UnicodeText,
+    Uuid,
+)
 from sqlalchemy.orm import RelationshipProperty, ONETOMANY, MANYTOMANY
 from sqlmodel import cast, inspect
 from typing import Type
@@ -52,6 +102,55 @@ QUERY_FORGE_CAST_MAP = {
     "*has_any:": lambda v, *args: array([v]),  # cast([v], ARRAY),  # type: ignore
     "*has_any:list": lambda v, *args: array(v),  # cast(v, ARRAY),
 }
+TYPE_CAST_MAP = {
+    "array": array,
+    "ARRAY": ARRAY,
+    "BIGINT": BIGINT,
+    "BINARY": BINARY,
+    "BLOB": BLOB,
+    "BOOLEAN": BOOLEAN,
+    "CHAR": CHAR,
+    "CLOB": CLOB,
+    "DATE": DATE,
+    "DATETIME": DATETIME,
+    "DECIMAL": DECIMAL,
+    "DOUBLE": DOUBLE,
+    "DOUBLE_PRECISION": DOUBLE_PRECISION,
+    "FLOAT": FLOAT,
+    "INT": INT,
+    "INTEGER": INTEGER,
+    "JSON": JSON,
+    "NCHAR": NCHAR,
+    "NUMERIC": NUMERIC,
+    "NVARCHAR": NVARCHAR,
+    "REAL": REAL,
+    "SMALLINT": SMALLINT,
+    "TEXT": TEXT,
+    "TIME": TIME,
+    "TIMESTAMP": TIMESTAMP,
+    "UUID": UUID,
+    "VARBINARY": VARBINARY,
+    "VARCHAR": VARCHAR,
+    "BigInteger": BigInteger,
+    "Boolean": Boolean,
+    "Date": Date,
+    "DateTime": DateTime,
+    "Double": Double,
+    "Enum": Enum,
+    "Float": Float,
+    "Integer": Integer,
+    "Interval": Interval,
+    "LargeBinary": LargeBinary,
+    "MatchType": MatchType,
+    "Numeric": Numeric,
+    "SmallInteger": SmallInteger,
+    "String": String,
+    "Text": Text,
+    "Time": Time,
+    "Unicode": Unicode,
+    "UnicodeText": UnicodeText,
+    "Uuid": Uuid,
+}
 QUERY_FORGE_COMMON = ("*eq", "*neq", "*gt", "*gte", "*lt", "*lte")
 UNSUPPORTED_LIKE_COLUMNS = [
     "UUID",
@@ -71,8 +170,13 @@ UNSUPPORTED_LIKE_COLUMNS = [
 ]
 
 
-def exists(something):
-    return something != None
+def cast_column(model_attribute: Column, cast_to: str):
+    castable_type = TYPE_CAST_MAP.get(cast_to, None)
+    if castable_type is None:
+        raise ValueError(
+            f"'{cast_to}' is not a valid cast type. Available cast types: {', '.join(TYPE_CAST_MAP.keys())}"
+        )
+    return cast(model_attribute, castable_type)
 
 
 LOGGER = getLogger(__file__)
@@ -158,19 +262,19 @@ class AbstractRepository:
         # create user data
         async with self.adapter.getSession() as session:
             record = self.model(**data.model_dump())
-            if exists(self.lifecycle["before_create"]):
-                await self.lifecycle["before_create"](record)  # type: ignore
+            if self.lifecycle["before_create"]:
+                await self.lifecycle["before_create"](record)
             session.add(record)
-        if exists(self.lifecycle["after_create"]):
-            await self.lifecycle["after_create"](record)  # type: ignore
+        if self.lifecycle["after_create"]:
+            await self.lifecycle["after_create"](record)
         return record
         # return a value?
 
-    async def get_by_id(self, id: possible_id_values, where: Json = None):
+    async def get_by_id(self, id: possible_id_values, where: Json = None) -> Any | None:
         # retrieve user data by id
         async with self.adapter.getSession() as session:
-            if exists(self.lifecycle["before_get_one"]):
-                await self.lifecycle["before_get_one"](id, where)  # type: ignore
+            if self.lifecycle["before_get_one"]:
+                await self.lifecycle["before_get_one"](id, where)
             query = select(self.model).where(
                 and_(
                     getattr(self.model, str(self.primary_key)) == id,
@@ -178,15 +282,15 @@ class AbstractRepository:
                 )
             )
             result = (await session.execute(query)).scalar_one_or_none()
-        if exists(self.lifecycle["after_get_one"]):
-            await self.lifecycle["after_get_one"](result)  # type: ignore
+        if self.lifecycle["after_get_one"]:
+            await self.lifecycle["after_get_one"](result)
         return result
 
     async def update(self, id: possible_id_values, data: CruddyModel):
         # update user data
         values = data.model_dump()
-        if exists(self.lifecycle["before_update"]):
-            await self.lifecycle["before_update"](values, id)  # type: ignore
+        if self.lifecycle["before_update"]:
+            await self.lifecycle["before_update"](values, id)
         query = (
             _update(self.model)
             .where(getattr(self.model, str(self.primary_key)) == id)
@@ -197,8 +301,8 @@ class AbstractRepository:
             result = await session.execute(query)
         if result.rowcount == 1:  # type: ignore
             updated_record = await self.get_by_id(id=id)
-            if exists(self.lifecycle["after_update"]):
-                await self.lifecycle["after_update"](updated_record)  # type: ignore
+            if self.lifecycle["after_update"]:
+                await self.lifecycle["after_update"](updated_record)
             return updated_record
         return None
         # return a value?
@@ -206,8 +310,8 @@ class AbstractRepository:
     async def delete(self, id: possible_id_values):
         # delete user data by id
         record = await self.get_by_id(id=id)
-        if exists(self.lifecycle["before_delete"]):
-            await self.lifecycle["before_delete"](record)  # type: ignore
+        if self.lifecycle["before_delete"]:
+            await self.lifecycle["before_delete"](record)
         query = (
             _delete(self.model)
             .where(getattr(self.model, str(self.primary_key)) == id)
@@ -217,8 +321,8 @@ class AbstractRepository:
             result = await session.execute(query)
 
         if result.rowcount == 1:  # type: ignore
-            if exists(self.lifecycle["after_delete"]):
-                await self.lifecycle["after_delete"](record)  # type: ignore
+            if self.lifecycle["after_delete"]:
+                await self.lifecycle["after_delete"](record)
             return record
         return None
         # return a value?
@@ -250,12 +354,12 @@ class AbstractRepository:
             lifecycle_before = _lifecycle_before
             lifecycle_after = _lifecycle_after
 
-        if exists(lifecycle_before):
+        if lifecycle_before:
             # apps can alter user queries in this hook!!
             # use this hook to force things to be in a range, like limits!
             # setting conf.limit = 20 in user app code would alter the limit for
             # this query
-            await lifecycle_before(query_conf)  # type: ignore
+            await lifecycle_before(query_conf)
 
         get_columns: list[str] = (
             query_conf["columns"]
@@ -321,8 +425,8 @@ class AbstractRepository:
             data=result,
         )
 
-        if exists(lifecycle_after):
-            await lifecycle_after(result)  # type: ignore
+        if lifecycle_after:
+            await lifecycle_after(result)
 
         return result
 
@@ -351,8 +455,8 @@ class AbstractRepository:
             "where": where,
         }
 
-        if exists(_lifecycle_before):
-            await _lifecycle_before(query_conf)  # type: ignore
+        if _lifecycle_before:
+            await _lifecycle_before(query_conf)
 
         get_columns: list[str] = (
             query_conf["columns"]
@@ -424,9 +528,8 @@ class AbstractRepository:
             data=result,
         )
 
-        if exists(_lifecycle_after):
-            await _lifecycle_after(result)  # type: ignore
-
+        if _lifecycle_after:
+            await _lifecycle_after(result)
         return result
 
     # This one is rather "alchemy" because join tables aren't resources
@@ -438,8 +541,8 @@ class AbstractRepository:
     ):
         relation_conf = {"id": id, "relation": relation, "relations": relations}
 
-        if exists(self.lifecycle["before_set_relations"]):
-            await self.lifecycle["before_set_relations"](relation_conf)  # type: ignore
+        if self.lifecycle["before_set_relations"]:
+            await self.lifecycle["before_set_relations"](relation_conf)
 
         model_relation: RelationshipProperty = getattr(
             inspect(self.model).relationships, relation_conf["relation"]
@@ -507,6 +610,7 @@ class AbstractRepository:
             )  # .returning(join_foreign_col) # RETURNING DOESNT WORK ON ALL ADAPTERS
             await session.execute(clear_relations_query)
 
+        async with self.adapter.getSession() as session:
             check_ids = [f"{x._mapping[foreign_key]}" for x in db_ids]  # type: ignore
             if len(insertable) > 0:
                 await session.execute(create_relations_query)
@@ -521,8 +625,8 @@ class AbstractRepository:
             else:
                 result = 0
 
-        if exists(self.lifecycle["after_set_relations"]):
-            await self.lifecycle["after_set_relations"](  # type: ignore
+        if self.lifecycle["after_set_relations"]:
+            await self.lifecycle["after_set_relations"](
                 {
                     "model": self.model,
                     "relation_conf": relation_conf,
@@ -544,8 +648,8 @@ class AbstractRepository:
     ) -> int:
         relation_conf = {"id": id, "relation": relation, "relations": relations}
 
-        if exists(self.lifecycle["before_set_relations"]):
-            await self.lifecycle["before_set_relations"](relation_conf)  # type: ignore
+        if self.lifecycle["before_set_relations"]:
+            await self.lifecycle["before_set_relations"](relation_conf)
 
         model_relation: RelationshipProperty = getattr(
             inspect(self.model).relationships, relation_conf["relation"]
@@ -596,21 +700,21 @@ class AbstractRepository:
             )
         )
         count_query = select(func.count(1)).select_from(find_tgt_query)  # type: ignore
-        async with self.adapter.getSession() as session:
-            if far_col.nullable:
+        if far_col.nullable:
+            async with self.adapter.getSession() as session:
                 await session.execute(clear_query)
-            else:
-                LOGGER.warn(
-                    f"Unable to clear relations for {related_model.name}.{far_col_name}. Column does not allow null values"
-                )
-
+        else:
+            LOGGER.warn(
+                f"Unable to clear relations for {related_model.name}.{far_col_name}. Column does not allow null values"
+            )
+        async with self.adapter.getSession() as session:
             await session.execute(
                 alter_query
             )  # .rowcount # also affected by removing returning
             alter_result: int = (await session.execute(count_query)).scalar() or 0
 
-        if exists(self.lifecycle["after_set_relations"]):
-            await self.lifecycle["after_set_relations"](  # type: ignore
+        if self.lifecycle["after_set_relations"]:
+            await self.lifecycle["after_set_relations"](
                 {
                     "model": self.model,
                     "relation_conf": relation_conf,
@@ -657,126 +761,167 @@ class AbstractRepository:
     def query_forge(
         self,
         model: Type[CruddyModel] | RelationshipProperty,
-        where: dict | list[dict],
+        where: dict[str, Any] | list[dict[str, Any]],
     ):
         level_criteria = []
+
         if not (isinstance(where, list) or isinstance(where, dict)):
             return []
+
         if isinstance(where, list):
             list_of_lists = [self.query_forge(model=model, where=x) for x in where]
             for l in list_of_lists:
                 level_criteria += l
             return level_criteria
+
         for k, v in where.items():
-            isOp = False
-            isDot = "." in k
+            is_op = self.op_map[k] if k in self.op_map else False
+            colon_parts = k.split(":")
+            dot_parts = k.split(".")
+            is_colon = len(colon_parts) > 1
+            is_dot = len(dot_parts) > 1
+            key_value = dot_parts[0] if is_dot else colon_parts[0]
 
-            if k in self.op_map:
-                isOp = self.op_map[k]
-            if isinstance(v, dict) and isOp != False:
-                level_criteria.append(isOp(*self.query_forge(model=model, where=v)))
-            elif isinstance(v, list) and isOp != False:
-                level_criteria.append(isOp(*self.query_forge(model=model, where=v)))
-            elif not isinstance(v, dict) and not isOp and hasattr(model, k):
-                # Add type coerce fn?
-                base_attr = getattr(model, k)
-                has_like_attr = hasattr(base_attr, "like")
-                unsupported_likes = (
-                    str(base_attr.type).upper() in UNSUPPORTED_LIKE_COLUMNS
-                )
-                maybe_supports_like = (not unsupported_likes) and has_like_attr
-                level_criteria.append(
-                    base_attr.like(v) if maybe_supports_like else base_attr == v
-                )
-            elif (
-                isinstance(v, dict)
-                and not isOp
-                and hasattr(model, k)
-                and len(v.items()) == 1
-            ):
-                k2 = list(v.keys())[0]
-                v2 = v[k2]
-                mattr = getattr(model, k)
-                if isinstance(v2, dict) and "*datetime" in v2:
-                    v2 = parse_and_coerce_to_utc_datetime(v2["*datetime"])  # type: ignore
-                if isinstance(v2, dict) and "*datetime_naive" in v2:
-                    v2 = parse_datetime(v2["*datetime_naive"])  # type: ignore
-                if isinstance(k2, str) and not isinstance(v2, dict) and k2[0] == "*":
-                    if k2 == "*eq":
-                        level_criteria.append(mattr == v2)
-                    elif k2 == "*neq":
-                        level_criteria.append(mattr != v2)
-                    elif k2 == "*gt":
-                        level_criteria.append(mattr > v2)
-                    elif k2 == "*lt":
-                        level_criteria.append(mattr < v2)
-                    elif k2 == "*gte":
-                        level_criteria.append(mattr >= v2)
-                    elif k2 == "*lte":
-                        level_criteria.append(mattr <= v2)
-                    elif hasattr(mattr, k2.replace("*", "")):
-                        # Probably need to add an "accepted" list of query action keys
-                        level_criteria.append(getattr(mattr, k2.replace("*", ""))(v2))
-            elif (
-                isinstance(v, dict)
-                and isDot
-                and hasattr(model, k.split(".")[0])
-                and len(v.items()) == 1
-                and isinstance(
-                    getattr(model, k.split(".")[0], Undefined).type, JSON_COLUMNS  # type: ignore
-                )
-            ):
-                [k1, *json_path] = k.split(".")
-                json_path_parts = tuple(
-                    int(segment) if segment.isdigit() else segment
-                    for segment in filter(lambda val: val != "", json_path)
-                )
-                mattr = getattr(model, k1)
+            if is_op != False:
+                if isinstance(v, dict):
+                    level_criteria.append(
+                        is_op(*self.query_forge(model=model, where=v))
+                    )
+                elif isinstance(v, list):
+                    level_criteria.append(
+                        is_op(*self.query_forge(model=model, where=v))
+                    )
+            else:
+                if not hasattr(model, key_value):
+                    raise ValueError(
+                        f"Model {model.__name__} does not have a key/column of {key_value}"
+                    )
 
-                k2 = list(v.keys())[0]
-                v2 = v[k2]
-                is_basic_comparison = k2 in QUERY_FORGE_COMMON
+                base_attribute: Column = getattr(model, key_value)
+                model_attribute: Column | Cast | Any
 
-                # Cast the rhs to support complex queries if needed
-                cast_fn = QUERY_FORGE_CAST_MAP.get(f"{k2}:{type(v2).__name__}")
-
-                # If there isn't a cast_fn set, let's see if there's a mapped 'catch_all' cast fn
-                # for the lhs provided
-                if cast_fn is None:
-                    cast_fn = QUERY_FORGE_CAST_MAP.get(f"{k2}:")
-
-                # If there is a cast function for the value, let's run it
-                if cast_fn:
-                    v2 = cast_fn(v2, mattr)
-
-                # Cast the lhs path based on comparator value when performing a direct comparison
-                # by default the value is cast as JSON
-                casted_path = mattr[json_path_parts].as_json()
-                if isinstance(v2, int) and is_basic_comparison:
-                    casted_path = mattr[json_path_parts].as_integer()
-                elif isinstance(v2, bool) and is_basic_comparison:
-                    casted_path = mattr[json_path_parts].as_boolean()
-                elif isinstance(v2, float) and is_basic_comparison:
-                    casted_path = mattr[json_path_parts].as_float()
-                elif isinstance(v2, str) and is_basic_comparison:
-                    casted_path = mattr[json_path_parts].as_string()
-
-                if isinstance(k2, str) and k2[0] == "*":
-                    if k2 == "*eq":
-                        level_criteria.append(casted_path == v2)
-                    elif k2 == "*neq":
-                        level_criteria.append(casted_path != v2)
-                    elif k2 == "*gt":
-                        level_criteria.append(casted_path > v2)
-                    elif k2 == "*lt":
-                        level_criteria.append(casted_path < v2)
-                    elif k2 == "*gte":
-                        level_criteria.append(casted_path >= v2)
-                    elif k2 == "*lte":
-                        level_criteria.append(casted_path <= v2)
-                    elif hasattr(mattr, k2.replace("*", "")):
-                        level_criteria.append(
-                            getattr(casted_path, k2.replace("*", ""))(v2)
+                if is_colon and not is_dot:
+                    cast_to = colon_parts[1]
+                    if cast_to == "tsvector" and len(colon_parts) == 3:
+                        cast_to_language = colon_parts[2]
+                        model_attribute = func.to_tsvector(
+                            literal_column(f"'{cast_to_language}'"),
+                            cast(base_attribute, Text),
                         )
+                    else:
+                        model_attribute = cast_column(base_attribute, cast_to)
+                else:
+                    model_attribute = base_attribute
+
+                if not isinstance(v, dict):
+                    # Add type coerce fn?
+                    has_like_attr = hasattr(model_attribute, "like")
+                    unsupported_likes = (
+                        str(model_attribute.type).upper() in UNSUPPORTED_LIKE_COLUMNS
+                    )
+                    maybe_supports_like = (
+                        (not unsupported_likes) and has_like_attr and isinstance(v, str)
+                    )
+                    level_criteria.append(
+                        model_attribute.like(v)
+                        if maybe_supports_like
+                        else model_attribute == v
+                    )
+                elif (
+                    isinstance(v, dict)
+                    and is_dot
+                    and len(v.items()) == 1
+                    and isinstance(
+                        getattr(model, key_value, Undefined).type, JSON_COLUMNS  # type: ignore
+                    )
+                ):
+                    [_, *json_path] = dot_parts
+                    json_path_parts = tuple(
+                        int(segment) if segment.isdigit() else segment
+                        for segment in filter(lambda val: val != "", json_path)
+                    )
+
+                    k2 = list(v.keys())[0]
+                    v2 = v[k2]
+                    is_basic_comparison = k2 in QUERY_FORGE_COMMON
+
+                    # Cast the rhs to support complex queries if needed
+                    cast_fn = QUERY_FORGE_CAST_MAP.get(f"{k2}:{type(v2).__name__}")
+
+                    # If there isn't a cast_fn set, let's see if there's a mapped 'catch_all' cast fn
+                    # for the lhs provided
+                    if cast_fn is None:
+                        cast_fn = QUERY_FORGE_CAST_MAP.get(f"{k2}:")
+
+                    # If there is a cast function for the value, let's run it
+                    if cast_fn:
+                        v2 = cast_fn(v2, model_attribute)
+
+                    # Cast the lhs path based on comparator value when performing a direct comparison
+                    # by default the value is cast as JSON
+                    casted_path = model_attribute[json_path_parts].as_json()
+                    if isinstance(v2, int) and is_basic_comparison:
+                        casted_path = model_attribute[json_path_parts].as_integer()
+                    elif isinstance(v2, bool) and is_basic_comparison:
+                        casted_path = model_attribute[json_path_parts].as_boolean()
+                    elif isinstance(v2, float) and is_basic_comparison:
+                        casted_path = model_attribute[json_path_parts].as_float()
+                    elif isinstance(v2, str) and is_basic_comparison:
+                        casted_path = model_attribute[json_path_parts].as_string()
+
+                    if isinstance(k2, str) and k2[0] == "*":
+                        if k2 == "*eq":
+                            level_criteria.append(casted_path == v2)
+                        elif k2 == "*neq":
+                            level_criteria.append(casted_path != v2)
+                        elif k2 == "*gt":
+                            level_criteria.append(casted_path > v2)
+                        elif k2 == "*lt":
+                            level_criteria.append(casted_path < v2)
+                        elif k2 == "*gte":
+                            level_criteria.append(casted_path >= v2)
+                        elif k2 == "*lte":
+                            level_criteria.append(casted_path <= v2)
+                        elif hasattr(model_attribute, k2.replace("*", "")):
+                            level_criteria.append(
+                                getattr(casted_path, k2.replace("*", ""))(v2)
+                            )
+                elif isinstance(v, dict) and len(v.items()) == 1:
+                    k2 = list(v.keys())[0]
+                    v2 = v[k2]
+                    if isinstance(v2, dict) and "*datetime" in v2:
+                        v2 = parse_and_coerce_to_utc_datetime(v2["*datetime"])  # type: ignore
+                    if isinstance(v2, dict) and "*datetime_naive" in v2:
+                        v2 = parse_datetime(v2["*datetime_naive"])  # type: ignore
+                    if (
+                        isinstance(k2, str)
+                        and not isinstance(v2, dict)
+                        and k2[0] == "*"
+                    ):
+                        if k2 == "*eq":
+                            level_criteria.append(model_attribute == v2)
+                        elif k2 == "*neq":
+                            level_criteria.append(model_attribute != v2)
+                        elif k2 == "*gt":
+                            level_criteria.append(model_attribute > v2)
+                        elif k2 == "*lt":
+                            level_criteria.append(model_attribute < v2)
+                        elif k2 == "*gte":
+                            level_criteria.append(model_attribute >= v2)
+                        elif k2 == "*lte":
+                            level_criteria.append(model_attribute <= v2)
+                        elif k2 == "*websearch_to_tsquery" and is_colon:
+                            level_criteria.append(
+                                model_attribute.op("@@")(
+                                    func.websearch_to_tsquery(
+                                        v2, postgresql_regconfig="english"
+                                    )
+                                )
+                            )
+                        elif hasattr(model_attribute, k2.replace("*", "")):
+                            # Probably need to add an "accepted" list of query action keys
+                            level_criteria.append(
+                                getattr(model_attribute, k2.replace("*", ""))(v2)
+                            )
 
         return level_criteria

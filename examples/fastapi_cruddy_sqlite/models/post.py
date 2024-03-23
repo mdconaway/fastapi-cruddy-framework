@@ -1,18 +1,29 @@
 from typing import Any, TYPE_CHECKING
 from datetime import datetime
-from pydantic import field_validator
-from sqlmodel import Column, DateTime, Field, JSON, Relationship
 from fastapi_cruddy_framework import (
     UUID,
     CruddyModel,
     CruddyUUIDModel,
     CruddyCreatedUpdatedSignature,
+    CruddyCreatedUpdatedGQLOverrides,
     CruddyCreatedUpdatedMixin,
     validate_utc_datetime,
+    CruddyGQLObject,
+)
+from pydantic import field_validator, ConfigDict
+from sqlmodel import Column, DateTime, Field, JSON, Relationship
+from strawberry.experimental.pydantic import type as strawberry_pydantic_type
+from examples.fastapi_cruddy_sqlite.services.graphql_resolver import graphql_resolver
+from examples.fastapi_cruddy_sqlite.models.common.graphql import (
+    SECTION_LIST_TYPE,
+    SECTION_CLASS_LOADER,
+    USER_LIST_TYPE,
+    USER_CLASS_LOADER,
 )
 
 if TYPE_CHECKING:
     from examples.fastapi_cruddy_sqlite.models.user import User
+    from examples.fastapi_cruddy_sqlite.models.section import Section
 
 
 EXAMPLE_POST = {
@@ -50,6 +61,7 @@ class PostUpdate(CruddyModel):
         default={},
         schema_extra={"examples": [EXAMPLE_POST["tags"]]},
     )
+    section_id: UUID | None = Field(foreign_key="Section.id", default=None)
 
     @field_validator("event_date", mode="before")
     @classmethod
@@ -74,6 +86,7 @@ class PostCreate(PostUpdate):
 # fields need to be optional.
 class PostView(CruddyCreatedUpdatedSignature, CruddyUUIDModel):
     user_id: UUID | None = None
+    section_id: UUID | None = None
     content: str | None = Field(
         default=None, schema_extra={"examples": [EXAMPLE_POST["content"]]}
     )
@@ -90,6 +103,39 @@ class PostView(CruddyCreatedUpdatedSignature, CruddyUUIDModel):
 # in JSON representations, as it may contain hidden fields like passwords
 # or other server-internal state or tracking information. Keep your "Base"
 # models separated from all other interactive derivations.
-class Post(CruddyCreatedUpdatedMixin(), CruddyUUIDModel, PostCreate, table=True):  # type: ignore
-    # is the below needed??
+class Post(CruddyCreatedUpdatedMixin(), CruddyUUIDModel, PostCreate, table=True):
     user: "User" = Relationship(back_populates="posts")
+    section: "Section" = Relationship(back_populates="posts")
+
+
+# --------------------------------------------------------------------------------------
+# BEGIN GRAPHQL DEFINITIONS ------------------------------------------------------------
+# --------------------------------------------------------------------------------------
+
+
+class PostQLOverrides(CruddyCreatedUpdatedGQLOverrides, PostView):
+    model_config = ConfigDict(arbitrary_types_allowed=True)  # type: ignore
+    event_date: str | None = None
+    tags: CruddyGQLObject | None = None
+
+
+@strawberry_pydantic_type(model=PostQLOverrides, name="Post", all_fields=True)
+class PostQL:
+    user = graphql_resolver.generate_resolver(
+        type_name="user",
+        graphql_type=USER_LIST_TYPE,
+        # You must define your prefererd internal API path to find the relation
+        # Your route generator will be passed an instance of a post record
+        route_generator=lambda x: f"users/{getattr(x, 'user_id')}",
+        class_loader=USER_CLASS_LOADER,
+        is_singular=True,
+    )
+    section = graphql_resolver.generate_resolver(
+        type_name="section",
+        graphql_type=SECTION_LIST_TYPE,
+        # You must define your prefererd internal API path to find the relation
+        # Your route generator will be passed an instance of a post record
+        route_generator=lambda x: f"sections/{getattr(x, 'section_id')}",
+        class_loader=SECTION_CLASS_LOADER,
+        is_singular=True,
+    )

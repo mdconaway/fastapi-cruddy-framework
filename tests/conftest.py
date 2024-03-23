@@ -41,14 +41,14 @@ async def client(app: FastAPI):
         yield client
 
 
-@fixture(scope="session", autouse=True)
+@fixture(scope="module", autouse=True)
 @mark.asyncio
 async def unauthenticated_client(client: TestClient):
     blank_client = BrowserTestClient(client=client, cookies=None, headers=None)
     yield blank_client
 
 
-@fixture(scope="session", autouse=True)
+@fixture(scope="module", autouse=True)
 @mark.asyncio
 async def authenticated_client(client: TestClient):
     sessioned_client = BrowserTestClient(
@@ -58,7 +58,7 @@ async def authenticated_client(client: TestClient):
     yield sessioned_client
 
 
-@fixture(scope="session", autouse=True)
+@fixture(scope="module", autouse=True)
 @mark.asyncio
 async def authenticated_client2(client: TestClient):
     sessioned_client = BrowserTestClient(
