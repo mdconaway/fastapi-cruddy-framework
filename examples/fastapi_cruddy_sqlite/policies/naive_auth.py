@@ -10,8 +10,9 @@ HTTP_403_FORBIDDEN = status.HTTP_403_FORBIDDEN
 async def naive_auth(
     request: Request = None,  # type: ignore
     websocket: WebSocket = None,  # type: ignore
-    credentials: HTTPAuthorizationCredentials
-    | None = Security(HTTPBearer(auto_error=False)),
+    credentials: HTTPAuthorizationCredentials | None = Security(
+        HTTPBearer(auto_error=False)
+    ),
     auth_token: Annotated[str | None, Query()] = None,
 ):
     connection = request if request else websocket

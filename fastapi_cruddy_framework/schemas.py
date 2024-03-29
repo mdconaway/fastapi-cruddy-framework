@@ -90,7 +90,9 @@ class BulkDTO(CruddyGenericModel):
 
 
 class SocketMessage(CruddyGenericModel):
-    route: str = BROADCAST_EVENT  # How to route this between the pubsub/connection_manager module (default to a broadcast)
+    route: str = (
+        BROADCAST_EVENT  # How to route this between the pubsub/connection_manager module (default to a broadcast)
+    )
     target: str | None = None  # A target for the message (if route is "room" or "user")
     type: str | None = None  # Message type
     sender: str | None = None  # Sender (if any)

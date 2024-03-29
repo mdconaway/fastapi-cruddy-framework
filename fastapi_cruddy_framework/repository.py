@@ -402,7 +402,10 @@ class AbstractRepository:
         )
         # total record
 
-        async with self.adapter.getSession() as session1, self.adapter.getSession() as session2:
+        async with (
+            self.adapter.getSession() as session1,
+            self.adapter.getSession() as session2,
+        ):
             async with TaskGroup() as tg:
                 task1 = tg.create_task(session1.execute(count_query))
                 task2 = tg.create_task(session2.execute(query))
@@ -502,7 +505,10 @@ class AbstractRepository:
         )
         # total record
 
-        async with self.adapter.getSession() as session1, self.adapter.getSession() as session2:
+        async with (
+            self.adapter.getSession() as session1,
+            self.adapter.getSession() as session2,
+        ):
             async with TaskGroup() as tg:
                 task1 = tg.create_task(session1.execute(count_query))
                 task2 = tg.create_task(session2.execute(query))

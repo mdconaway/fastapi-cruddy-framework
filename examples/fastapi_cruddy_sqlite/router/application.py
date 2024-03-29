@@ -53,9 +53,11 @@ async def websocket_connector1(
     await naive_auth(
         websocket=websocket,
         credentials=None,
-        auth_token=auth_token
-        if auth_token
-        else websocket.headers.get("authorization", "Bearer ").split(" ").pop(),
+        auth_token=(
+            auth_token
+            if auth_token
+            else websocket.headers.get("authorization", "Bearer ").split(" ").pop()
+        ),
     )
     # END POLICY CHAIN ---------------------------------------------------------------------
     # You can generate your own socket ID if you want!
@@ -98,9 +100,11 @@ async def websocket_connector2(
     await naive_auth(
         websocket=websocket,
         credentials=None,
-        auth_token=auth_token
-        if auth_token
-        else websocket.headers.get("authorization", "Bearer ").split(" ").pop(),
+        auth_token=(
+            auth_token
+            if auth_token
+            else websocket.headers.get("authorization", "Bearer ").split(" ").pop()
+        ),
     )
     # END POLICY CHAIN ---------------------------------------------------------------------
     # There is still a socket id associated with all sockets, even in custom mode

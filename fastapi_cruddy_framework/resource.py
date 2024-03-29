@@ -74,11 +74,9 @@ class Resource:
         self,
         # Only id_type, adapter, resource_create_model, resource_update_model, resource_model, and response_schema are required
         id_type: Type[int] | Type[UUID] | Type[str] = int,
-        adapter: BaseAdapter
-        | SqliteAdapter
-        | MysqlAdapter
-        | PostgresqlAdapter
-        | None = None,
+        adapter: (
+            BaseAdapter | SqliteAdapter | MysqlAdapter | PostgresqlAdapter | None
+        ) = None,
         resource_create_model: Type[CruddyModel] = ExampleCreate,
         resource_update_model: Type[CruddyModel] = ExampleUpdate,
         resource_model: Type[CruddyModel] = Example,
@@ -270,9 +268,11 @@ class Resource:
             self.repository.id_type, possible_id.annotation  # type: ignore
         ):
             example_dict = {
-                "example": int(str(example_id))
-                if self.repository.id_type == int
-                else str(example_id)
+                "example": (
+                    int(str(example_id))
+                    if self.repository.id_type == int
+                    else str(example_id)
+                )
             }
             if possible_id.json_schema_extra is not None:
                 possible_id_example = possible_id.json_schema_extra.get("example", None)
@@ -405,17 +405,19 @@ class Resource:
                 self,
                 *args,
                 **{
-                    resource_model_plural: [
-                        SingleSchemaLinked(
-                            **x._mapping,
-                            links=local_resource._link_builder(  # type: ignore
-                                id=x._mapping[local_resource.repository.primary_key]
-                            ),
-                        )
-                        for x in kwargs["data"]
-                    ]
-                    if resource_model_plural not in kwargs
-                    else kwargs[resource_model_plural],
+                    resource_model_plural: (
+                        [
+                            SingleSchemaLinked(
+                                **x._mapping,
+                                links=local_resource._link_builder(  # type: ignore
+                                    id=x._mapping[local_resource.repository.primary_key]
+                                ),
+                            )
+                            for x in kwargs["data"]
+                        ]
+                        if resource_model_plural not in kwargs
+                        else kwargs[resource_model_plural]
+                    ),
                     "data": kwargs["data"] if "data" in kwargs else [],
                     "meta": kwargs["meta"],
                 },
