@@ -12,7 +12,6 @@ alt_user_id = None
 post_id = None
 
 
-@mark.asyncio
 @mark.dependency()
 async def test_setup(authenticated_client: BrowserTestClient):
     global group_id
@@ -118,7 +117,6 @@ async def test_setup(authenticated_client: BrowserTestClient):
     post_id = result["post"]["id"]
 
 
-@mark.asyncio
 @mark.dependency(depends=["test_setup"])
 async def test_get_groups_through_user(authenticated_client: BrowserTestClient):
     global user_id
@@ -135,7 +133,6 @@ async def test_get_groups_through_user(authenticated_client: BrowserTestClient):
     assert result["meta"]["records"] is 2
 
 
-@mark.asyncio
 @mark.dependency(depends=["test_get_groups_through_user"])
 async def test_inspect_artificial_relationship(authenticated_client: BrowserTestClient):
     global user_id
@@ -147,7 +144,6 @@ async def test_inspect_artificial_relationship(authenticated_client: BrowserTest
     assert result["user"]["links"]["others"] == f"/users/{user_id}/others"
 
 
-@mark.asyncio
 @mark.dependency(depends=["test_inspect_artificial_relationship"])
 async def test_get_posts_through_user(authenticated_client: BrowserTestClient):
     global user_id
@@ -163,7 +159,6 @@ async def test_get_posts_through_user(authenticated_client: BrowserTestClient):
     assert result["meta"]["records"] is 1
 
 
-@mark.asyncio
 @mark.dependency(depends=["test_get_posts_through_user"])
 async def test_get_user_through_post(authenticated_client: BrowserTestClient):
     global user_id
@@ -175,7 +170,6 @@ async def test_get_user_through_post(authenticated_client: BrowserTestClient):
     assert result["user"]["id"] == user_id
 
 
-@mark.asyncio
 @mark.dependency(depends=["test_get_user_through_post"])
 async def test_get_users_through_group(authenticated_client: BrowserTestClient):
     global user_id
@@ -191,7 +185,6 @@ async def test_get_users_through_group(authenticated_client: BrowserTestClient):
     assert result["meta"]["records"] is 1
 
 
-@mark.asyncio
 @mark.dependency(depends=["test_get_users_through_group"])
 async def test_alter_users_in_group(authenticated_client: BrowserTestClient):
     global group_id
@@ -260,7 +253,6 @@ async def test_alter_users_in_group(authenticated_client: BrowserTestClient):
     assert result["meta"]["records"] is 1
 
 
-@mark.asyncio
 @mark.dependency(depends=["test_alter_users_in_group"])
 async def test_filter_users_in_group(authenticated_client: BrowserTestClient):
     global user_id
@@ -361,7 +353,6 @@ async def test_filter_users_in_group(authenticated_client: BrowserTestClient):
     assert result["meta"]["records"] is 2
 
 
-@mark.asyncio
 @mark.dependency(depends=["test_filter_users_in_group"])
 async def test_remove_from_all_groups(authenticated_client: BrowserTestClient):
     global alt_user_id
@@ -405,7 +396,6 @@ async def test_remove_from_all_groups(authenticated_client: BrowserTestClient):
     assert len(result["users"]) is 0
 
 
-@mark.asyncio
 @mark.dependency(depends=["test_remove_from_all_groups"])
 async def test_guarded_relationship(authenticated_client: BrowserTestClient):
     global post_id
@@ -455,7 +445,6 @@ async def test_guarded_relationship(authenticated_client: BrowserTestClient):
     assert result["post"]["user_id"] == user_id
 
 
-@mark.asyncio
 @mark.dependency(depends=["test_guarded_relationship"])
 async def test_nested_create_single_objects(authenticated_client: BrowserTestClient):
     global user_id
@@ -563,7 +552,6 @@ async def test_nested_create_single_objects(authenticated_client: BrowserTestCli
     assert response.status_code == status.HTTP_200_OK
 
 
-@mark.asyncio
 @mark.dependency(depends=["test_nested_create_single_objects"])
 async def test_nested_create_multiple_objects(authenticated_client: BrowserTestClient):
     global user_id
@@ -692,7 +680,6 @@ async def test_nested_create_multiple_objects(authenticated_client: BrowserTestC
     assert response.status_code == status.HTTP_200_OK
 
 
-@mark.asyncio
 @mark.dependency(depends=["test_nested_create_multiple_objects"])
 async def test_nested_update_single_objects(authenticated_client: BrowserTestClient):
     global user_id
@@ -822,7 +809,6 @@ async def test_nested_update_single_objects(authenticated_client: BrowserTestCli
     assert response.status_code == status.HTTP_200_OK
 
 
-@mark.asyncio
 @mark.dependency(depends=["test_nested_update_single_objects"])
 async def test_nested_update_multiple_objects(authenticated_client: BrowserTestClient):
     global user_id
@@ -1044,7 +1030,8 @@ async def test_nested_update_multiple_objects(authenticated_client: BrowserTestC
 
 
 # The below functions are mainly cleanup based on the create functions above
-@mark.asyncio
+
+
 @mark.dependency(depends=["test_nested_update_single_objects"])
 async def test_cleanup(authenticated_client: BrowserTestClient):
     global user_id

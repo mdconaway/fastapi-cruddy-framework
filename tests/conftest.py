@@ -1,5 +1,5 @@
 from logging import getLogger
-from asyncio import get_event_loop_policy, sleep
+from asyncio import sleep
 from pytest import fixture, mark
 from fastapi import FastAPI
 from fastapi_cruddy_framework import TestClient, BrowserTestClient
@@ -15,15 +15,15 @@ FAKE_AUTH_QP2 = f"?auth_token={FAKE_AUTH_TOKEN2}"
 FAKE_AUTH_HEADERS2 = {"Authorization": f"Bearer {FAKE_AUTH_TOKEN2}"}
 
 
-@fixture(scope="session", autouse=True)
-def event_loop():
-    loop = get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+pytestmark = mark.anyio
 
 
 @fixture(scope="session", autouse=True)
-@mark.asyncio
+def anyio_backend():
+    return "asyncio"
+
+
+@fixture(scope="session", autouse=True)
 async def app():
     # Don't move this import!
     from examples.fastapi_cruddy_sqlite.main import app
@@ -32,7 +32,6 @@ async def app():
 
 
 @fixture(scope="session", autouse=True)
-@mark.asyncio
 async def client(app: FastAPI):
     # By using "with" the FastAPI app launch hook is run, connecting the application router
     async with TestClient(app, use_cookies=False) as client:
@@ -42,14 +41,12 @@ async def client(app: FastAPI):
 
 
 @fixture(scope="module", autouse=True)
-@mark.asyncio
 async def unauthenticated_client(client: TestClient):
     blank_client = BrowserTestClient(client=client, cookies=None, headers=None)
     yield blank_client
 
 
 @fixture(scope="module", autouse=True)
-@mark.asyncio
 async def authenticated_client(client: TestClient):
     sessioned_client = BrowserTestClient(
         client=client, cookies=None, headers=FAKE_AUTH_HEADERS
@@ -59,7 +56,6 @@ async def authenticated_client(client: TestClient):
 
 
 @fixture(scope="module", autouse=True)
-@mark.asyncio
 async def authenticated_client2(client: TestClient):
     sessioned_client = BrowserTestClient(
         client=client, cookies=None, headers=FAKE_AUTH_HEADERS2
@@ -69,7 +65,6 @@ async def authenticated_client2(client: TestClient):
 
 
 @fixture(scope="function")
-@mark.asyncio
 async def authenticated_websocket_by_id(authenticated_client: BrowserTestClient):
     async with authenticated_client.websocket_connect("/ws1") as websocket:
         # For example: data = await websocket.receive_json()
@@ -87,7 +82,6 @@ async def authenticated_websocket_by_id(authenticated_client: BrowserTestClient)
 
 
 @fixture(scope="function")
-@mark.asyncio
 async def authenticated_websocket_by_client(authenticated_client2: BrowserTestClient):
     async with authenticated_client2.websocket_connect("/ws2") as websocket:
         message = await websocket.receive_json()

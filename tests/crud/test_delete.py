@@ -7,7 +7,6 @@ user_id = None
 post_id = None
 
 
-@mark.asyncio
 @mark.dependency()
 async def test_setup(authenticated_client: BrowserTestClient):
     global group_id
@@ -63,7 +62,6 @@ async def test_setup(authenticated_client: BrowserTestClient):
     post_id = result["post"]["id"]
 
 
-@mark.asyncio
 @mark.dependency(depends=["test_setup"])
 async def test_delete_user(authenticated_client: BrowserTestClient):
     global user_id
@@ -79,7 +77,6 @@ async def test_delete_user(authenticated_client: BrowserTestClient):
     assert result["user"]["id"] == user_id
 
 
-@mark.asyncio
 @mark.dependency(depends=["test_delete_user"])
 async def test_delete_post(authenticated_client: BrowserTestClient):
     global post_id
@@ -90,7 +87,6 @@ async def test_delete_post(authenticated_client: BrowserTestClient):
     assert result["post"]["id"] == post_id
 
 
-@mark.asyncio
 @mark.dependency(depends=["test_delete_post"])
 async def test_delete_group(authenticated_client: BrowserTestClient):
     global group_id

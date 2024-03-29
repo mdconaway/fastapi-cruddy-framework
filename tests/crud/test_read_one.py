@@ -8,7 +8,6 @@ user_id = None
 post_id = None
 
 
-@mark.asyncio
 @mark.dependency()
 async def test_create_group(authenticated_client: BrowserTestClient):
     global group_id
@@ -22,7 +21,6 @@ async def test_create_group(authenticated_client: BrowserTestClient):
     group_id = result["group"]["id"]
 
 
-@mark.asyncio
 @mark.dependency(depends=["test_create_group"])
 async def test_create_user(authenticated_client: BrowserTestClient):
     global group_id
@@ -52,7 +50,6 @@ async def test_create_user(authenticated_client: BrowserTestClient):
     user_id = result["user"]["id"]
 
 
-@mark.asyncio
 @mark.dependency(depends=["test_create_user"])
 async def test_create_post(authenticated_client: BrowserTestClient):
     global user_id
@@ -73,7 +70,6 @@ async def test_create_post(authenticated_client: BrowserTestClient):
     post_id = result["post"]["id"]
 
 
-@mark.asyncio
 @mark.dependency(depends=["test_create_post"])
 async def test_get_user_by_id(authenticated_client: BrowserTestClient):
     global user_id
@@ -84,7 +80,6 @@ async def test_get_user_by_id(authenticated_client: BrowserTestClient):
     assert result["user"]["first_name"] == "Samwise"
 
 
-@mark.asyncio
 @mark.dependency(depends=["test_get_user_by_id"])
 async def test_get_user_by_id_restricted(authenticated_client: BrowserTestClient):
     global user_id
@@ -98,7 +93,6 @@ async def test_get_user_by_id_restricted(authenticated_client: BrowserTestClient
     assert "detail" in result.keys()
 
 
-@mark.asyncio
 @mark.dependency(depends=["test_get_user_by_id_restricted"])
 async def test_get_group_by_id(authenticated_client: BrowserTestClient):
     global group_id
@@ -109,7 +103,6 @@ async def test_get_group_by_id(authenticated_client: BrowserTestClient):
     assert result["group"]["name"] == "Followers Anonymous"
 
 
-@mark.asyncio
 @mark.dependency(depends=["test_get_group_by_id"])
 async def test_get_post_by_id(authenticated_client: BrowserTestClient):
     global post_id
@@ -121,7 +114,8 @@ async def test_get_post_by_id(authenticated_client: BrowserTestClient):
 
 
 # The below functions are mainly cleanup based on the create functions above
-@mark.asyncio
+
+
 @mark.dependency(depends=["test_get_post_by_id"])
 async def test_cleanup(authenticated_client: BrowserTestClient):
     global user_id

@@ -7,7 +7,6 @@ from examples.fastapi_cruddy_sqlite.config.general import general
 user_id = None
 
 
-@mark.asyncio
 @mark.dependency()
 async def test_setup(authenticated_client: BrowserTestClient):
     global user_id
@@ -37,7 +36,6 @@ async def test_setup(authenticated_client: BrowserTestClient):
     user_id = result["user"]["id"]
 
 
-@mark.asyncio
 @mark.dependency(depends=["test_setup"])
 async def test_get_users_remapped_actions(authenticated_client: BrowserTestClient):
     global user_id
@@ -79,7 +77,8 @@ async def test_get_users_remapped_actions(authenticated_client: BrowserTestClien
 
 
 # Cleanup the objects made for this test suite
-@mark.asyncio
+
+
 @mark.dependency(depends=["test_get_users_remapped_actions"])
 async def test_cleanup(authenticated_client: BrowserTestClient):
     global user_id

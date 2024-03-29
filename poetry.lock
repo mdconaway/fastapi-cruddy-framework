@@ -1325,24 +1325,6 @@ tomli = {version = ">=1.0.0", markers = "python_version < \"3.11\""}
 testing = ["argcomplete", "attrs (>=19.2.0)", "hypothesis (>=3.56)", "mock", "nose", "pygments (>=2.7.2)", "requests", "setuptools", "xmlschema"]
 
 [[package]]
-name = "pytest-asyncio"
-version = "0.21.1"
-description = "Pytest support for asyncio"
-optional = false
-python-versions = ">=3.7"
-files = [
-    {file = "pytest-asyncio-0.21.1.tar.gz", hash = "sha256:40a7eae6dded22c7b604986855ea48400ab15b069ae38116e8c01238e9eeb64d"},
-    {file = "pytest_asyncio-0.21.1-py3-none-any.whl", hash = "sha256:8666c1c8ac02631d7c51ba282e0c69a8a452b211ffedf2599099845da5c5c37b"},
-]
-
-[package.dependencies]
-pytest = ">=7.0.0"
-
-[package.extras]
-docs = ["sphinx (>=5.3)", "sphinx-rtd-theme (>=1.0)"]
-testing = ["coverage (>=6.2)", "flaky (>=3.5.0)", "hypothesis (>=5.7.1)", "mypy (>=0.931)", "pytest-trio (>=0.7.0)"]
-
-[[package]]
 name = "pytest-dependency"
 version = "0.5.1"
 description = "Manage dependencies of tests"
@@ -1821,13 +1803,13 @@ redis = ["redis (>=3.5.3)"]
 
 [[package]]
 name = "strawberry-graphql"
-version = "0.222.0"
+version = "0.223.0"
 description = "A library for creating GraphQL APIs"
 optional = false
 python-versions = "<4.0,>=3.8"
 files = [
-    {file = "strawberry_graphql-0.222.0-py3-none-any.whl", hash = "sha256:6632db8787750ef684a9608723078c391632c52db0502c0cd6e35b042262c4bd"},
-    {file = "strawberry_graphql-0.222.0.tar.gz", hash = "sha256:a642abc370fe2311b49015949499fc90dbb653669fa8f0e53e77779cad429d28"},
+    {file = "strawberry_graphql-0.223.0-py3-none-any.whl", hash = "sha256:81d9ef0df75008301862aa1befbcd821c0886bdb8fd7e6aea722e204a2fb4639"},
+    {file = "strawberry_graphql-0.223.0.tar.gz", hash = "sha256:e05a4b6a9c9b7a17598d1c2eb8e4dc77c35b8adf51eeba6373b5a81bdd6cc5ac"},
 ]
 
 [package.dependencies]
@@ -2250,4 +2232,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<4.0"
-content-hash = "ea0233c0e3bf30f295c5c607c4efed26b9a83dac5f8b603b3ff04e729473f8ac"
+content-hash = "f0bbea1f0e994ed83fe0bec0d873627c94cba3d451fdc8ed89151d3c94800d01"

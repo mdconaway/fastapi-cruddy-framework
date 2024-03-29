@@ -9,7 +9,6 @@ post_id = None
 section_id = None
 
 
-@mark.asyncio
 @mark.dependency()
 async def test_setup(authenticated_client: BrowserTestClient):
     global elves_group_id
@@ -86,7 +85,6 @@ async def test_setup(authenticated_client: BrowserTestClient):
     post_id = result["post"]["id"]
 
 
-@mark.asyncio
 @mark.dependency(depends=["test_setup"])
 async def test_graphql_read(authenticated_client: BrowserTestClient):
     global elves_group_id
@@ -162,7 +160,6 @@ async def test_graphql_read(authenticated_client: BrowserTestClient):
     )
 
 
-@mark.asyncio
 @mark.dependency(depends=["test_graphql_read"])
 async def test_cleanup(authenticated_client: BrowserTestClient):
     global elves_group_id

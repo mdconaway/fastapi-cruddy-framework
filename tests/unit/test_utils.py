@@ -6,7 +6,6 @@ from fastapi_cruddy_framework.util import (
 )
 
 
-@mark.asyncio
 @mark.dependency()
 async def test_utc_datetime_parser():
     assert (

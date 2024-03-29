@@ -5,7 +5,6 @@ from logging import getLogger
 logger = getLogger(__name__)
 
 
-@mark.asyncio
 @mark.dependency()
 async def test_kill_socket_id(authenticated_websocket_by_id: WebSocketSession):
     await authenticated_websocket_by_id.send_json(
@@ -29,7 +28,6 @@ async def test_kill_socket_id(authenticated_websocket_by_id: WebSocketSession):
         assert e.args[0]["type"] == "websocket.close"
 
 
-@mark.asyncio
 @mark.dependency()
 async def test_kill_client_id(authenticated_websocket_by_client: WebSocketSession):
     await authenticated_websocket_by_client.send_json(
@@ -53,7 +51,6 @@ async def test_kill_client_id(authenticated_websocket_by_client: WebSocketSessio
         assert e.args[0]["type"] == "websocket.close"
 
 
-@mark.asyncio
 @mark.dependency()
 async def test_kill_room_socket_id(authenticated_websocket_by_id: WebSocketSession):
     room_name = "Casa Bonita"
@@ -71,7 +68,6 @@ async def test_kill_room_socket_id(authenticated_websocket_by_id: WebSocketSessi
         assert e.args[0]["type"] == "websocket.close"
 
 
-@mark.asyncio
 @mark.dependency()
 async def test_kill_room_client_id(authenticated_websocket_by_client: WebSocketSession):
     room_name = "Casa Bonita"

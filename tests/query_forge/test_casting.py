@@ -6,7 +6,6 @@ from fastapi_cruddy_framework import BrowserTestClient
 user_id = None
 
 
-@mark.asyncio
 @mark.dependency()
 async def test_cast_json_as_text(authenticated_client: BrowserTestClient):
     global user_id

@@ -10,7 +10,6 @@ user_id = None
 post_id = None
 
 
-@mark.asyncio
 @mark.dependency()
 async def test_get_groups(authenticated_client: BrowserTestClient):
     response = await authenticated_client.get("/groups")
@@ -24,14 +23,12 @@ async def test_get_groups(authenticated_client: BrowserTestClient):
     assert isinstance(response_obj["meta"]["records"], int)
 
 
-@mark.asyncio
 @mark.dependency(depends=["test_get_groups"])
 async def test_get_groups_where_list_simple(authenticated_client: BrowserTestClient):
     response = await authenticated_client.get("/groups?where=[]")
     assert response.status_code == status.HTTP_200_OK
 
 
-@mark.asyncio
 @mark.dependency(depends=["test_get_groups_where_list_simple"])
 async def test_setup(authenticated_client: BrowserTestClient):
     global elves_group_id
@@ -97,7 +94,6 @@ async def test_setup(authenticated_client: BrowserTestClient):
     post_id = result["post"]["id"]
 
 
-@mark.asyncio
 @mark.dependency(depends=["test_setup"])
 async def test_get_posts_json_notation(authenticated_client: BrowserTestClient):
     global post_id
@@ -124,7 +120,6 @@ async def test_get_posts_json_notation(authenticated_client: BrowserTestClient):
     assert len(result["posts"]) is 0
 
 
-@mark.asyncio
 @mark.dependency(depends=["test_get_posts_json_notation"])
 async def test_get_groups_no_results(authenticated_client: BrowserTestClient):
     global elves_group_id
@@ -141,7 +136,6 @@ async def test_get_groups_no_results(authenticated_client: BrowserTestClient):
     assert result["meta"]["records"] is 0
 
 
-@mark.asyncio
 @mark.dependency(depends=["test_get_groups_no_results"])
 async def test_get_groups_where_list_complex(authenticated_client: BrowserTestClient):
     where = dumps(
@@ -158,7 +152,6 @@ async def test_get_groups_where_list_complex(authenticated_client: BrowserTestCl
     assert result["meta"]["records"] is 1
 
 
-@mark.asyncio
 @mark.dependency(depends=["test_get_groups_where_list_complex"])
 async def test_get_group_where_dict_simple(authenticated_client: BrowserTestClient):
     global elves_group_id
@@ -187,7 +180,6 @@ async def test_get_group_where_dict_simple(authenticated_client: BrowserTestClie
     assert result["meta"]["records"] is 1
 
 
-@mark.asyncio
 @mark.dependency(depends=["test_get_group_where_dict_simple"])
 async def test_get_group_where_dict_complex(authenticated_client: BrowserTestClient):
     global elves_group_id
@@ -220,7 +212,6 @@ async def test_get_group_where_dict_complex(authenticated_client: BrowserTestCli
     assert result["meta"]["records"] is 2
 
 
-@mark.asyncio
 @mark.dependency(depends=["test_get_group_where_dict_complex"])
 async def test_get_group_where_dict_complex_limit(
     authenticated_client: BrowserTestClient,
@@ -243,7 +234,6 @@ async def test_get_group_where_dict_complex_limit(
     assert result["meta"]["records"] is 2
 
 
-@mark.asyncio
 @mark.dependency(depends=["test_get_group_where_dict_complex_limit"])
 async def test_get_group_where_dict_complex_column_clip(
     authenticated_client: BrowserTestClient,
@@ -277,7 +267,6 @@ async def test_get_group_where_dict_complex_column_clip(
     assert result["meta"]["records"] is 2
 
 
-@mark.asyncio
 @mark.dependency(depends=["test_get_group_where_dict_complex_column_clip"])
 async def test_get_group_where_dict_validate_links(
     authenticated_client: BrowserTestClient,
@@ -300,7 +289,8 @@ async def test_get_group_where_dict_validate_links(
 
 
 # Cleanup the objects made for this test suite
-@mark.asyncio
+
+
 @mark.dependency(depends=["test_get_group_where_dict_complex_column_clip"])
 async def test_cleanup(authenticated_client: BrowserTestClient):
     global elves_group_id

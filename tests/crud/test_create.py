@@ -7,7 +7,6 @@ user_id = None
 post_id = None
 
 
-@mark.asyncio
 @mark.dependency()
 async def test_create_group(authenticated_client: BrowserTestClient):
     global group_id
@@ -21,7 +20,6 @@ async def test_create_group(authenticated_client: BrowserTestClient):
     group_id = result["group"]["id"]
 
 
-@mark.asyncio
 @mark.dependency(depends=["test_create_group"])
 async def test_create_user(authenticated_client: BrowserTestClient):
     global group_id
@@ -51,7 +49,6 @@ async def test_create_user(authenticated_client: BrowserTestClient):
     user_id = result["user"]["id"]
 
 
-@mark.asyncio
 @mark.dependency(depends=["test_create_user"])
 async def test_create_post(authenticated_client: BrowserTestClient):
     global user_id
@@ -73,7 +70,8 @@ async def test_create_post(authenticated_client: BrowserTestClient):
 
 
 # The below functions are mainly cleanup based on the create functions above
-@mark.asyncio
+
+
 @mark.dependency(depends=["test_create_post"])
 async def test_cleanup(authenticated_client: BrowserTestClient):
     global user_id

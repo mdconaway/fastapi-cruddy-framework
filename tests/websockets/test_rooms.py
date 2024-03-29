@@ -7,7 +7,6 @@ from fastapi_cruddy_framework import (
 )
 
 
-@mark.asyncio
 @mark.dependency()
 async def test_room_join_leave_message_id(
     authenticated_websocket_by_id: WebSocketSession,
@@ -72,7 +71,6 @@ async def test_room_join_leave_message_id(
     assert message["data"] == datagram
 
 
-@mark.asyncio
 @mark.dependency()
 async def test_room_join_leave_message_client(
     authenticated_websocket_by_client: WebSocketSession,

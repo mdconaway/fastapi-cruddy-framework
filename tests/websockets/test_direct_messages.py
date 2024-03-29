@@ -2,7 +2,6 @@ from pytest import mark
 from fastapi_cruddy_framework import WebSocketSession, CONTROL_EVENT, CLIENT_EVENT
 
 
-@mark.asyncio
 @mark.dependency()
 async def test_send_dms(
     authenticated_websocket_by_id: WebSocketSession,
