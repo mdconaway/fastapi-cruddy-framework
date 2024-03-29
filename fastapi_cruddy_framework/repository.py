@@ -1,6 +1,6 @@
 import math
 from typing import Any
-from asyncio import gather
+from asyncio import TaskGroup
 from logging import getLogger
 from sqlalchemy import (
     update as _update,
@@ -402,17 +402,14 @@ class AbstractRepository:
         )
         # total record
 
-        async with self.adapter.getSession() as session1:
-            async with self.adapter.getSession() as session2:
-                results = await gather(
-                    session1.execute(count_query),
-                    session2.execute(query),
-                    return_exceptions=False,
-                )
-                count: Result = results[0]
-                records: Result = results[1]
-                total_record = count.scalar() or 0
-                result = records.fetchall()
+        async with self.adapter.getSession() as session1, self.adapter.getSession() as session2:
+            async with TaskGroup() as tg:
+                task1 = tg.create_task(session1.execute(count_query))
+                task2 = tg.create_task(session2.execute(query))
+            count: Result = task1.result()
+            records: Result = task2.result()
+            total_record = count.scalar() or 0
+            result = records.fetchall()
 
         # possible pass in outside functions to map/alter data?
         # total page
@@ -505,17 +502,14 @@ class AbstractRepository:
         )
         # total record
 
-        async with self.adapter.getSession() as session1:
-            async with self.adapter.getSession() as session2:
-                results = await gather(
-                    session1.execute(count_query),
-                    session2.execute(query),
-                    return_exceptions=False,
-                )
-                count: Result = results[0]
-                records: Result = results[1]
-                total_record = count.scalar() or 0
-                result = records.fetchall()
+        async with self.adapter.getSession() as session1, self.adapter.getSession() as session2:
+            async with TaskGroup() as tg:
+                task1 = tg.create_task(session1.execute(count_query))
+                task2 = tg.create_task(session2.execute(query))
+            count: Result = task1.result()
+            records: Result = task2.result()
+            total_record = count.scalar() or 0
+            result = records.fetchall()
 
         # possible pass in outside functions to map/alter data?
         # total page
