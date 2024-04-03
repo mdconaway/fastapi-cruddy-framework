@@ -297,9 +297,11 @@ class Resource:
                 str,
                 Field(
                     schema_extra={
-                        "examples": [
-                            self._single_link(id=str(example_id), relationship=k)
-                        ]
+                        "json_schema_extra": {
+                            "example": self._single_link(
+                                id=str(example_id), relationship=k
+                            )
+                        }
                     }
                 ),
             )
@@ -315,9 +317,11 @@ class Resource:
                 str,
                 Field(
                     schema_extra={
-                        "examples": [
-                            self._single_link(id=str(example_id), relationship=item)
-                        ]
+                        "json_schema_extra": {
+                            "example": self._single_link(
+                                id=str(example_id), relationship=item
+                            )
+                        }
                     }
                 ),
             )
@@ -357,7 +361,7 @@ class Resource:
         # Single record schema with embedded links
         SingleSchemaLinked = create_model(
             f"{resource_response_name}Linked",
-            links=(LinkModel | None, None),
+            links=(LinkModel, None),
             __base__=response_schema,
         )
         # End single record schema with embedded links
@@ -367,7 +371,7 @@ class Resource:
             f"{resource_response_name}Envelope",
             __base__=CruddyGenericModel,
             **{
-                resource_model_name: (SingleSchemaLinked | None, None),
+                resource_model_name: (SingleSchemaLinked, ...),
                 "meta": (dict[str, Any] | None, None),
             },  # type: ignore
         )
@@ -393,7 +397,7 @@ class Resource:
             f"{resource_response_name}List",
             __base__=CruddyGenericModel,
             **{
-                resource_model_plural: (list[SingleSchemaLinked] | None, None),
+                resource_model_plural: (list[SingleSchemaLinked], ...),
             },  # type: ignore
             meta=(response_meta_schema, ...),
         )

@@ -115,10 +115,10 @@ class CruddyModel(SQLModel):
 
 
 class MetaObject(CruddyModel):
-    page: int = Field(schema_extra={"examples": [1]})
-    limit: int = Field(schema_extra={"examples": [10]})
-    pages: int = Field(schema_extra={"examples": [1]})
-    records: int = Field(schema_extra={"examples": [1]})
+    page: int = Field(schema_extra={"json_schema_extra": {"example": 1}})
+    limit: int = Field(schema_extra={"json_schema_extra": {"example": 10}})
+    pages: int = Field(schema_extra={"json_schema_extra": {"example": 1}})
+    records: int = Field(schema_extra={"json_schema_extra": {"example": 1}})
 
 
 class PageResponse(CruddyGenericModel):

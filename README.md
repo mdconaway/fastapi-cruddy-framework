@@ -983,13 +983,13 @@ from fastapi_cruddy_framework import  CruddyModel, CruddyCreatedUpdatedMixin, UU
 class ExampleUpdate(CruddyModel):
     data: Any = Field(
         schema_extra={
-            "examples": [
-                {
+            "json_schema_extra": {
+                "example": {
                     "some": {
                         "key": "value"
                     }
                 }
-            ]
+            }
         }
     )
 

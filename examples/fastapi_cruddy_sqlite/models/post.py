@@ -20,6 +20,7 @@ from examples.fastapi_cruddy_sqlite.models.common.graphql import (
     USER_LIST_TYPE,
     USER_CLASS_LOADER,
 )
+from examples.fastapi_cruddy_sqlite.utils.schema_example import schema_example
 
 if TYPE_CHECKING:
     from examples.fastapi_cruddy_sqlite.models.user import User
@@ -45,7 +46,7 @@ EXAMPLE_POST = {
 # client's PATCH action. Generally, the update model should have the fewest
 # number of available fields for a client to manipulate.
 class PostUpdate(CruddyModel):
-    content: str = Field(schema_extra={"examples": [EXAMPLE_POST["content"]]})
+    content: str = Field(schema_extra=schema_example(EXAMPLE_POST["content"]))
     event_date: datetime | None = Field(
         default=None,
         sa_column=Column(
@@ -54,12 +55,12 @@ class PostUpdate(CruddyModel):
             index=True,
             default=None,
         ),
-        schema_extra={"examples": [EXAMPLE_POST["event_date"]]},
+        schema_extra=schema_example(EXAMPLE_POST["event_date"]),
     )
     tags: dict = Field(
         sa_column=Column(JSON),
         default={},
-        schema_extra={"examples": [EXAMPLE_POST["tags"]]},
+        schema_extra=schema_example(EXAMPLE_POST["tags"]),
     )
     section_id: UUID | None = Field(foreign_key="Section.id", default=None)
 
@@ -88,12 +89,12 @@ class PostView(CruddyCreatedUpdatedSignature, CruddyUUIDModel):
     user_id: UUID | None = None
     section_id: UUID | None = None
     content: str | None = Field(
-        default=None, schema_extra={"examples": [EXAMPLE_POST["content"]]}
+        default=None, schema_extra=schema_example(EXAMPLE_POST["content"])
     )
     tags: dict[str, Any] | None = Field(
         sa_column=Column(JSON, index=True),
         default=None,
-        schema_extra={"examples": [EXAMPLE_POST["tags"]]},
+        schema_extra=schema_example(EXAMPLE_POST["tags"]),
     )
     event_date: datetime | None = None
 

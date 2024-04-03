@@ -19,6 +19,7 @@ from examples.fastapi_cruddy_sqlite.models.common.graphql import (
     POST_LIST_TYPE,
     POST_CLASS_LOADER,
 )
+from examples.fastapi_cruddy_sqlite.utils.schema_example import schema_example
 
 if TYPE_CHECKING:
     from examples.fastapi_cruddy_sqlite.models.post import Post
@@ -50,13 +51,13 @@ EXAMPLE_USER = {
 # client's PATCH action. Generally, the update model should have the fewest
 # number of available fields for a client to manipulate.
 class UserUpdate(CruddyModel):
-    first_name: str = Field(schema_extra={"examples": [EXAMPLE_USER["first_name"]]})
-    last_name: str = Field(schema_extra={"examples": [EXAMPLE_USER["last_name"]]})
+    first_name: str = Field(schema_extra=schema_example(EXAMPLE_USER["first_name"]))
+    last_name: str = Field(schema_extra=schema_example(EXAMPLE_USER["last_name"]))
     email: str = Field(
         nullable=True,
         index=True,
         sa_column_kwargs={"unique": True},
-        schema_extra={"examples": [EXAMPLE_USER["email"]]},
+        schema_extra=schema_example(EXAMPLE_USER["email"]),
     )
     is_active: bool = Field(default=True)
     is_superuser: bool = Field(default=False)
@@ -68,12 +69,12 @@ class UserUpdate(CruddyModel):
             index=True,
             default=None,
         ),
-        schema_extra={"examples": [EXAMPLE_USER["birthdate"]]},
+        schema_extra=schema_example(EXAMPLE_USER["birthdate"]),
     )  # birthday with timezone
-    phone: str | None = Field(schema_extra={"examples": [EXAMPLE_USER["phone"]]})
-    state: str | None = Field(schema_extra={"examples": [EXAMPLE_USER["state"]]})
-    country: str | None = Field(schema_extra={"examples": [EXAMPLE_USER["country"]]})
-    address: str | None = Field(schema_extra={"examples": [EXAMPLE_USER["address"]]})
+    phone: str | None = Field(schema_extra=schema_example(EXAMPLE_USER["phone"]))
+    state: str | None = Field(schema_extra=schema_example(EXAMPLE_USER["state"]))
+    country: str | None = Field(schema_extra=schema_example(EXAMPLE_USER["country"]))
+    address: str | None = Field(schema_extra=schema_example(EXAMPLE_USER["address"]))
 
     @field_validator("birthdate", mode="before")
     @classmethod
@@ -86,7 +87,7 @@ class UserUpdate(CruddyModel):
 # generated. This allows the POST action to accept update-able fields, as
 # well as one-time writeable fields.
 class UserCreate(UserUpdate):
-    password: str = Field(schema_extra={"examples": [EXAMPLE_USER["password"]]})
+    password: str = Field(schema_extra=schema_example(EXAMPLE_USER["password"]))
 
 
 # The "View" model describes all fields that should typcially be present
@@ -98,28 +99,28 @@ class UserCreate(UserUpdate):
 # fields need to be optional.
 class UserView(CruddyCreatedUpdatedSignature, CruddyUUIDModel):
     first_name: str | None = Field(
-        default=None, schema_extra={"examples": [EXAMPLE_USER["first_name"]]}
+        default=None, schema_extra=schema_example(EXAMPLE_USER["first_name"])
     )
     last_name: str | None = Field(
-        default=None, schema_extra={"examples": [EXAMPLE_USER["last_name"]]}
+        default=None, schema_extra=schema_example(EXAMPLE_USER["last_name"])
     )
     email: str | None = Field(
-        default=None, schema_extra={"examples": [EXAMPLE_USER["email"]]}
+        default=None, schema_extra=schema_example(EXAMPLE_USER["email"])
     )
     is_active: bool | None = None
     is_superuser: bool | None = None
     birthdate: datetime | None = None
     phone: str | None = Field(
-        default=None, schema_extra={"examples": [EXAMPLE_USER["phone"]]}
+        default=None, schema_extra=schema_example(EXAMPLE_USER["phone"])
     )
     state: str | None = Field(
-        default=None, schema_extra={"examples": [EXAMPLE_USER["state"]]}
+        default=None, schema_extra=schema_example(EXAMPLE_USER["state"])
     )
     country: str | None = Field(
-        default=None, schema_extra={"examples": [EXAMPLE_USER["country"]]}
+        default=None, schema_extra=schema_example(EXAMPLE_USER["country"])
     )
     address: str | None = Field(
-        default=None, schema_extra={"examples": [EXAMPLE_USER["address"]]}
+        default=None, schema_extra=schema_example(EXAMPLE_USER["address"])
     )
 
 

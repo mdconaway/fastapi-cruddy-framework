@@ -15,6 +15,7 @@ from examples.fastapi_cruddy_sqlite.models.common.graphql import (
     USER_LIST_TYPE,
     USER_CLASS_LOADER,
 )
+from examples.fastapi_cruddy_sqlite.utils.schema_example import schema_example
 
 if TYPE_CHECKING:
     from examples.fastapi_cruddy_sqlite.models.user import User
@@ -35,7 +36,7 @@ EXAMPLE_GROUP = {"name": "Cruddy Fans"}
 # client's PATCH action. Generally, the update model should have the fewest
 # number of available fields for a client to manipulate.
 class GroupUpdate(CruddyModel):
-    name: str = Field(schema_extra={"examples": [EXAMPLE_GROUP["name"]]})
+    name: str = Field(schema_extra=schema_example(EXAMPLE_GROUP["name"]))
 
 
 # The "Create" model variant expands on the update model, above, and adds
@@ -55,7 +56,7 @@ class GroupCreate(GroupUpdate):
 # fields need to be optional.
 class GroupView(CruddyCreatedUpdatedSignature, CruddyUUIDModel):
     name: str | None = Field(
-        default=None, schema_extra={"examples": [EXAMPLE_GROUP["name"]]}
+        default=None, schema_extra=schema_example(EXAMPLE_GROUP["name"])
     )
 
 

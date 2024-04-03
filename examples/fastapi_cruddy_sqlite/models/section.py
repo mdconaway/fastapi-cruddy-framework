@@ -14,6 +14,7 @@ from examples.fastapi_cruddy_sqlite.models.common.graphql import (
     POST_LIST_TYPE,
     POST_CLASS_LOADER,
 )
+from examples.fastapi_cruddy_sqlite.utils.schema_example import schema_example
 
 if TYPE_CHECKING:
     from examples.fastapi_cruddy_sqlite.models.post import Post
@@ -34,7 +35,7 @@ EXAMPLE_SECTION = {"name": "Opinions"}
 # client's PATCH action. Generally, the update model should have the fewest
 # number of available fields for a client to manipulate.
 class SectionUpdate(CruddyModel):
-    name: str = Field(schema_extra={"examples": [EXAMPLE_SECTION["name"]]})
+    name: str = Field(schema_extra=schema_example(EXAMPLE_SECTION["name"]))
 
 
 # The "Create" model variant expands on the update model, above, and adds
@@ -54,7 +55,7 @@ class SectionCreate(SectionUpdate):
 # fields need to be optional.
 class SectionView(CruddyCreatedUpdatedSignature, CruddyUUIDModel):
     name: str | None = Field(
-        default=None, schema_extra={"examples": [EXAMPLE_SECTION["name"]]}
+        default=None, schema_extra=schema_example(EXAMPLE_SECTION["name"])
     )
 
 

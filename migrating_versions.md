@@ -100,7 +100,13 @@ class Widget(CruddyModel):
 becomes
 ```python
 class Widget(CruddyModel):
-    name: str = Field(schema_extra={"examples": ["Widget Name"]})
+    name: str = Field(
+            schema_extra={
+                "json_schema_extra": {
+                    "example": "Widget Name"
+                }
+            }
+        )
 ```
 ---
 
