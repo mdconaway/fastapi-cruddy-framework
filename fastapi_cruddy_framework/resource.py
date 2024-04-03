@@ -137,7 +137,7 @@ class Resource:
         controller_extension: Type[CruddyController] | None = None,
     ):
         possible_tag = f"{resource_model.__name__}".lower()
-        possible_path = f"/{pluralizer.plural(possible_tag)}"
+        possible_path = f"/{pluralizer.plural(possible_tag)}"  # type: ignore
         self._on_resolution = None
         self._link_prefix = link_prefix
         self._resource_path = possible_path if path == None else path
@@ -251,7 +251,7 @@ class Resource:
         update_schema = self._update_schema
         response_meta_schema = self._meta_schema
         resource_model_name = f"{self.repository.model.__name__}".lower()
-        resource_model_plural = pluralizer.plural(resource_model_name)
+        resource_model_plural = pluralizer.plural(resource_model_name)  # type: ignore
         resource_response_name = response_schema.__name__
         resource_create_name = create_schema.__name__
         resource_update_name = update_schema.__name__

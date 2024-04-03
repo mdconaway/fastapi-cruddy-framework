@@ -757,7 +757,7 @@ def _ControllerConfigOneToMany(
     near_col_name = col.name
     resource_model_name = f"{repository.model.__name__}".lower()
     foreign_model_name = pluralizer.plural(
-        f"{config.foreign_resource.repository.model.__name__}".lower()
+        f"{config.foreign_resource.repository.model.__name__}".lower()  # type: ignore
     )
 
     # Merge three policy sets onto this endpoint:
@@ -857,7 +857,7 @@ def _ControllerConfigManyToMany(
     far_model: Type[CruddyModel] = config.foreign_resource.repository.model
     resource_model_name = f"{repository.model.__name__}".lower()
     foreign_model_name = pluralizer.plural(
-        f"{config.foreign_resource.repository.model.__name__}".lower()
+        f"{config.foreign_resource.repository.model.__name__}".lower()  # type: ignore
     )
 
     # Merge three policy sets onto this endpoint:

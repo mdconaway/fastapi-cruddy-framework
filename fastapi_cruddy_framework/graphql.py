@@ -172,11 +172,11 @@ class GraphQLResolverService:
         valid_selectors: dict[str, Callable] | None = None,
         graphql_resolver_name_override: str | None = None,
     ):
-        plural_type_name = pluralizer.plural(type_name)
+        plural_type_name = pluralizer.plural(type_name)  # type: ignore
         graphql_resolver_type = (
             plural_type_name
             if graphql_resolver_name_override is None
-            else pluralizer.plural(graphql_resolver_name_override)
+            else pluralizer.plural(graphql_resolver_name_override)  # type: ignore
         )
         if route_generator is None:
 
