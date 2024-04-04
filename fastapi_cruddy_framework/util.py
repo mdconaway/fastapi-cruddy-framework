@@ -1,12 +1,15 @@
 import inspect
-from typing import Type, Coroutine, Any, Callable
+from typing import Type, Coroutine, Any, Callable, Union
+from typing_extensions import get_args, get_origin
+from datetime import date, datetime, timezone
 from json import dumps, loads
-from uuid import UUID
 from datetime import date, datetime, timezone, timedelta
 from re import compile, Match
 from fastapi import Request, WebSocket, Depends
+from fastapi.types import UnionType
 from pydantic.errors import PydanticErrorMixin
 from sqlalchemy.orm import class_mapper, object_mapper
+from .schemas import UUID, uuid7
 
 
 possible_id_types = Type[UUID] | Type[int] | Type[str]
@@ -214,3 +217,44 @@ def get_state(
 
 def set_state(connection: Request | WebSocket, key: str, value: Any) -> None:
     setattr(connection.state, key, value)
+
+
+def estimate_example_for_type(type_annotation: type[Any] | None):
+    if type_annotation is None or not inspect.isclass(type_annotation):
+        return None
+    if issubclass(type_annotation, UUID):
+        return f"{uuid7()}"
+    if issubclass(type_annotation, bool):
+        return True
+    if issubclass(type_annotation, str):
+        return "string"
+    if issubclass(type_annotation, int):
+        return 1
+    if issubclass(type_annotation, float):
+        return 1.0
+    if issubclass(type_annotation, dict):
+        return {}
+    if issubclass(type_annotation, list):
+        return []
+    if issubclass(type_annotation, tuple):
+        return []
+    if issubclass(type_annotation, datetime):
+        return datetime.now(tz=timezone.utc).isoformat()
+    if issubclass(type_annotation, date):
+        return date.today().isoformat()
+    return None
+
+
+def estimate_simple_example(annotation: Any | None) -> Any | None:
+    origin = get_origin(annotation)
+    if origin is Union or origin is UnionType:
+        for arg in get_args(annotation):
+            possible_example = estimate_example_for_type(arg)
+            if possible_example is not None:
+                return possible_example
+            possible_example = estimate_simple_example(arg)
+            if possible_example is not None:
+                return possible_example
+    if (possible_example := estimate_example_for_type(annotation)) is not None:
+        return possible_example
+    return estimate_example_for_type(origin)

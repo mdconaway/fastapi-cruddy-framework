@@ -28,7 +28,12 @@ from .schemas import (
 from .controller import Actions, CruddyController, ControllerConfigurator
 from .repository import AbstractRepository
 from .adapters import BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter
-from .util import possible_id_types, possible_id_values, lifecycle_types
+from .util import (
+    possible_id_types,
+    possible_id_values,
+    lifecycle_types,
+    estimate_simple_example,
+)
 
 
 class SchemaDict(TypedDict):
@@ -246,7 +251,7 @@ class Resource:
 
     def generate_internal_schemas(self):
         local_resource = self
-        response_schema = self._response_schema
+        response_schema: CruddyModel = self._response_schema
         create_schema = self._create_schema
         update_schema = self._update_schema
         response_meta_schema = self._meta_schema
@@ -275,9 +280,20 @@ class Resource:
                 )
             }
             if possible_id.json_schema_extra is not None:
+                possible_id_examples = possible_id.json_schema_extra.get(
+                    "examples", None
+                )
+                if not isinstance(possible_id_examples, list):
+                    possible_id_examples = []
                 possible_id_example = possible_id.json_schema_extra.get("example", None)
+                if possible_id_example is None and len(possible_id_examples) > 0:
+                    possible_id_example = possible_id_examples[0]
                 if possible_id_example is not None:
                     example_id = possible_id_example
+                elif possible_id.default is not None:
+                    example_id = possible_id.default
+                elif possible_id.default_factory is not None:
+                    example_id = possible_id.default_factory()
                 possible_id.json_schema_extra.update(example_dict)
             else:
                 possible_id.json_schema_extra = example_dict  # type: ignore
@@ -286,25 +302,38 @@ class Resource:
         link_object = {}
         false_create_attrs = {}
         false_update_attrs = {}
+        view_example_dict = {}
         create_protected_relationships = (
             self._protected_relationships + self._protected_create_relationships
         )
         update_protected_relationships = (
             self._protected_relationships + self._protected_update_relationships
         )
+
+        for k, v in response_schema.model_fields.items():
+            default_example = None
+            if v.json_schema_extra is not None:
+                possible_examples = v.json_schema_extra.get("examples", None)
+                possible_example = v.json_schema_extra.get("example", None)
+                if isinstance(possible_examples, list) and len(possible_examples) > 0:
+                    default_example = possible_examples[0]
+                elif possible_example is not None:
+                    default_example = possible_example
+            elif v.default is not None:
+                default_example = v.default
+            elif v.default_factory is not None:
+                default_example = v.default_factory()
+            if default_example is None:
+                default_example = estimate_simple_example(v.annotation)
+            view_example_dict[k] = default_example
+        view_example_dict["links"] = {}
         for k, v in self._relations.items():
+            ex_link = self._single_link(id=str(example_id), relationship=k)
             link_object[k] = (
                 str,
-                Field(
-                    schema_extra={
-                        "json_schema_extra": {
-                            "example": self._single_link(
-                                id=str(example_id), relationship=k
-                            )
-                        }
-                    }
-                ),
+                Field(schema_extra={"json_schema_extra": {"example": ex_link}}),
             )
+            view_example_dict["links"][k] = ex_link
             rel_def = self._derive_shadow_relationship(
                 v.orm_relationship.direction, v.foreign_resource._id_type
             )
@@ -313,20 +342,13 @@ class Resource:
             if k not in update_protected_relationships:
                 false_update_attrs[k] = rel_def
         for item in self._artificial_relationship_paths:
+            ex_link = self._single_link(id=str(example_id), relationship=item)
             link_object[item] = (
                 str,
-                Field(
-                    schema_extra={
-                        "json_schema_extra": {
-                            "example": self._single_link(
-                                id=str(example_id), relationship=item
-                            )
-                        }
-                    }
-                ),
+                Field(schema_extra={"json_schema_extra": {"example": ex_link}}),
             )
+            view_example_dict["links"][item] = ex_link
         link_object["__base__"] = CruddyModel
-
         LinkModel = create_model(f"{resource_model_name}Links", **link_object)
         # End shared link model
 
@@ -362,7 +384,7 @@ class Resource:
         SingleSchemaLinked = create_model(
             f"{resource_response_name}Linked",
             links=(LinkModel, None),
-            __base__=response_schema,
+            __base__=response_schema,  # type: ignore
         )
         # End single record schema with embedded links
 
@@ -371,7 +393,14 @@ class Resource:
             f"{resource_response_name}Envelope",
             __base__=CruddyGenericModel,
             **{
-                resource_model_name: (SingleSchemaLinked, ...),
+                resource_model_name: (
+                    SingleSchemaLinked,
+                    Field(
+                        schema_extra={
+                            "json_schema_extra": {"example": view_example_dict}
+                        }
+                    ),
+                ),
                 "meta": (dict[str, Any] | None, None),
             },  # type: ignore
         )
@@ -397,7 +426,14 @@ class Resource:
             f"{resource_response_name}List",
             __base__=CruddyGenericModel,
             **{
-                resource_model_plural: (list[SingleSchemaLinked], ...),
+                resource_model_plural: (
+                    list[SingleSchemaLinked],
+                    Field(
+                        schema_extra={
+                            "json_schema_extra": {"example": [view_example_dict]}
+                        }
+                    ),
+                ),
             },  # type: ignore
             meta=(response_meta_schema, ...),
         )
