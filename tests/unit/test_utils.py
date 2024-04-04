@@ -1,4 +1,4 @@
-from typing import Union, Optional
+from typing import Any, Union, Optional
 from pytest import mark, raises
 from datetime import datetime, date
 from fastapi import Request
@@ -92,6 +92,27 @@ async def test_estimate_list():
     assert estimate_simple_example(list) == []
     assert estimate_simple_example(Union[None, list]) == []
     assert estimate_simple_example(Optional[list]) == []
+
+
+@mark.dependency()
+async def test_estimate_complex_dict():
+    assert estimate_simple_example(dict[str, Any]) == {}
+    assert estimate_simple_example(Union[None, dict[str, Any]]) == {}
+    assert estimate_simple_example(Optional[dict[str, Any]]) == {}
+
+
+@mark.dependency()
+async def test_estimate_complex_list():
+    assert estimate_simple_example(list[str]) == []
+    assert estimate_simple_example(Union[None, list[str]]) == []
+    assert estimate_simple_example(Optional[list[str]]) == []
+
+
+@mark.dependency()
+async def test_estimate_complex_list_of_dict():
+    assert estimate_simple_example(list[dict]) == []
+    assert estimate_simple_example(Union[None, list[dict]]) == []
+    assert estimate_simple_example(Optional[list[dict]]) == []
 
 
 @mark.dependency()

@@ -25,7 +25,16 @@ from .schemas import (
     UUID,
     uuid7,
 )
-from .controller import Actions, CruddyController, ControllerConfigurator
+from .controller import (
+    Actions,
+    CruddyController,
+    ControllerConfigurator,
+    META_FAILED_RECORDS_KEY,
+    META_RELATION_INFO_KEY,
+    META_NUM_RELATION_MODIFIED_KEY,
+    META_RELATED_RECORDS_KEY,
+    META_VALIDATION_MESSAGES_KEY,
+)
 from .repository import AbstractRepository
 from .adapters import BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter
 from .util import (
@@ -401,7 +410,24 @@ class Resource:
                         }
                     ),
                 ),
-                "meta": (dict[str, Any] | None, None),
+                "meta": (
+                    dict[str, Any] | None,
+                    Field(
+                        default=None,
+                        schema_extra={
+                            "json_schema_extra": {
+                                "example": {
+                                    META_RELATION_INFO_KEY: {
+                                        META_NUM_RELATION_MODIFIED_KEY: 0,
+                                        META_RELATED_RECORDS_KEY: {},
+                                        META_FAILED_RECORDS_KEY: {},
+                                        META_VALIDATION_MESSAGES_KEY: {},
+                                    }
+                                }
+                            }
+                        },
+                    ),
+                ),
             },  # type: ignore
         )
 
