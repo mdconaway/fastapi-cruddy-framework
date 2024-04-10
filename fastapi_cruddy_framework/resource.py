@@ -12,6 +12,7 @@ from sqlalchemy.orm import (
 from sqlmodel import Field, inspect
 from enum import Enum
 from pydantic import create_model
+from pydantic_core import PydanticUndefinedType
 from .inflector import pluralizer
 from .schemas import (
     RelationshipConfig,
@@ -303,7 +304,9 @@ class Resource:
                 elif possible_id.default is not None:
                     example_id = possible_id.default
                 elif possible_id.default_factory is not None:
-                    example_id = possible_id.default_factory()
+                    temp_example = possible_id.default_factory()
+                    if not isinstance(temp_example, PydanticUndefinedType):
+                        example_id = temp_example
                 possible_id.json_schema_extra.update(example_dict)
             else:
                 possible_id.json_schema_extra = example_dict  # type: ignore
@@ -333,6 +336,8 @@ class Resource:
                 default_example = v.default
             elif v.default_factory is not None:
                 default_example = v.default_factory()
+                if isinstance(default_example, PydanticUndefinedType):
+                    default_example = None
             if default_example is None:
                 default_example = estimate_simple_example(v.annotation)
             view_example_dict[k] = squash_type(default_example)
