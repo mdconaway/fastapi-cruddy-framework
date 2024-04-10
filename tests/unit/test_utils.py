@@ -2,11 +2,12 @@ from typing import Any, Union, Optional
 from pytest import mark, raises
 from datetime import datetime, date
 from fastapi import Request
-from fastapi_cruddy_framework import UUID
+from fastapi_cruddy_framework import UUID, uuid7
 from fastapi_cruddy_framework.util import (
     parse_and_coerce_to_utc_datetime,
     DateTimeError,
     estimate_simple_example,
+    squash_type,
 )
 
 
@@ -141,3 +142,12 @@ async def test_estimate_invalid():
     assert estimate_simple_example(Request) == None
     assert estimate_simple_example(Union[None, Request]) == None
     assert estimate_simple_example(Optional[Request]) == None
+
+
+@mark.dependency()
+async def test_type_squasher():
+    assert squash_type(None) == None
+    assert squash_type({}) == {}
+    assert squash_type([]) == []
+    assert isinstance(squash_type(datetime.now()), str)
+    assert isinstance(squash_type(uuid7()), str)

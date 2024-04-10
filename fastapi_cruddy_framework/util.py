@@ -219,6 +219,18 @@ def set_state(connection: Request | WebSocket, key: str, value: Any) -> None:
     setattr(connection.state, key, value)
 
 
+def squash_type(value: Any):
+    if value is None:
+        return None
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if isinstance(value, (bool, str, int, float)):
+        return value
+    if isinstance(value, (dict, list)):
+        return to_json_object(value)
+    return f"{value}"
+
+
 def estimate_example_for_type(type_annotation: type[Any] | None):
     if type_annotation is None or not inspect.isclass(type_annotation):
         return None

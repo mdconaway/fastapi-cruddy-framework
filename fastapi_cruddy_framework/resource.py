@@ -42,6 +42,7 @@ from .util import (
     possible_id_values,
     lifecycle_types,
     estimate_simple_example,
+    squash_type,
 )
 
 
@@ -334,7 +335,7 @@ class Resource:
                 default_example = v.default_factory()
             if default_example is None:
                 default_example = estimate_simple_example(v.annotation)
-            view_example_dict[k] = default_example
+            view_example_dict[k] = squash_type(default_example)
         view_example_dict["links"] = {}
         for k, v in self._relations.items():
             ex_link = self._single_link(id=str(example_id), relationship=k)
