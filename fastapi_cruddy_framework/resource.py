@@ -301,7 +301,9 @@ class Resource:
                     possible_id_example = possible_id_examples[0]
                 if possible_id_example is not None:
                     example_id = possible_id_example
-                elif possible_id.default is not None:
+                elif possible_id.default is not None and not isinstance(
+                    possible_id.default, PydanticUndefinedType
+                ):
                     example_id = possible_id.default
                 elif possible_id.default_factory is not None:
                     temp_example = possible_id.default_factory()
@@ -332,7 +334,9 @@ class Resource:
                     default_example = possible_examples[0]
                 elif possible_example is not None:
                     default_example = possible_example
-            elif v.default is not None:
+            elif v.default is not None and not isinstance(
+                v.default, PydanticUndefinedType
+            ):
                 default_example = v.default
             elif v.default_factory is not None:
                 default_example = v.default_factory()
