@@ -1,6 +1,6 @@
 from pytest import mark
 from fastapi import status
-from fastapi_cruddy_framework import BrowserTestClient
+from fastapi_cruddy_framework import BrowserTestClient, uuid7
 
 elves_group_id = None
 orcs_group_id = None
@@ -61,7 +61,7 @@ async def test_setup(authenticated_client: BrowserTestClient):
 
     response = await authenticated_client.post(
         f"/sections",
-        json={"section": {"name": "Opinions"}},
+        json={"section": {"name": "Opinions", "uuid": str(uuid7())}},
     )
     assert response.status_code == status.HTTP_200_OK
     result = response.json()

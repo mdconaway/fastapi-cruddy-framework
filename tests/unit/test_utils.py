@@ -2,7 +2,7 @@ from typing import Any, Union, Optional
 from pytest import mark, raises
 from datetime import datetime, date
 from fastapi import Request
-from fastapi_cruddy_framework import UUID, uuid7
+from fastapi_cruddy_framework import CruddyModel, UUID, uuid7
 from fastapi_cruddy_framework.util import (
     parse_and_coerce_to_utc_datetime,
     DateTimeError,
@@ -151,3 +151,13 @@ async def test_type_squasher():
     assert squash_type([]) == []
     assert isinstance(squash_type(datetime.now()), str)
     assert isinstance(squash_type(uuid7()), str)
+
+
+@mark.dependency()
+async def test_pydantic_undefined():
+    class TestModel(CruddyModel):
+        uuid: UUID
+
+    example = estimate_simple_example(TestModel.model_fields["uuid"].annotation)
+    assert isinstance(example, str)
+    assert len(example) == 36

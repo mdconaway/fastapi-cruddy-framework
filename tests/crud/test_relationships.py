@@ -1,7 +1,7 @@
 from json import dumps
 from pytest import mark
 from fastapi import status
-from fastapi_cruddy_framework import BrowserTestClient
+from fastapi_cruddy_framework import BrowserTestClient, uuid7
 from examples.fastapi_cruddy_sqlite.config.general import general
 
 group_id = None
@@ -459,9 +459,7 @@ async def test_nested_create_single_objects(authenticated_client: BrowserTestCli
                     "categories": ["blog"],
                 },
                 "user_id": user_id,
-                "section": {
-                    "name": "Opinons",
-                },
+                "section": {"name": "Opinons", "uuid": str(uuid7())},
             }
         },
     )
@@ -519,6 +517,7 @@ async def test_nested_create_single_objects(authenticated_client: BrowserTestCli
                 "user_id": user_id,
                 "section": {
                     "name": "Opinons",
+                    "uuid": str(uuid7()),
                 },
             }
         },
@@ -560,6 +559,7 @@ async def test_nested_create_multiple_objects(authenticated_client: BrowserTestC
         json={
             "section": {
                 "name": "Opinions",
+                "uuid": str(uuid7()),
                 "posts": [
                     {
                         "content": "Today I learned I can create nested objects with my POST requests.",
@@ -617,6 +617,7 @@ async def test_nested_create_multiple_objects(authenticated_client: BrowserTestC
         json={
             "section": {
                 "name": "Opinions",
+                "uuid": str(uuid7()),
             }
         },
     )
@@ -688,6 +689,7 @@ async def test_nested_update_single_objects(authenticated_client: BrowserTestCli
         json={
             "section": {
                 "name": "Opinions",
+                "uuid": str(uuid7()),
             }
         },
     )
@@ -743,6 +745,7 @@ async def test_nested_update_single_objects(authenticated_client: BrowserTestCli
         json={
             "section": {
                 "name": "Opinions",
+                "uuid": str(uuid7()),
             }
         },
     )
@@ -856,6 +859,7 @@ async def test_nested_update_multiple_objects(authenticated_client: BrowserTestC
         json={
             "section": {
                 "name": "Opinion",
+                "uuid": str(uuid7()),
                 "posts": [
                     update_post_1,
                     update_post_2,
@@ -959,6 +963,7 @@ async def test_nested_update_multiple_objects(authenticated_client: BrowserTestC
         json={
             "section": {
                 "name": "Opinion",
+                "uuid": str(uuid7()),
             }
         },
     )

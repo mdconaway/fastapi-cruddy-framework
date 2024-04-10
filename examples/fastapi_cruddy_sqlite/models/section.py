@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING
 from fastapi_cruddy_framework import (
+    UUID,
     CruddyModel,
     CruddyUUIDModel,
     CruddyCreatedUpdatedSignature,
@@ -43,7 +44,7 @@ class SectionUpdate(CruddyModel):
 # generated. This allows the POST action to accept update-able fields, as
 # well as one-time writeable fields.
 class SectionCreate(SectionUpdate):
-    pass
+    uuid: UUID
 
 
 # The "View" model describes all fields that should typcially be present
