@@ -728,7 +728,11 @@ def _ControllerConfigManyToOne(
 
             _repo_lifecycle_before = _shimmed_repo_lifecycle_before
         else:
-            where = must_be if where is None else {"*and": [must_be, where]}
+            context_data[DATA_KEY]["where"] = (
+                must_be
+                if context_data[DATA_KEY]["where"] is None
+                else {"*and": [must_be, context_data[DATA_KEY]["where"]]}
+            )
 
         # Collect the bulk data transfer object from the query
         result: BulkDTO = await config.foreign_resource.repository.get_all(
