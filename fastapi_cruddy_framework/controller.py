@@ -632,7 +632,7 @@ class CruddyController:
 # -------------------------------------------------------------------------------------------
 
 
-def assemblePolicies(*args: (Sequence)):
+def assemble_policies(*args: (Sequence)):
     merged = []
     for policy_set in args:
         for individual_policy in policy_set:
@@ -666,13 +666,14 @@ def _ControllerConfigManyToOne(
         description=f"Get the '{foreign_model_name}' a '{resource_model_name}' belongs to",
         response_model=config.foreign_resource.schemas["single"],
         response_model_exclude_none=True,
-        dependencies=assemblePolicies(
+        dependencies=assemble_policies(
             policies_universal,
             policies_get_one,
             config.foreign_resource.policies["get_one"],
         ),
     )
     async def get_many_to_one(
+        request: Request,
         id: id_type = Path(..., alias="id"),
         columns: list[str] = Query(None, alias="columns"),
         where: Json = Query(None, alias="where"),
@@ -688,23 +689,46 @@ def _ControllerConfigManyToOne(
         # Build a query to use foreign resource to find related objects
 
         tgt_id = origin_record.model_dump()[near_col_name]
-        must_be = {far_col_name: {"*eq": tgt_id}}
-        where = must_be if where is None else {"*and": [must_be, where]}
 
-        _lifecycle_before = None
-        foreign_lifecycle_before = config.foreign_resource.repository.lifecycle[
+        _repo_lifecycle_before = None
+        foreign_repo_lifecycle_before = config.foreign_resource.repository.lifecycle[
             "before_get_one"
         ]
-        foreign_lifecycle_after = config.foreign_resource.repository.lifecycle[
+        foreign_repo_lifecycle_after = config.foreign_resource.repository.lifecycle[
             "after_get_one"
         ]
-        if foreign_lifecycle_before != None:
+        context_data = {
+            DATA_KEY: {
+                "id": tgt_id,
+                "where": where,
+            },
+            META_KEY: None,
+        }
+        # Execute the foreign controller lifecycle!
+        if config.foreign_resource.controller_lifecycles["before_get_one"]:
+            # If there is a user space lifecycle hook, run it (allows context mutations)
+            await config.foreign_resource.controller_lifecycles["before_get_one"](
+                request, context_data
+            )
 
-            async def _shimmed_lifecycle_before():
-                await foreign_lifecycle_before(tgt_id)
+        must_be = {far_col_name: {"*eq": context_data[DATA_KEY]["id"]}}
+
+        if foreign_repo_lifecycle_before:
+
+            async def _shimmed_repo_lifecycle_before(query_conf: dict):
+                shim_where = query_conf["where"]
+                await foreign_repo_lifecycle_before(
+                    context_data[DATA_KEY]["id"], shim_where
+                )
+                shim_where = (
+                    must_be if shim_where is None else {"*and": [must_be, shim_where]}
+                )
+                query_conf["where"] = shim_where
                 return
 
-            _lifecycle_before = _shimmed_lifecycle_before
+            _repo_lifecycle_before = _shimmed_repo_lifecycle_before
+        else:
+            where = must_be if where is None else {"*and": [must_be, where]}
 
         # Collect the bulk data transfer object from the query
         result: BulkDTO = await config.foreign_resource.repository.get_all(
@@ -712,9 +736,9 @@ def _ControllerConfigManyToOne(
             limit=1,
             columns=columns,
             sort=None,
-            where=where,
+            where=context_data[DATA_KEY]["where"],
             _use_own_hooks=False,
-            _lifecycle_before=_lifecycle_before,
+            _lifecycle_before=_repo_lifecycle_before,
         )
 
         # If we get a result, grab the first value. There should only be one in many to one.
@@ -724,20 +748,29 @@ def _ControllerConfigManyToOne(
             table_record: CruddyModel = config.foreign_resource.repository.model(
                 **row_data._mapping
             )
-            if foreign_lifecycle_after != None:
-                await foreign_lifecycle_after(table_record)
+            if foreign_repo_lifecycle_after:
+                await foreign_repo_lifecycle_after(table_record)
             data = table_record.model_dump()
-        else:
-            if foreign_lifecycle_after != None:
-                await foreign_lifecycle_after(None)
+        elif foreign_repo_lifecycle_after:
+            await foreign_repo_lifecycle_after(None)
 
         if data is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Record not found"
             )
 
+        context_data[DATA_KEY] = data
+
+        # If there is a user space lifecycle hook, run it (allows context mutations)
+        if config.foreign_resource.controller_lifecycles["after_get_one"]:
+            await config.foreign_resource.controller_lifecycles["after_get_one"](
+                request, context_data
+            )
+
         # Invoke the dynamically built model
-        return config.foreign_resource.schemas["single"](**{DATA_KEY: data})
+        return config.foreign_resource.schemas["single"](
+            **{DATA_KEY: context_data[DATA_KEY]}
+        )
 
 
 def _ControllerConfigOneToMany(
@@ -769,13 +802,14 @@ def _ControllerConfigOneToMany(
         description=f"Get all '{foreign_model_name}' belonging to a '{resource_model_name}'",
         response_model=config.foreign_resource.schemas["many"],
         response_model_exclude_none=True,
-        dependencies=assemblePolicies(
+        dependencies=assemble_policies(
             policies_universal,
             policies_get_one,
             config.foreign_resource.policies["get_many"],
         ),
     )
     async def get_one_to_many(
+        request: Request,
         id: id_type = Path(..., alias="id"),
         page: int = 1,
         limit: int = default_limit,
@@ -795,51 +829,81 @@ def _ControllerConfigOneToMany(
         additional_where = {
             far_col_name: {"*eq": origin_record.model_dump()[near_col_name]}
         }
-        if where != None:
-            repo_where = {"*and": [additional_where, where]}
-        else:
-            repo_where = additional_where
 
-        _lifecycle_before = None
-        foreign_lifecycle_before = config.foreign_resource.repository.lifecycle[
+        _repo_lifecycle_before = None
+        foreign_repo_lifecycle_before = config.foreign_resource.repository.lifecycle[
             "before_get_all"
         ]
+
+        context_data = {
+            DATA_KEY: {
+                "page": page,
+                "limit": limit,
+                "columns": columns,
+                "sort": sort,
+                "where": where,
+            },
+            META_KEY: None,
+        }
+
+        # If there is a user space lifecycle hook, run it (allows context mutations)
+        if config.foreign_resource.controller_lifecycles["before_get_all"]:
+            await config.foreign_resource.controller_lifecycles["before_get_all"](
+                request, context_data
+            )
 
         # This will shim the lifecycle hook so it does not see the relational portion of the query
         # but can still alter the general search object as if its a single resource query.
         # This is good because a lifecycle hook should only be concerned about its own resource.
-        if foreign_lifecycle_before != None:
+        if foreign_repo_lifecycle_before:
 
-            async def _shimmed_lifecycle_before(query_conf):
-                local_where = query_conf["where"]
-                query_conf["where"] = where
-                await foreign_lifecycle_before(query_conf)
-                query_conf["where"] = local_where
+            async def _shimmed_repo_lifecycle_before(query_conf):
+                await foreign_repo_lifecycle_before(query_conf)
+                shim_where = query_conf["where"]
+                query_conf["where"] = (
+                    additional_where
+                    if shim_where is None
+                    else {"*and": [additional_where, shim_where]}
+                )
                 return
 
-            _lifecycle_before = _shimmed_lifecycle_before
+            _repo_lifecycle_before = _shimmed_repo_lifecycle_before
+        else:
+            context_data[DATA_KEY]["where"] = (
+                additional_where
+                if context_data[DATA_KEY]["where"] is None
+                else {"*and": [additional_where, context_data[DATA_KEY]["where"]]}
+            )
 
         # Collect the bulk data transfer object from the query
         result: BulkDTO = await config.foreign_resource.repository.get_all(
-            page=page,
-            limit=limit,
-            columns=columns,
-            sort=sort,
-            where=repo_where,
-            _lifecycle_before=_lifecycle_before,
+            **context_data[DATA_KEY],
+            _lifecycle_before=_repo_lifecycle_before,
             _lifecycle_after=config.foreign_resource.repository.lifecycle[
                 "after_get_all"
             ],
             _use_own_hooks=False,
         )
-        meta = {
+
+        context_data[DATA_KEY] = result.data
+        context_data[META_KEY] = {
             "page": result.page,
             "limit": result.limit,
             "pages": result.total_pages,
             "records": result.total_records,
         }
+
+        # If there is a user space lifecycle hook, run it (allows context mutations)
+        if config.foreign_resource.controller_lifecycles["after_get_all"]:
+            await config.foreign_resource.controller_lifecycles["after_get_all"](
+                request, context_data
+            )
+
         return config.foreign_resource.schemas["many"](
-            **{META_KEY: meta_schema(**meta), DATA_KEY: result.data}
+            **{
+                META_KEY: meta_schema(**context_data[META_KEY]),
+                DATA_KEY: context_data[DATA_KEY],
+            }
         )
 
 
@@ -869,13 +933,14 @@ def _ControllerConfigManyToMany(
         description=f"Get all '{foreign_model_name}' related to a '{resource_model_name}'",
         response_model=config.foreign_resource.schemas["many"],
         response_model_exclude_none=True,
-        dependencies=assemblePolicies(
+        dependencies=assemble_policies(
             policies_universal,
             policies_get_one,
             config.foreign_resource.policies["get_many"],
         ),
     )
     async def get_many_to_many(
+        request: Request,
         id: id_type = Path(..., alias="id"),
         page: int = 1,
         limit: int = default_limit,
@@ -889,16 +954,29 @@ def _ControllerConfigManyToMany(
                 status_code=status.HTTP_404_NOT_FOUND, detail=f"Record {id} not found"
             )
 
+        context_data = {
+            DATA_KEY: {
+                "page": page,
+                "limit": limit,
+                "columns": columns,
+                "sort": sort,
+                "where": where,
+            },
+            META_KEY: None,
+        }
+
+        # If there is a user space lifecycle hook, run it (allows context mutations)
+        if config.foreign_resource.controller_lifecycles["before_get_all"]:
+            await config.foreign_resource.controller_lifecycles["before_get_all"](
+                request, context_data
+            )
+
         # Collect the bulk data transfer object from the query
         result: BulkDTO = await repository.get_all_relations(
             id=id,
             relation=relationship_prop,
             relation_model=far_model,
-            page=page,
-            limit=limit,
-            columns=columns,
-            sort=sort,
-            where=where,
+            **context_data[DATA_KEY],
             # the foreign resource must interact with its own lifecycle
             _lifecycle_before=config.foreign_resource.repository.lifecycle[
                 "before_get_all"
@@ -907,14 +985,26 @@ def _ControllerConfigManyToMany(
                 "after_get_all"
             ],
         )
-        meta = {
+
+        context_data[DATA_KEY] = result.data
+        context_data[META_KEY] = {
             "page": result.page,
             "limit": result.limit,
             "pages": result.total_pages,
             "records": result.total_records,
         }
+
+        # If there is a user space lifecycle hook, run it (allows context mutations)
+        if config.foreign_resource.controller_lifecycles["after_get_all"]:
+            await config.foreign_resource.controller_lifecycles["after_get_all"](
+                request, context_data
+            )
+
         return config.foreign_resource.schemas["many"](
-            **{META_KEY: meta_schema(**meta), DATA_KEY: result.data}
+            **{
+                META_KEY: meta_schema(**context_data[META_KEY]),
+                DATA_KEY: context_data[DATA_KEY],
+            }
         )
 
 
@@ -953,7 +1043,7 @@ def ControllerConfigurator(
             description=f"Create a single '{single_name}'",
             response_model=single_schema,
             response_model_exclude_none=True,
-            dependencies=assemblePolicies(policies_universal, policies_create),
+            dependencies=assemble_policies(policies_universal, policies_create),
         )(actions.create)
 
     if not disable_update:
@@ -962,7 +1052,7 @@ def ControllerConfigurator(
             description=f"Update a single '{single_name}'",
             response_model=single_schema,
             response_model_exclude_none=True,
-            dependencies=assemblePolicies(policies_universal, policies_update),
+            dependencies=assemble_policies(policies_universal, policies_update),
         )(actions.update)
 
     if not disable_delete:
@@ -971,7 +1061,7 @@ def ControllerConfigurator(
             description=f"Delete a single '{single_name}'",
             response_model=single_schema,
             response_model_exclude_none=True,
-            dependencies=assemblePolicies(policies_universal, policies_delete),
+            dependencies=assemble_policies(policies_universal, policies_delete),
         )(actions.delete)
 
     if not disable_get_one:
@@ -980,7 +1070,7 @@ def ControllerConfigurator(
             description=f"Fetch a single '{single_name}'",
             response_model=single_schema,
             response_model_exclude_none=True,
-            dependencies=assemblePolicies(policies_universal, policies_get_one),
+            dependencies=assemble_policies(policies_universal, policies_get_one),
         )(actions.get_by_id)
 
     if not disable_get_many:
@@ -989,7 +1079,7 @@ def ControllerConfigurator(
             description=f"Fetch many '{plural_name}'",
             response_model=many_schema,
             response_model_exclude_none=True,
-            dependencies=assemblePolicies(policies_universal, policies_get_many),
+            dependencies=assemble_policies(policies_universal, policies_get_many),
         )(actions.get_all)
 
     # Add relationship link endpoints starting here...
