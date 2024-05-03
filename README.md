@@ -888,7 +888,6 @@ def event_loop():
 
 
 @fixture(scope="session", autouse=True)
-
 async def app():
     # Don't move this import!
     from your_app.main import app
@@ -897,7 +896,6 @@ async def app():
 
 
 @fixture(scope="session", autouse=True)
-
 async def client(app: FastAPI):
     # By using "with" the FastAPI app launch hook is run, connecting the application router
     async with TestClient(app, use_cookies=False) as client:
@@ -907,14 +905,12 @@ async def client(app: FastAPI):
 
 
 @fixture(scope="session", autouse=True)
-
 async def unauthenticated_client(client: TestClient):
     blank_client = BrowserTestClient(client=client, cookies=None, headers=None)
     yield blank_client
 
 
 @fixture(scope="session", autouse=True)
-
 async def authenticated_client(client: TestClient):
     sessioned_client = BrowserTestClient(
         client=client, cookies=None, headers=FAKE_AUTH_HEADERS
@@ -924,7 +920,6 @@ async def authenticated_client(client: TestClient):
 
 
 @fixture(scope="function")
-
 async def authenticated_websocket(authenticated_client: BrowserTestClient):
     async with authenticated_client.websocket_connect("/ws") as websocket:
         # For example: data = await websocket.receive_json()
