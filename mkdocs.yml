@@ -52,32 +52,22 @@ nav:
       - concepts/app_structure.md
       - concepts/adapters.md
       - concepts/config.md
-      - concepts/controllers.md
+      - Controllers: concepts/controllers/
+      - concepts/graphql.md
       - concepts/middleware.md
       - concepts/models.md
       - concepts/policies.md
-      - concepts/resources.md
+      - concepts/repository.md
+      - Resources: concepts/resources/
       - concepts/router.md
       - concepts/schemas.md
       - concepts/services.md
       - concepts/utils.md
       - concepts/query-language.md
       - concepts/testing.md
-  - API - Reference:
-      - api/index.md
-      - api/constants.md
-      - api/controller.md
-      - api/database_adapters.md
-      - api/helpers.md
-      - api/models.md
-      - api/module_loader_helpers.md
-      - api/repository.md
-      - api/resource_and_registry.md
-      - api/router_generator.md
-      - api/schemas.md
-      - api/test_helpers.md
-      - api/types.md
-      - api/websocket.md
+      - concepts/validators.md
+      - concepts/websockets.md
+  - API - Reference: /reference/
   - alternatives.md
   - help.md
   - contributing.md
@@ -101,9 +91,7 @@ markdown_extensions:
       smart_enable: all
   - pymdownx.caret
   - pymdownx.details
-  - pymdownx.emoji:
-      emoji_index: !!python/name:material.extensions.emoji.twemoji
-      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.emoji
   - pymdownx.highlight
   - pymdownx.inlinehilite
   - pymdownx.keys
@@ -115,6 +103,16 @@ markdown_extensions:
   - pymdownx.tasklist:
       custom_checkbox: true
   - pymdownx.tilde
+
+plugins:
+  - gen-files:
+      scripts:
+        - scripts/gen_ref_pages.py
+  - literate-nav
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [fastapi_cruddy_framework]
 
 extra:
   analytics:

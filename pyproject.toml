@@ -62,7 +62,10 @@ pytest = "^8.1.1"
 pytest-asyncio = "0.21.1"
 pytest-dependency = "^0.6.0"
 coverage = "^7.4.4"
-mkdocs-material = "^9.5.3"
+mkdocs-gen-files = "^0.5.0"
+mkdocs-literate-nav = "^0.6.1"
+mkdocs-material = "^9.5.22"
+mkdocstrings = {extras = ["python"], version = "^0.25.1"}
 
 [tool.poetry.scripts]
 start_sqlite = "examples.fastapi_cruddy_sqlite.bootloader:start"
