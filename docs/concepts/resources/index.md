@@ -4,7 +4,7 @@ The `Resource` class is the fundamental building block of fastapi-cruddy-framewo
 
 Like [sails-ember-rest](https://github.com/mdconaway/sails-ember-rest) or [Ruby on Rails](https://rubyonrails.org/), you can now focus all of your development time on creating reusable policies (which contain your business logic that lies just above your CRUD endpoints), defining your models, and extending your resource controllers to add one-off actions like "login" or "change password".
 
-Lifecycle actions allow you to alter query configurations or record data before or after it is persisted to a database, or perform some other task before replying to the user. All of your resources should be loaded by the [router factory](/api/router_generator) to ensure that relationships and routes are resolved in the correct order. Don't forget, <b>only plug the master router into your application in the fastapi `startup` hook!</b>
+Lifecycle actions allow you to alter query configurations or record data before or after it is persisted to a database, or perform some other task before replying to the user. All of your resources should be loaded by the [router factory](/concepts/router.md) to ensure that relationships and routes are resolved in the correct order. Don't forget, <b>only plug the master router into your application in the fastapi `startup` hook!</b>
 
 <b>Resource Nuances:</b>
 
