@@ -16,10 +16,10 @@ from .schemas import CruddyModel
 class BaseAdapter:
     engine: AsyncEngine
 
-    def __init__(self, **kwargs):
+    def __init__(self, echo=True, **kwargs):
         self.engine = create_async_engine(
             "sqlite+aiosqlite:///file:temp.db?mode=memory&cache=shared&uri=true",
-            echo=True,
+            echo=echo,
             future=True,
             **kwargs,
         )
@@ -57,6 +57,7 @@ class BaseAdapter:
             try:
                 yield session
                 await session.commit()
+                await session.close()
             except:
                 try:
                     await session.rollback()
@@ -81,11 +82,13 @@ class MysqlAdapter(BaseAdapter):
     connection_uri: str
     engine: AsyncEngine
 
-    def __init__(self, connection_uri="", pool_size=4, max_overflow=64, **kwargs):
+    def __init__(
+        self, connection_uri="", pool_size=4, max_overflow=64, echo=True, **kwargs
+    ):
         self.connection_uri = connection_uri
         self.engine = create_async_engine(
             self.connection_uri,
-            echo=True,
+            echo=echo,
             future=True,
             pool_size=pool_size,
             max_overflow=max_overflow,
@@ -115,7 +118,11 @@ class SqliteAdapter(BaseAdapter):
     engine: AsyncEngine
 
     def __init__(
-        self, db_path="temp.db", mode: Literal["memory", "file"] = "memory", **kwargs
+        self,
+        db_path="temp.db",
+        mode: Literal["memory", "file"] = "memory",
+        echo=True,
+        **kwargs,
     ):
         if mode == "memory":
             self.connection_uri = f"{self.SQLITE_ASYNC_URL_PREFIX}{self.MEMORY_LOCATION_START}{db_path}{self.MEMORY_LOCATION_END}"
@@ -125,7 +132,7 @@ class SqliteAdapter(BaseAdapter):
             self.connection_uri,
             connect_args={"check_same_thread": False},
             poolclass=StaticPool,
-            echo=True,
+            echo=echo,
             future=True,
             **kwargs,
         )
