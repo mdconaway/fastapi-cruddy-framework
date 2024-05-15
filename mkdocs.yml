@@ -19,12 +19,12 @@ theme:
     - search.highlight
     - content.tabs.link
     - navigation.indexes
-    - content.tooltips
     - navigation.path
+    - navigation.sections
+    - content.tooltips
     - content.code.annotate
     - content.code.copy
     - content.code.select
-    # - navigation.tabs
   icon:
     repo: fontawesome/brands/github-alt
   # logo: img/icon-white.svg
@@ -97,6 +97,11 @@ markdown_extensions:
   - pymdownx.keys
   - pymdownx.mark
   - pymdownx.smartsymbols
+  - pymdownx.snippets:
+      check_paths: true
+      url_download: false
+      url_max_size: 33554432
+      url_timeout: 10
   - pymdownx.superfences
   - pymdownx.tabbed:
       alternate_style: true

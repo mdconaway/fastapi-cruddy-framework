@@ -45,7 +45,7 @@ The key features are:
 - **Convention Over Configuration**: By creating a resource, your service immediately receives automatic CRUD routing, entry points to apply logic to every route request via policies, and request/response modeling.
 - **Async First**: Cruddy will leverage the event loop whenever possible to keep things snappy.
 - **Standardized**: By default, data sent to and from the auto-magic CRUD routes are expected to conform to the [Ember.js](https://emberjs.com/) Rest Envelope and Linked-data relationship specification.
-- **Built on FastAPI Favorites**: In addition to leveraging the [FastAPI](https://fastapi.tiangolo.com/) framework itself, Cruddy depends on (SQLModel)[https://sqlmodel.tiangolo.com/], (SQLAlchemy)[https://www.sqlalchemy.org/], and (Pydantic)[https://docs.pydantic.dev/latest/] so you can continue using the dependencies you're probably already using
+- **Built on FastAPI Favorites**: In addition to leveraging the [FastAPI](https://fastapi.tiangolo.com/) framework itself, Cruddy depends on [SQLModel](https://sqlmodel.tiangolo.com/), [SQLAlchemy](https://www.sqlalchemy.org/), and [Pydantic](https://docs.pydantic.dev/latest/) so you can continue using the dependencies you're probably already using
 
 ## FastAPI, SQLModel, Pydantic and SQL Alchemy Compatibility
 
