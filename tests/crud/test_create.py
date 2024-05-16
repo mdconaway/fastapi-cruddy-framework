@@ -5,6 +5,7 @@ from fastapi_cruddy_framework import BrowserTestClient
 group_id = None
 user_id = None
 post_id = None
+label_id = None
 
 
 @mark.dependency()
@@ -69,14 +70,39 @@ async def test_create_post(authenticated_client: BrowserTestClient):
     post_id = result["post"]["id"]
 
 
-# The below functions are mainly cleanup based on the create functions above
-
-
 @mark.dependency(depends=["test_create_post"])
+async def test_create_label(authenticated_client: BrowserTestClient):
+    global label_id
+    response = await authenticated_client.post(
+        f"/labels",
+        json={
+            "label": {
+                "id": "An / invalid / string $ id",
+            }
+        },
+    )
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    response = await authenticated_client.post(
+        f"/labels",
+        json={
+            "label": {
+                "id": "A valid string id",
+            }
+        },
+    )
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result["label"], dict)
+    label_id = result["label"]["id"]
+
+
+# The below functions are mainly cleanup based on the create functions above
+@mark.dependency(depends=["test_create_label"])
 async def test_cleanup(authenticated_client: BrowserTestClient):
     global user_id
     global post_id
     global group_id
+    global label_id
 
     response = await authenticated_client.delete(f"/users/{user_id}")
     # This should return a 405 as delete-user is blocked using a framework feature!
@@ -100,3 +126,9 @@ async def test_cleanup(authenticated_client: BrowserTestClient):
     result = response.json()
     assert isinstance(result, dict)
     assert result["group"]["id"] == group_id
+
+    response = await authenticated_client.delete(f"/labels/{label_id}")
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result, dict)
+    assert result["label"]["id"] == label_id

@@ -12,3 +12,6 @@ SECTION_CLASS_LOADER, SECTION_LIST_TYPE = generate_gql_loader_and_type(
 USER_CLASS_LOADER, USER_LIST_TYPE = generate_gql_loader_and_type(
     "UserQL", "examples.fastapi_cruddy_sqlite.models.user"
 )
+LABEL_CLASS_LOADER, LABEL_LIST_TYPE = generate_gql_loader_and_type(
+    "LabelQL", "examples.fastapi_cruddy_sqlite.models.label"
+)

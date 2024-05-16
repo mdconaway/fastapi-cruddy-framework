@@ -40,6 +40,7 @@ from .schemas import (
     CruddyGQLOverrides,
     CruddyIntIDModel,
     CruddyUUIDModel,
+    CruddyStringIDModel,
     ExampleUpdate,
     ExampleCreate,
     ExampleView,

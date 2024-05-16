@@ -19,18 +19,22 @@ from examples.fastapi_cruddy_sqlite.models.common.graphql import (
     SECTION_CLASS_LOADER,
     USER_LIST_TYPE,
     USER_CLASS_LOADER,
+    LABEL_LIST_TYPE,
+    LABEL_CLASS_LOADER,
 )
 from examples.fastapi_cruddy_sqlite.utils.schema_example import schema_example
 
 if TYPE_CHECKING:
     from examples.fastapi_cruddy_sqlite.models.user import User
     from examples.fastapi_cruddy_sqlite.models.section import Section
+    from examples.fastapi_cruddy_sqlite.models.label import Label
 
 
 EXAMPLE_POST = {
     "content": "Today I felt like blogging. Fin.",
     "tags": {"categories": ["blog"]},
     "event_date": "2023-12-11T15:27:39.984Z",
+    "label_id": "Fan Fiction",
 }
 
 # The way the CRUD Router works, it needs an update, create, and base model.
@@ -63,6 +67,11 @@ class PostUpdate(CruddyModel):
         schema_extra=schema_example(EXAMPLE_POST["tags"]),
     )
     section_id: UUID | None = Field(foreign_key="Section.id", default=None)
+    label_id: str | None = Field(
+        foreign_key="Label.id",
+        default=None,
+        schema_extra=schema_example(EXAMPLE_POST["label_id"]),
+    )
 
     @field_validator("event_date", mode="before")
     @classmethod
@@ -88,6 +97,9 @@ class PostCreate(PostUpdate):
 class PostView(CruddyCreatedUpdatedSignature, CruddyUUIDModel):
     user_id: UUID | None = None
     section_id: UUID | None = None
+    label_id: str | None = Field(
+        default=None, schema_extra=schema_example(EXAMPLE_POST["label_id"])
+    )
     content: str | None = Field(
         default=None, schema_extra=schema_example(EXAMPLE_POST["content"])
     )
@@ -107,6 +119,7 @@ class PostView(CruddyCreatedUpdatedSignature, CruddyUUIDModel):
 class Post(CruddyCreatedUpdatedMixin(), CruddyUUIDModel, PostCreate, table=True):
     user: "User" = Relationship(back_populates="posts")
     section: "Section" = Relationship(back_populates="posts")
+    label: "Label" = Relationship(back_populates="posts")
 
 
 # --------------------------------------------------------------------------------------
@@ -138,5 +151,14 @@ class PostQL:
         # Your route generator will be passed an instance of a post record
         route_generator=lambda x: f"sections/{getattr(x, 'section_id')}",
         class_loader=SECTION_CLASS_LOADER,
+        is_singular=True,
+    )
+    label = graphql_resolver.generate_resolver(
+        type_name="label",
+        graphql_type=LABEL_LIST_TYPE,
+        # You must define your prefererd internal API path to find the relation
+        # Your route generator will be passed an instance of a post record
+        route_generator=lambda x: f"labels/{getattr(x, 'label_id')}",
+        class_loader=LABEL_CLASS_LOADER,
         is_singular=True,
     )

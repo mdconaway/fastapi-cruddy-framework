@@ -132,6 +132,7 @@ CruddyCreatedUpdatedSignature
 CruddyCreatedUpdatedMixin
 CruddyIntIDModel
 CruddyUUIDModel
+CruddyStringIDModel
 SocketMessage
 SocketRoomConfiguration
 ExampleUpdate

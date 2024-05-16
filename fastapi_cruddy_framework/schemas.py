@@ -7,9 +7,11 @@ from typing import (
     NewType,
     TYPE_CHECKING,
 )
+from re import match
 from datetime import datetime
 from uuid import UUID
 from uuid_extensions import uuid7
+from fastapi import HTTPException, status
 from sqlalchemy import Column
 from sqlalchemy.orm import declared_attr, RelationshipProperty
 from sqlalchemy.engine.row import Row
@@ -21,6 +23,7 @@ from .util import build_tz_aware_date, parse_and_coerce_to_utc_datetime
 if TYPE_CHECKING:
     from .resource import Resource
 
+HTTP_422_UNPROCESSABLE_ENTITY = status.HTTP_422_UNPROCESSABLE_ENTITY
 
 # -------------------------------------------------------------------------------------------
 # SCHEMAS / MODELS
@@ -143,6 +146,29 @@ class CruddyUUIDModel(CruddyModel):
         index=True,
         nullable=False,
     )
+
+
+class CruddyStringIDModel(CruddyModel):
+    id: str = Field(
+        default=None,
+        primary_key=True,
+        index=True,
+        nullable=False,
+    )
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def validate_id(cls, v: Any) -> str:
+        if not isinstance(v, str):
+            raise HTTPException(
+                status_code=HTTP_422_UNPROCESSABLE_ENTITY, detail=f"{v} is not a string"
+            )
+        if not match(r"^[a-zA-Z0-9_-]+( [a-zA-Z0-9_-]+)*$", v):
+            raise HTTPException(
+                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"{v} must be alphanumeric, with dashes or underscores and only one space max between words",
+            )
+        return v
 
 
 class CruddyCreatedUpdatedSignature(CruddyModel):

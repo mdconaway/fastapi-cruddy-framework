@@ -254,12 +254,14 @@ class Resource:
     def set_local_link_prefix(self, prefix: str):
         self._link_prefix = prefix
 
+    def _format_example_id(self, value: Any):
+        return int(str(value)) if self.repository.id_type == int else str(value)
+
     # The response schema factory
     # Converting this section a plugin pattern will allow
     # other response formats, like JSON API.
     # Alterations will also require ControllerConfigurator
     # to be modified somehow...
-
     def generate_internal_schemas(self):
         local_resource = self
         response_schema: CruddyModel = self._response_schema
@@ -283,13 +285,6 @@ class Resource:
         if possible_id is not None and issubclass(
             self.repository.id_type, possible_id.annotation  # type: ignore
         ):
-            example_dict = {
-                "example": (
-                    int(str(example_id))
-                    if self.repository.id_type == int
-                    else str(example_id)
-                )
-            }
             if possible_id.json_schema_extra is not None:
                 possible_id_examples = possible_id.json_schema_extra.get(
                     "examples", None
@@ -309,9 +304,13 @@ class Resource:
                     temp_example = possible_id.default_factory()
                     if not isinstance(temp_example, PydanticUndefinedType):
                         example_id = temp_example
-                possible_id.json_schema_extra.update(example_dict)
+                possible_id.json_schema_extra.update(
+                    {"example": self._format_example_id(example_id)}
+                )
             else:
-                possible_id.json_schema_extra = example_dict  # type: ignore
+                possible_id.json_schema_extra = {  # type: ignore
+                    "example": self._format_example_id(example_id)
+                }
 
         # Create shared link model
         link_object = {}
