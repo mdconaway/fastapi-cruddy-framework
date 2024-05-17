@@ -40,7 +40,7 @@ nav:
   - databases.md
   - Tutorial - User Guide:
       - tutorial/index.md
-      - tutorial/creating-your-first-route.md
+      - tutorial/creating-your-first-resource.md
       - tutorial/configuration.md
       - tutorial/data-modeling.md
       - tutorial/resource-management.md

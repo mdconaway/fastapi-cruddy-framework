@@ -78,7 +78,7 @@ class PostCreate(PostUpdate):
     user_id: UUID = Field(foreign_key="User.id")
 
 
-# The "View" model describes all fields that should typcially be present
+# The "View" model describes all fields that should typically be present
 # in any JSON responses to the client. This should, at a minimum, include
 # the identity field for the model, as well as any server-side fields that
 # are important but tamper resistant, such as created_at or updated_at

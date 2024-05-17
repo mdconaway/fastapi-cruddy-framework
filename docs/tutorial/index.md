@@ -18,14 +18,15 @@ Created package fastapi_cruddy_demo in fastapi_cruddy_demo
 
 $ cd fastapi_cruddy_demo
 
-$ poetry add fastapi-cruddy-framework
+$ poetry add aiosqlite fastapi-cruddy-framework
 Using version ^1.4.8 for fastapi-cruddy-framework
 
 Updating dependencies
 Resolving dependencies... (2.4s)
 
-Package operations: 67 installs, 0 updates, 0 removals
+Package operations: 68 installs, 0 updates, 0 removals
 
+  - Installing aiosqlite (0.20.0)
   - Installing idna (3.7)
   - Installing mdurl (0.1.2)
   - Installing sniffio (1.3.1)
