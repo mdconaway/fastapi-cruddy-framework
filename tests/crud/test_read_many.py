@@ -95,6 +95,29 @@ async def test_setup(authenticated_client: BrowserTestClient):
 
 
 @mark.dependency(depends=["test_setup"])
+async def test_get_posts_not_null(authenticated_client: BrowserTestClient):
+    global post_id
+
+    where = dumps({"event_date": {"*eq": None}})
+    response = await authenticated_client.get(f"/posts?where={where}")
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert len(result["posts"]) is 1
+    assert result["posts"][0]["id"] == post_id
+    assert result["meta"]["page"] is 1
+    assert result["meta"]["limit"] is general.DEFAULT_LIMIT
+    assert result["meta"]["pages"] is 1
+    assert result["meta"]["records"] is 1
+
+    where = dumps({"event_date": {"*neq": None}})
+    response = await authenticated_client.get(f"/posts?where={where}")
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result["posts"], list)
+    assert len(result["posts"]) is 0
+
+
+@mark.dependency(depends=["test_get_posts_not_null"])
 async def test_get_posts_json_notation(authenticated_client: BrowserTestClient):
     global post_id
 
