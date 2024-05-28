@@ -7,6 +7,12 @@ orcs_group_id = None
 user_id = None
 post_id = None
 section_id = None
+type1_id = None
+type2_id = None
+subtype1_id = None
+subtype2_id = None
+reference1_id = None
+reference2_id = None
 
 
 @mark.dependency()
@@ -16,6 +22,74 @@ async def test_setup(authenticated_client: BrowserTestClient):
     global user_id
     global post_id
     global section_id
+    global type1_id
+    global type2_id
+    global subtype1_id
+    global subtype2_id
+    global reference1_id
+    global reference2_id
+
+    response = await authenticated_client.post(
+        f"/types",
+        json={"type": {"id": "Master-Type-1"}},
+    )
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result["type"], dict)
+    assert result["type"]["id"] == "Master-Type-1"
+    type1_id = result["type"]["id"]
+
+    response = await authenticated_client.post(
+        f"/types",
+        json={"type": {"id": "Master-Type-2"}},
+    )
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result["type"], dict)
+    assert result["type"]["id"] == "Master-Type-2"
+    type2_id = result["type"]["id"]
+
+    response = await authenticated_client.post(
+        f"/subtypes",
+        json={"subtype": {"id": "Sub-Type", "type_id": type1_id}},
+    )
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result["subtype"], dict)
+    assert result["subtype"]["id"] == "Sub-Type"
+    subtype1_id = result["subtype"]["id"]
+
+    response = await authenticated_client.post(
+        f"/subtypes",
+        json={"subtype": {"id": "Sub-Type", "type_id": type2_id}},
+    )
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result["subtype"], dict)
+    assert result["subtype"]["id"] == "Sub-Type"
+    subtype2_id = result["subtype"]["id"]
+
+    response = await authenticated_client.post(
+        f"/references",
+        json={"reference": {"type_id": type1_id, "subtype_id": subtype1_id}},
+    )
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result["reference"], dict)
+    assert result["reference"]["type_id"] == type1_id
+    assert result["reference"]["subtype_id"] == subtype1_id
+    reference1_id = result["reference"]["id"]
+
+    response = await authenticated_client.post(
+        f"/references",
+        json={"reference": {"type_id": type2_id, "subtype_id": subtype2_id}},
+    )
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result["reference"], dict)
+    assert result["reference"]["type_id"] == type2_id
+    assert result["reference"]["subtype_id"] == subtype2_id
+    reference2_id = result["reference"]["id"]
 
     response = await authenticated_client.post(
         f"/groups",
@@ -92,11 +166,32 @@ async def test_graphql_read(authenticated_client: BrowserTestClient):
     global user_id
     global post_id
     global section_id
+    global type1_id
+    global type2_id
+    global subtype1_id
+    global subtype2_id
+    global reference1_id
+    global reference2_id
 
     response = await authenticated_client.post(
         f"/graphql",
         json={
             "query": """query TestQuery {
+                types (sort: "id asc") {
+                    id
+                    links
+                    subtypes (sort: "id asc") {
+                        id
+                        type_id
+                        links
+                        references {
+                            id
+                            type_id
+                            subtype_id
+                            links
+                        }
+                    }
+                }
                 groups {
                     id
                     links
@@ -141,12 +236,30 @@ async def test_graphql_read(authenticated_client: BrowserTestClient):
     result = response.json()
     assert isinstance(result, dict)
     assert isinstance(result["data"], dict)
+    assert isinstance(result["data"]["types"], list)
     assert isinstance(result["data"]["groups"], list)
     assert isinstance(result["data"]["sections"], list)
     assert isinstance(result["data"]["users"], list)
+    assert len(result["data"]["types"]) == 2
     assert len(result["data"]["groups"]) == 2
     assert len(result["data"]["sections"]) == 1
     assert len(result["data"]["users"]) == 1
+    assert isinstance(result["data"]["types"][0]["subtypes"], list)
+    assert isinstance(result["data"]["types"][1]["subtypes"], list)
+    assert len(result["data"]["types"][0]["subtypes"]) == 1
+    assert len(result["data"]["types"][1]["subtypes"]) == 1
+    assert isinstance(result["data"]["types"][0]["subtypes"][0]["references"], list)
+    assert isinstance(result["data"]["types"][1]["subtypes"][0]["references"], list)
+    assert len(result["data"]["types"][0]["subtypes"][0]["references"]) == 1
+    assert len(result["data"]["types"][1]["subtypes"][0]["references"]) == 1
+    assert (
+        result["data"]["types"][0]["subtypes"][0]["references"][0]["id"]
+        == reference1_id
+    )
+    assert (
+        result["data"]["types"][1]["subtypes"][0]["references"][0]["id"]
+        == reference2_id
+    )
     assert isinstance(result["data"]["groups"][0]["created_at"], str)
     assert isinstance(result["data"]["groups"][0]["updated_at"], str)
     assert isinstance(result["data"]["groups"][0]["links"], dict)
@@ -167,6 +280,12 @@ async def test_cleanup(authenticated_client: BrowserTestClient):
     global user_id
     global post_id
     global section_id
+    global type1_id
+    global type2_id
+    global subtype1_id
+    global subtype2_id
+    global reference1_id
+    global reference2_id
 
     response = await authenticated_client.delete(f"/groups/{elves_group_id}")
     assert response.status_code == status.HTTP_200_OK
@@ -202,3 +321,41 @@ async def test_cleanup(authenticated_client: BrowserTestClient):
     result = response.json()
     assert isinstance(result, dict)
     assert result["section"]["id"] == section_id
+
+    response = await authenticated_client.delete(f"/references/{reference1_id}")
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result, dict)
+    assert result["reference"]["id"] == reference1_id
+
+    response = await authenticated_client.delete(f"/references/{reference2_id}")
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result, dict)
+    assert result["reference"]["id"] == reference2_id
+
+    response = await authenticated_client.delete(f"/subtypes/{type1_id}.{subtype1_id}")
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result, dict)
+    assert result["subtype"]["type_id"] == type1_id
+    assert result["subtype"]["id"] == subtype1_id
+
+    response = await authenticated_client.delete(f"/subtypes/{type2_id}.{subtype2_id}")
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result, dict)
+    assert result["subtype"]["type_id"] == type2_id
+    assert result["subtype"]["id"] == subtype2_id
+
+    response = await authenticated_client.delete(f"/types/{type1_id}")
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result, dict)
+    assert result["type"]["id"] == type1_id
+
+    response = await authenticated_client.delete(f"/types/{type2_id}")
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result, dict)
+    assert result["type"]["id"] == type2_id

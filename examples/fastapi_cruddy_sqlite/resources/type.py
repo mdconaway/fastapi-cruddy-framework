@@ -18,6 +18,7 @@ resource = Resource(
     resource_create_model=TypeCreate,
     resource_model=Type,
     policies_universal=[verify_session],
-    protected_relationships=["subtypes"],
+    protected_relationships=["subtypes", "references"],
+    disable_relationship_getters=["references"],
     default_limit=general.DEFAULT_LIMIT,
 )

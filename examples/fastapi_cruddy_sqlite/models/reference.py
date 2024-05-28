@@ -87,6 +87,15 @@ class Reference(CruddyCreatedUpdatedMixin(), CruddyUUIDModel, ReferenceCreate, t
     subtype: ForwardRef("SubType") = Relationship(  # type: ignore
         back_populates="references",
     )
+    # NOTE: The below 'type' relationship syntax that forces a relationship into foreign() WILL NOT WORK. It is only
+    # done here to hoist a bad relationship definition to test getter pruning with 'disable_relationship_getters' at
+    # the resource level.
+    type: ForwardRef("Type") = Relationship(  # type: ignore
+        back_populates="references",
+        sa_relationship_kwargs={
+            "primaryjoin": "Type.id==foreign(Reference.type_id)",
+        },
+    )
     __table_args__ = (
         ForeignKeyConstraint(
             ["type_id", "subtype_id"],

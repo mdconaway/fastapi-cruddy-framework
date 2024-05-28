@@ -63,6 +63,7 @@ class Resource:
     _registry: "ResourceRegistry"
     _link_prefix: str = ""
     _relations: dict[str, RelationshipConfig] = {}
+    _relational_getters: list[str] = []
     _resource_path: str = "/example"
     _tags: list[str | Enum] = ["example"]
     _create_schema: Type[CruddyModel]
@@ -169,6 +170,7 @@ class Resource:
         self._meta_schema = response_meta_schema
         self._id_type = id_type
         self._relations = {}
+        self._relational_getters = []
         self._protected_relationships = protected_relationships
         self._protected_create_relationships = protected_create_relationships
         self._protected_update_relationships = protected_update_relationships
@@ -271,31 +273,12 @@ class Resource:
     def _format_example_id(self, value: Any):
         return int(str(value)) if self.repository.id_type == int else str(value)
 
-    # The response schema factory
-    # Converting this section a plugin pattern will allow
-    # other response formats, like JSON API.
-    # Alterations will also require ControllerConfigurator
-    # to be modified somehow...
-    def generate_internal_schemas(self):
-        local_resource = self
+    def _setup_example_id(self, id: str | UUID | int | bytes):
+        example_id = id
         response_schema: CruddyModel = self._response_schema
-        create_schema = self._create_schema
-        update_schema = self._update_schema
-        response_meta_schema = self._meta_schema
-        resource_model_name = f"{self.repository.model.__name__}".lower()
-        resource_model_plural = pluralizer.plural(resource_model_name)  # type: ignore
-        resource_response_name = response_schema.__name__
-        resource_create_name = create_schema.__name__
-        resource_update_name = update_schema.__name__
-
-        self._model_name_single = resource_model_name
-        self._model_name_plural = resource_model_plural
-
-        # Attempt to align swagger example uuids if possible (non-critical)
-        example_id = uuid7() if self.repository.id_type == UUID else 123
-        if self.repository.id_type == str:
-            example_id = str(example_id)
-        possible_id = response_schema.model_fields.get("id", None)
+        possible_id = response_schema.model_fields.get(
+            self.repository.primary_key or "id", None
+        )
         if possible_id is not None and issubclass(
             self.repository.id_type, possible_id.annotation  # type: ignore
         ):
@@ -325,19 +308,20 @@ class Resource:
                 possible_id.json_schema_extra = {  # type: ignore
                     "example": self._format_example_id(example_id)
                 }
+        return example_id
 
-        # Create shared link model
+    def _setup_support_classes(self, id: Any):
+        view_example_dict = {}
         link_object = {}
         false_create_attrs = {}
         false_update_attrs = {}
-        view_example_dict = {}
+        response_schema: CruddyModel = self._response_schema
         create_protected_relationships = (
             self._protected_relationships + self._protected_create_relationships
         )
         update_protected_relationships = (
             self._protected_relationships + self._protected_update_relationships
         )
-
         for k, v in response_schema.model_fields.items():
             default_example = None
             if v.json_schema_extra is not None:
@@ -359,13 +343,8 @@ class Resource:
                 default_example = estimate_simple_example(v.annotation)
             view_example_dict[k] = squash_type(default_example)
         view_example_dict["links"] = {}
+
         for k, v in self._relations.items():
-            ex_link = self._single_link(id=str(example_id), relationship=k)
-            link_object[k] = (
-                str,
-                Field(schema_extra={"json_schema_extra": {"example": ex_link}}),
-            )
-            view_example_dict["links"][k] = ex_link
             rel_def = self._derive_shadow_relationship(
                 v.orm_relationship.direction, v.foreign_resource._id_type
             )
@@ -373,14 +352,62 @@ class Resource:
                 false_create_attrs[k] = rel_def
             if k not in update_protected_relationships:
                 false_update_attrs[k] = rel_def
+            if k in self.disabled_relationship_getters:
+                continue
+            self._relational_getters.append(k)
+            ex_link = self._single_link(
+                id=self.link_identity(view_example_dict), relationship=k
+            )
+            link_object[k] = (
+                str,
+                Field(schema_extra={"json_schema_extra": {"example": ex_link}}),
+            )
+            view_example_dict["links"][k] = ex_link
+
         for item in self._artificial_relationship_paths:
-            ex_link = self._single_link(id=str(example_id), relationship=item)
+            ex_link = self._single_link(
+                id=self.link_identity(view_example_dict), relationship=item
+            )
             link_object[item] = (
                 str,
                 Field(schema_extra={"json_schema_extra": {"example": ex_link}}),
             )
             view_example_dict["links"][item] = ex_link
         link_object["__base__"] = CruddyModel
+
+        return link_object, view_example_dict, false_create_attrs, false_update_attrs
+
+    # The response schema factory
+    # Converting this section a plugin pattern will allow
+    # other response formats, like JSON API.
+    # Alterations will also require ControllerConfigurator
+    # to be modified somehow...
+    def generate_internal_schemas(self):
+        self.repository.resolve()
+        response_schema: CruddyModel = self._response_schema
+        create_schema = self._create_schema
+        update_schema = self._update_schema
+        response_meta_schema = self._meta_schema
+        resource_model_name = f"{self.repository.model.__name__}".lower()
+        resource_model_plural = pluralizer.plural(resource_model_name)  # type: ignore
+        resource_response_name = response_schema.__name__
+        resource_create_name = create_schema.__name__
+        resource_update_name = update_schema.__name__
+
+        self._model_name_single = resource_model_name
+        self._model_name_plural = resource_model_plural
+
+        # Attempt to align swagger example uuids if possible (non-critical)
+        example_id = uuid7() if self.repository.id_type == UUID else 123
+        if self.repository.id_type != int:
+            example_id = str(example_id)
+        example_id = self._setup_example_id(example_id)
+
+        # Create shared link model
+        link_object, view_example_dict, false_create_attrs, false_update_attrs = (
+            self._setup_support_classes(example_id)
+        )
+
         LinkModel = create_model(f"{resource_model_name}Links", **link_object)
         # End shared link model
 
@@ -488,6 +515,7 @@ class Resource:
         )
 
         old_many_init = ManySchemaEnvelope.__init__
+        local_resource = self
 
         def new_many_init(self, *args, **kwargs):
             old_many_init(
@@ -499,7 +527,6 @@ class Resource:
                             SingleSchemaLinked(
                                 **x._mapping,
                                 links=local_resource._link_builder(  # type: ignore
-                                    # id=x._mapping[local_resource.repository.primary_key],
                                     fields=x._mapping
                                 ),
                             )
@@ -517,7 +544,6 @@ class Resource:
         # End many records return payload
 
         # Expose the following schemas for further use
-
         self.schemas = {  # type: ignore
             "single": SingleSchemaEnvelope,
             "many": ManySchemaEnvelope,
@@ -559,7 +585,7 @@ class Resource:
         # into a record instance.
         id = self.link_identity(fields)
         new_link_object = {}
-        for k in self._relations.keys():
+        for k in self._relational_getters:
             new_link_object[k] = self._single_link(id=id, relationship=k)
         for item in self._artificial_relationship_paths:
             new_link_object[item] = self._single_link(id=id, relationship=item)
@@ -613,8 +639,6 @@ class Resource:
         return handle_data_or_none
 
     def resolve(self):
-        self.repository.resolve()
-
         self.actions = Actions(
             id_type=self._id_type,
             disable_nested_objects=self.disable_nested_objects,
@@ -766,6 +790,7 @@ class ResourceRegistry:
             relationships = inspect(base_model).relationships
             rel_map = {}
 
+            # This loop will inject relationships into all resources that need them
             for relation in relationships:
                 rel_map[relation.key] = relation
                 # this seems unsafe...
@@ -776,10 +801,11 @@ class ResourceRegistry:
                 )
 
             self._rels_via_models[map_name] = rel_map
+            # generating schemas will also cause the repository classes to resolve (needed for primary key determination)
             resource.generate_internal_schemas()
 
         # Build routes
-        # These have to be separated to ensure all schemas are ready
+        # These have to be separated to ensure all schemas are ready from generate_internal_schemas()
         for resource in self._resources:
             resource.resolve()
 

@@ -72,6 +72,15 @@ class Type(CruddyCreatedUpdatedMixin(), TypeCreate, table=True):  # type: ignore
     subtypes: list[ForwardRef("SubType")] = Relationship(  # type: ignore
         back_populates="type",
     )
+    # NOTE: The below 'references' relationship syntax that forces a relationship into foreign() WILL NOT WORK. It is only
+    # done here to hoist a bad relationship definition to test getter pruning with 'disable_relationship_getters' at
+    # the resource level.
+    references: list[ForwardRef("Reference")] = Relationship(  # type: ignore
+        back_populates="type",
+        sa_relationship_kwargs={
+            "primaryjoin": "Type.id==foreign(Reference.type_id)",
+        },
+    )
 
 
 # --------------------------------------------------------------------------------------

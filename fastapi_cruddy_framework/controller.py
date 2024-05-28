@@ -14,7 +14,6 @@ from fastapi import (
 from .test_helpers import TestClient, BrowserTestClient
 from sqlalchemy import Row
 from sqlalchemy.sql.schema import Column, ForeignKey
-from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.orm import (
     RelationshipDirection,
     ONETOMANY,
@@ -655,7 +654,12 @@ def _ControllerConfigManyToOne(
         far_col: Column = far_side.column
         far_col_name = far_col.name
         near_col_name = col.name
-        col_tuples.append((near_col_name, far_col_name))
+        col_tuples.append(
+            (
+                near_col_name,
+                far_col_name,
+            )
+        )
 
     resource_model_name = f"{repository.model.__name__}".lower()
     foreign_model_name = f"{config.foreign_resource.repository.model.__name__}".lower()
@@ -706,6 +710,7 @@ def _ControllerConfigManyToOne(
             value = dumped_record[matches[0]]
             tgt_vals.append(value)
             must_be.append({matches[1]: {"*eq": value}})
+
         context_data = {
             DATA_KEY: {
                 "id": tgt_vals,
@@ -740,7 +745,7 @@ def _ControllerConfigManyToOne(
             context_data[DATA_KEY]["where"] = (
                 {"*and": must_be}
                 if context_data[DATA_KEY]["where"] is None
-                else {"*and": [must_be, context_data[DATA_KEY]["where"]]}
+                else {"*and": must_be + [context_data[DATA_KEY]["where"]]}
             )
 
         # Collect the bulk data transfer object from the query
@@ -799,10 +804,16 @@ def _ControllerConfigOneToMany(
 ):
     col_tuples = []
     for far_col in iter(config.orm_relationship.remote_side):
-        col: ColumnElement = next(iter(config.orm_relationship.local_columns))
+        far_side: ForeignKey = next(iter(far_col.foreign_keys))
+        col: Column = far_side.column
         far_col_name = far_col.name
         near_col_name = col.name
-        col_tuples.append((near_col_name, far_col_name))
+        col_tuples.append(
+            (
+                near_col_name,
+                far_col_name,
+            )
+        )
 
     resource_model_name = f"{repository.model.__name__}".lower()
     foreign_model_name = pluralizer.plural(
