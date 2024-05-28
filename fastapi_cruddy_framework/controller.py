@@ -1117,40 +1117,41 @@ def ControllerConfigurator(
     # Maybe add way to disable these getters?
     # Maybe add way to wrangle this unknown number of functions into the actions map?
     for key, config in relations.items():
-        if key not in disable_relationship_getters:
-            if config.orm_relationship.direction == ONETOMANY:
-                _ControllerConfigOneToMany(
-                    controller=controller,
-                    repository=repository,
-                    id_type=id_type,
-                    relationship_prop=key,
-                    config=config,
-                    meta_schema=meta_schema,
-                    policies_universal=policies_universal,
-                    policies_get_one=policies_get_one,
-                    default_limit=actions.default_limit,
-                )
-            elif config.orm_relationship.direction == MANYTOMANY:
-                _ControllerConfigManyToMany(
-                    controller=controller,
-                    repository=repository,
-                    id_type=id_type,
-                    relationship_prop=key,
-                    config=config,
-                    meta_schema=meta_schema,
-                    policies_universal=policies_universal,
-                    policies_get_one=policies_get_one,
-                    default_limit=actions.default_limit,
-                )
-            elif config.orm_relationship.direction == MANYTOONE:
-                _ControllerConfigManyToOne(
-                    controller=controller,
-                    repository=repository,
-                    id_type=id_type,
-                    relationship_prop=key,
-                    config=config,
-                    policies_universal=policies_universal,
-                    policies_get_one=policies_get_one,
-                )
+        if key in disable_relationship_getters:
+            continue
+        if config.orm_relationship.direction == ONETOMANY:
+            _ControllerConfigOneToMany(
+                controller=controller,
+                repository=repository,
+                id_type=id_type,
+                relationship_prop=key,
+                config=config,
+                meta_schema=meta_schema,
+                policies_universal=policies_universal,
+                policies_get_one=policies_get_one,
+                default_limit=actions.default_limit,
+            )
+        elif config.orm_relationship.direction == MANYTOMANY:
+            _ControllerConfigManyToMany(
+                controller=controller,
+                repository=repository,
+                id_type=id_type,
+                relationship_prop=key,
+                config=config,
+                meta_schema=meta_schema,
+                policies_universal=policies_universal,
+                policies_get_one=policies_get_one,
+                default_limit=actions.default_limit,
+            )
+        elif config.orm_relationship.direction == MANYTOONE:
+            _ControllerConfigManyToOne(
+                controller=controller,
+                repository=repository,
+                id_type=id_type,
+                relationship_prop=key,
+                config=config,
+                policies_universal=policies_universal,
+                policies_get_one=policies_get_one,
+            )
 
     return controller
