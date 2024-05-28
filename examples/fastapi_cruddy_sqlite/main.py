@@ -24,6 +24,7 @@ async def bootstrap(application: FastAPI):
     # the application_router in the bootstrapper. Fortunately, routers can be added lazily, which
     # forces fastapi to re-index the routes and update the openapi.json.
     await sqlite.destroy_then_create_all_tables_unsafe()
+    await sqlite.enable_foreignkey_constraints()
     # You must activate the websocket manager in your application bootstrapper.
     # This .startup() function will spawn a listener loop that watches redis pub/sub channels.
     await websocket_manager_1.startup()
@@ -65,7 +66,7 @@ if http.HTTP_CORS_ORIGINS:
 # Add session storage/retrieval to incoming requests
 app.add_middleware(
     SessionMiddleware,
-    secret_key=sessions.SESSION_SECRET_KEY,
+    secret_key=str(sessions.SESSION_SECRET_KEY),
     cookie_name=sessions.SESSION_COOKIE_NAME,
     https_only=False,
     same_site="lax",  # lax or strict

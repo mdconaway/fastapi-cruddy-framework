@@ -3,6 +3,7 @@ from typing import AsyncIterator, Literal
 from contextlib import asynccontextmanager
 from redis.asyncio import Redis, from_url
 from fakeredis.aioredis import FakeRedis
+from sqlalchemy import text
 from sqlalchemy.pool import StaticPool
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine, async_sessionmaker
 from sqlmodel import text
@@ -136,6 +137,10 @@ class SqliteAdapter(BaseAdapter):
             future=True,
             **kwargs,
         )
+
+    async def enable_foreignkey_constraints(self):
+        async with self.getSession() as session:
+            await session.execute(text("PRAGMA foreign_keys=ON"))
 
 
 # -------------------------------------------------------------------------------------------

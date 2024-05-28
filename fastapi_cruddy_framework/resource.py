@@ -80,8 +80,10 @@ class Resource:
     repository: AbstractRepository
     controller: APIRouter
     controller_extension: Type[CruddyController] | None = None
+    link_identity: Callable[..., str]
     policies: dict[str, Sequence[Callable]]
     disabled_endpoints: dict[str, bool]
+    disabled_relationship_getters: list[str]
     disable_nested_objects: bool
     schemas: SchemaDict
     controller_lifecycles: dict[str, lifecycle_types]
@@ -119,11 +121,14 @@ class Resource:
         policies_delete: Sequence[Callable] = [],
         policies_get_one: Sequence[Callable] = [],
         policies_get_many: Sequence[Callable] = [],
+        custom_sql_identity_function: Callable[..., Any] | None = None,
+        custom_link_identity: Callable[..., str] | None = None,
         disable_create: bool = False,
         disable_update: bool = False,
         disable_delete: bool = False,
         disable_get_one: bool = False,
         disable_get_many: bool = False,
+        disable_relationship_getters: list[str] = [],
         disable_nested_objects: bool = False,
         default_limit: int = 10,
         # Repository lifecycle actions
@@ -170,6 +175,12 @@ class Resource:
         self._artificial_relationship_paths = artificial_relationship_paths
         self._default_limit = default_limit
 
+        self.link_identity = (
+            custom_link_identity
+            if custom_link_identity is not None
+            else self._default_link_identity
+        )
+
         self.policies = {
             "universal": policies_universal,
             "create": policies_create,
@@ -186,6 +197,8 @@ class Resource:
             "get_one": disable_get_one,
             "get_many": disable_get_many,
         }
+
+        self.disabled_relationship_getters = disable_relationship_getters
 
         self.controller_lifecycles = {
             "before_create": lifecycle_before_controller_create,
@@ -217,6 +230,7 @@ class Resource:
             create_model=resource_create_model,
             model=resource_model,
             id_type=id_type,
+            custom_sql_identity_function=custom_sql_identity_function,
             lifecycle_before_create=lifecycle_before_create,
             lifecycle_after_create=lifecycle_after_create,
             lifecycle_before_update=lifecycle_before_update,
@@ -485,7 +499,8 @@ class Resource:
                             SingleSchemaLinked(
                                 **x._mapping,
                                 links=local_resource._link_builder(  # type: ignore
-                                    id=x._mapping[local_resource.repository.primary_key]
+                                    # id=x._mapping[local_resource.repository.primary_key],
+                                    fields=x._mapping
                                 ),
                             )
                             for x in kwargs["data"]
@@ -527,16 +542,24 @@ class Resource:
             )
         )
 
-    def _link_builder(self, id: possible_id_values):
+    def _default_link_identity(self, fields: dict[str, Any]):
+        if self.repository.primary_key is None:
+            raise RuntimeError("Resource was not properly initialized!")
+        id = fields[self.repository.primary_key]
+        if (self.repository.id_type == UUID and type(id) == str) and not "-" in id:
+            id = re.sub(r"(\S{8})(\S{4})(\S{4})(\S{4})(.*)", r"\1-\2-\3-\4-\5", id)
+        return id
+
+    def _link_builder(
+        self, fields: dict[str, Any]
+    ):  # id: possible_id_values, fields: dict[str, Any]):
         # During "many" lookups, and depending on DB type, the id value return is a mapping
         # from the DB, so the id value is not properly "dasherized" into UUID format. This
         # REGEX fixes the issue without adding the CPU overhead of transforming each row
         # into a record instance.
-        if (self.repository.id_type == UUID and type(id) == str) and not "-" in id:
-            id = re.sub(r"(\S{8})(\S{4})(\S{4})(\S{4})(.*)", r"\1-\2-\3-\4-\5", id)
-
+        id = self.link_identity(fields)
         new_link_object = {}
-        for k, v in self._relations.items():
+        for k in self._relations.keys():
             new_link_object[k] = self._single_link(id=id, relationship=k)
         for item in self._artificial_relationship_paths:
             new_link_object[item] = self._single_link(id=id, relationship=item)
@@ -577,11 +600,11 @@ class Resource:
                 return {"data": None, "meta": meta}
 
             thing_to_convert = data_destructure(args["data"])
-            id = thing_to_convert[self.repository.primary_key]
+            # id = thing_to_convert[self.repository.primary_key]
             return {
                 resource_model_name: single_schema_linked(
                     **thing_to_convert,
-                    links=self._link_builder(id=id),
+                    links=self._link_builder(fields=thing_to_convert),  # id=id,
                 ),
                 "meta": meta,
                 "data": None,
@@ -642,6 +665,7 @@ class Resource:
             disable_delete=self.disabled_endpoints["delete"],
             disable_get_one=self.disabled_endpoints["get_one"],
             disable_get_many=self.disabled_endpoints["get_many"],
+            disable_relationship_getters=self.disabled_relationship_getters,
         )
 
         if callable(self._on_resolution):

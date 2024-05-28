@@ -9,6 +9,12 @@ from examples.fastapi_cruddy_sqlite.models.common.graphql import (
     SECTION_CLASS_LOADER,
     USER_LIST_TYPE,
     USER_CLASS_LOADER,
+    TYPE_LIST_TYPE,
+    TYPE_CLASS_LOADER,
+    SUBTYPE_LIST_TYPE,
+    SUBTYPE_CLASS_LOADER,
+    REFERENCE_LIST_TYPE,
+    REFERENCE_CLASS_LOADER,
 )
 
 
@@ -33,4 +39,19 @@ class Query:
         type_name="group",
         graphql_type=GROUP_LIST_TYPE,
         class_loader=GROUP_CLASS_LOADER,
+    )
+    type = graphql_resolver.generate_resolver(
+        type_name="type",
+        graphql_type=TYPE_LIST_TYPE,
+        class_loader=TYPE_CLASS_LOADER,
+    )
+    subtype = graphql_resolver.generate_resolver(
+        type_name="subtype",
+        graphql_type=SUBTYPE_LIST_TYPE,
+        class_loader=SUBTYPE_CLASS_LOADER,
+    )
+    reference = graphql_resolver.generate_resolver(
+        type_name="reference",
+        graphql_type=REFERENCE_LIST_TYPE,
+        class_loader=REFERENCE_CLASS_LOADER,
     )

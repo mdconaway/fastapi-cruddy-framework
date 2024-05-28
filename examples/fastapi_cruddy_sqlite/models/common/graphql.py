@@ -15,3 +15,12 @@ USER_CLASS_LOADER, USER_LIST_TYPE = generate_gql_loader_and_type(
 LABEL_CLASS_LOADER, LABEL_LIST_TYPE = generate_gql_loader_and_type(
     "LabelQL", "examples.fastapi_cruddy_sqlite.models.label"
 )
+TYPE_CLASS_LOADER, TYPE_LIST_TYPE = generate_gql_loader_and_type(
+    "TypeQL", "examples.fastapi_cruddy_sqlite.models.type"
+)
+SUBTYPE_CLASS_LOADER, SUBTYPE_LIST_TYPE = generate_gql_loader_and_type(
+    "SubTypeQL", "examples.fastapi_cruddy_sqlite.models.subtype"
+)
+REFERENCE_CLASS_LOADER, REFERENCE_LIST_TYPE = generate_gql_loader_and_type(
+    "ReferenceQL", "examples.fastapi_cruddy_sqlite.models.reference"
+)
