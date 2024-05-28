@@ -11,7 +11,7 @@ from fastapi_cruddy_framework import (
     CruddyGQLObject,
 )
 from pydantic import field_validator, ConfigDict
-from sqlmodel import Column, DateTime, Field, JSON, Relationship
+from sqlmodel import Column, ForeignKey, DateTime, Field, JSON, Relationship
 from strawberry.experimental.pydantic import type as strawberry_pydantic_type
 from examples.fastapi_cruddy_sqlite.services.graphql_resolver import graphql_resolver
 from examples.fastapi_cruddy_sqlite.models.common.graphql import (
@@ -66,9 +66,24 @@ class PostUpdate(CruddyModel):
         default={},
         schema_extra=schema_example(EXAMPLE_POST["tags"]),
     )
-    section_id: UUID | None = Field(foreign_key="Section.id", default=None)
+    section_id: UUID | None = Field(
+        sa_column=Column(
+            ForeignKey("Section.id", ondelete="SET NULL"),
+            index=True,
+            default=None,
+            nullable=True,
+            unique=False,
+        ),
+        default=None,
+    )
     label_id: str | None = Field(
-        foreign_key="Label.id",
+        sa_column=Column(
+            ForeignKey("Label.id", ondelete="SET NULL"),
+            index=True,
+            default=None,
+            nullable=True,
+            unique=False,
+        ),
         default=None,
         schema_extra=schema_example(EXAMPLE_POST["label_id"]),
     )
@@ -84,7 +99,15 @@ class PostUpdate(CruddyModel):
 # generated. This allows the POST action to accept update-able fields, as
 # well as one-time writeable fields.
 class PostCreate(PostUpdate):
-    user_id: UUID = Field(foreign_key="User.id")
+    user_id: UUID | None = Field(
+        sa_column=Column(
+            ForeignKey("User.id", ondelete="SET NULL"),
+            index=True,
+            default=None,
+            nullable=True,
+            unique=False,
+        ),
+    )
 
 
 # The "View" model describes all fields that should typcially be present

@@ -1,5 +1,5 @@
 import math
-from typing import Any
+from typing import Any, Callable
 from asyncio import TaskGroup
 from logging import getLogger
 from sqlalchemy import (
@@ -192,6 +192,7 @@ class AbstractRepository:
     model: Type[CruddyModel]
     id_type: possible_id_types
     primary_key: str | None = None
+    identity_function: Callable[..., Any]
     lifecycle: dict[str, lifecycle_types] = {
         "before_create": None,
         "after_create": None,
@@ -216,6 +217,7 @@ class AbstractRepository:
         create_model: Type[CruddyModel],
         model: Type[CruddyModel],
         id_type: possible_id_types = int,
+        custom_sql_identity_function: Callable | None = None,
         lifecycle_before_create: lifecycle_types = None,
         lifecycle_after_create: lifecycle_types = None,
         lifecycle_before_update: lifecycle_types = None,
@@ -253,6 +255,14 @@ class AbstractRepository:
             "before_set_relations": lifecycle_before_set_relations,
             "after_set_relations": lifecycle_after_set_relations,
         }
+        self.identity_function = (
+            custom_sql_identity_function
+            if custom_sql_identity_function is not None
+            else self._default_identity_function
+        )
+
+    def _default_identity_function(self, id: possible_id_types):
+        return getattr(self.model, str(self.primary_key)) == id
 
     def resolve(self):
         # Can't do this until all models are defined, otherwise mappers break
@@ -277,7 +287,7 @@ class AbstractRepository:
                 await self.lifecycle["before_get_one"](id, where)
             query = select(self.model).where(
                 and_(
-                    getattr(self.model, str(self.primary_key)) == id,
+                    self.identity_function(id),
                     *self.query_forge(model=self.model, where=where),
                 )
             )
@@ -293,7 +303,7 @@ class AbstractRepository:
             await self.lifecycle["before_update"](values, id)
         query = (
             _update(self.model)
-            .where(getattr(self.model, str(self.primary_key)) == id)
+            .where(self.identity_function(id))
             .values(**values)
             .execution_options(synchronize_session="fetch")
         )
@@ -314,7 +324,7 @@ class AbstractRepository:
             await self.lifecycle["before_delete"](record)
         query = (
             _delete(self.model)
-            .where(getattr(self.model, str(self.primary_key)) == id)
+            .where(self.identity_function(id))
             .execution_options(synchronize_session="fetch")
         )
         async with self.adapter.getSession() as session:
@@ -472,7 +482,7 @@ class AbstractRepository:
 
         query = query.join(getattr(self.model, relation))
 
-        joinable = [getattr(self.model, str(self.primary_key)) == id]
+        joinable = [self.identity_function(id)]
 
         if isinstance(query_conf["where"], dict) or isinstance(
             query_conf["where"], list

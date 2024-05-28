@@ -450,6 +450,12 @@ disable_update: bool = False,
 disable_delete: bool = False,
 disable_get_one: bool = False,
 disable_get_many: bool = False,
+# The disable_relationship_getters list allow app developers to instruct the framework to NOT hoist
+# an automatic GET route for a list of specific named relationships. Note, that any relationship name
+# you disable will also cause the corresponding "link" entry that would point out that relationship
+# to be removed from Swagger documentation, as well as from any returned link objects in real-world
+# response payloads. This would effectively make a relationship invisble in GET routing.
+disable_relationship_getters: list[str] = [],
 # The disable_nested_objects flag prevents users from sending dictionaries inside of relationship arrays
 # which the server will automatically unpack by default into an attempted create or update of the related
 # resource. Any nested objects sent will still flow through the entire policy chain of the target resource!
@@ -466,6 +472,17 @@ default_limit: int = 10,
 # controller/router. Pass in your class definition and it will be instantiated at the appropriate
 # time! See "CruddyController" example below!
 controller_extension: CruddyController = None,
+# 'custom_sql_identity_function' is an insertion point where you can pass in a lambda function or
+# other SYNCHRONOUS callable that will return some sqlalchemy query segment that determines the identity
+# of the resource in question. This is used for any CRUD actions that need to determine the identity
+# of a single record. Your lambda function / callable will be passed the {id} param from the controller.
+# You can use this to enable things like composite keys, and use {id} to capture <part a>.<part b>.
+custom_sql_identity_function: Callable[..., Any] | None = None,
+# 'custom_link_identity' is similar to custom_sql_identity_function, but is used specifically for building
+# the {id} segment of a 'link' value in the response JSON. The custom_link_identity function you pass in
+# will receive a record's value dictionary, which you can use to build a custom link {id} segment if needed.
+# You can use this to enable things like composite keys, and format {id} as <record value a>.<record value b>.
+custom_link_identity: Callable[..., str] | None = None,
 # The following REPOSITORY lifecycle hooks can each recieve an async function which will be invoked
 # before or after the target lifecycle event. Generally, whatever values are passed to the lifecycle
 # hook are alterable WITHIN the hook so that userspace code can alter the behavior of the lifecycle

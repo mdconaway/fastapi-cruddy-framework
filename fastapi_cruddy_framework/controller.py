@@ -14,7 +14,6 @@ from fastapi import (
 from .test_helpers import TestClient, BrowserTestClient
 from sqlalchemy import Row
 from sqlalchemy.sql.schema import Column, ForeignKey
-from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.orm import (
     RelationshipDirection,
     ONETOMANY,
@@ -649,11 +648,19 @@ def _ControllerConfigManyToOne(
     policies_universal: list,
     policies_get_one: list,
 ):
-    col: ColumnElement = next(iter(config.orm_relationship.local_columns))
-    far_side: ForeignKey = next(iter(col.foreign_keys))
-    far_col: Column = far_side.column
-    far_col_name = far_col.name
-    near_col_name = col.name
+    col_tuples = []
+    for col in iter(config.orm_relationship.local_columns):
+        far_side: ForeignKey = next(iter(col.foreign_keys))
+        far_col: Column = far_side.column
+        far_col_name = far_col.name
+        near_col_name = col.name
+        col_tuples.append(
+            (
+                near_col_name,
+                far_col_name,
+            )
+        )
+
     resource_model_name = f"{repository.model.__name__}".lower()
     foreign_model_name = f"{config.foreign_resource.repository.model.__name__}".lower()
 
@@ -686,10 +693,6 @@ def _ControllerConfigManyToOne(
                 status_code=status.HTTP_404_NOT_FOUND, detail=f"Record {id} not found"
             )
 
-        # Build a query to use foreign resource to find related objects
-
-        tgt_id = origin_record.model_dump()[near_col_name]
-
         _repo_lifecycle_before = None
         foreign_repo_lifecycle_before = config.foreign_resource.repository.lifecycle[
             "before_get_one"
@@ -697,9 +700,20 @@ def _ControllerConfigManyToOne(
         foreign_repo_lifecycle_after = config.foreign_resource.repository.lifecycle[
             "after_get_one"
         ]
+
+        # Build a query to use foreign resource to find related objects
+        dumped_record = origin_record.model_dump()
+        # what to do here?
+        must_be = []
+        tgt_vals = []
+        for matches in col_tuples:
+            value = dumped_record[matches[0]]
+            tgt_vals.append(value)
+            must_be.append({matches[1]: {"*eq": value}})
+
         context_data = {
             DATA_KEY: {
-                "id": tgt_id,
+                "id": tgt_vals,
                 "where": where,
             },
             META_KEY: None,
@@ -711,8 +725,6 @@ def _ControllerConfigManyToOne(
                 request, context_data
             )
 
-        must_be = {far_col_name: {"*eq": context_data[DATA_KEY]["id"]}}
-
         if foreign_repo_lifecycle_before:
 
             async def _shimmed_repo_lifecycle_before(query_conf: dict):
@@ -721,7 +733,9 @@ def _ControllerConfigManyToOne(
                     context_data[DATA_KEY]["id"], shim_where
                 )
                 shim_where = (
-                    must_be if shim_where is None else {"*and": [must_be, shim_where]}
+                    {"*and": must_be}
+                    if shim_where is None
+                    else {"*and": must_be + [shim_where]}
                 )
                 query_conf["where"] = shim_where
                 return
@@ -729,9 +743,9 @@ def _ControllerConfigManyToOne(
             _repo_lifecycle_before = _shimmed_repo_lifecycle_before
         else:
             context_data[DATA_KEY]["where"] = (
-                must_be
+                {"*and": must_be}
                 if context_data[DATA_KEY]["where"] is None
-                else {"*and": [must_be, context_data[DATA_KEY]["where"]]}
+                else {"*and": must_be + [context_data[DATA_KEY]["where"]]}
             )
 
         # Collect the bulk data transfer object from the query
@@ -788,10 +802,19 @@ def _ControllerConfigOneToMany(
     policies_get_one: list = [],
     default_limit: int = 10,
 ):
-    far_col: ColumnElement = next(iter(config.orm_relationship.remote_side))
-    col: ColumnElement = next(iter(config.orm_relationship.local_columns))
-    far_col_name = far_col.name
-    near_col_name = col.name
+    col_tuples = []
+    for far_col in iter(config.orm_relationship.remote_side):
+        far_side: ForeignKey = next(iter(far_col.foreign_keys))
+        col: Column = far_side.column
+        far_col_name = far_col.name
+        near_col_name = col.name
+        col_tuples.append(
+            (
+                near_col_name,
+                far_col_name,
+            )
+        )
+
     resource_model_name = f"{repository.model.__name__}".lower()
     foreign_model_name = pluralizer.plural(
         f"{config.foreign_resource.repository.model.__name__}".lower()  # type: ignore
@@ -829,10 +852,13 @@ def _ControllerConfigOneToMany(
                 status_code=status.HTTP_404_NOT_FOUND, detail=f"Record {id} not found"
             )
 
+        dumped_record = origin_record.model_dump()
+
         # Build a query to use foreign resource to find related objects
-        additional_where = {
-            far_col_name: {"*eq": origin_record.model_dump()[near_col_name]}
-        }
+        must_be = []
+        for matches in col_tuples:
+            value = dumped_record[matches[0]]
+            must_be.append({matches[1]: {"*eq": value}})
 
         _repo_lifecycle_before = None
         foreign_repo_lifecycle_before = config.foreign_resource.repository.lifecycle[
@@ -865,18 +891,18 @@ def _ControllerConfigOneToMany(
                 await foreign_repo_lifecycle_before(query_conf)
                 shim_where = query_conf["where"]
                 query_conf["where"] = (
-                    additional_where
+                    {"*and": must_be}
                     if shim_where is None
-                    else {"*and": [additional_where, shim_where]}
+                    else {"*and": must_be + [shim_where]}
                 )
                 return
 
             _repo_lifecycle_before = _shimmed_repo_lifecycle_before
         else:
             context_data[DATA_KEY]["where"] = (
-                additional_where
+                {"*and": must_be}
                 if context_data[DATA_KEY]["where"] is None
-                else {"*and": [additional_where, context_data[DATA_KEY]["where"]]}
+                else {"*and": must_be + [context_data[DATA_KEY]["where"]]}
             )
 
         # Collect the bulk data transfer object from the query
@@ -1040,6 +1066,7 @@ def ControllerConfigurator(
     disable_delete=False,
     disable_get_one=False,
     disable_get_many=False,
+    disable_relationship_getters=[],
 ) -> APIRouter:
     if not disable_create:
         controller.post(
@@ -1090,6 +1117,8 @@ def ControllerConfigurator(
     # Maybe add way to disable these getters?
     # Maybe add way to wrangle this unknown number of functions into the actions map?
     for key, config in relations.items():
+        if key in disable_relationship_getters:
+            continue
         if config.orm_relationship.direction == ONETOMANY:
             _ControllerConfigOneToMany(
                 controller=controller,
