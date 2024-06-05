@@ -722,38 +722,51 @@ class ResourceRegistry:
         self._resources_via_models = {}
 
     # Returns a CruddyModel tracked by Class name by the registry
-    def get_model_by_name(self, model_name: str) -> Type[CruddyModel] | None:
-        return self._base_models.get(model_name, None)
+    def get_model_by_name(self, model_name: str) -> Type[CruddyModel]:
+        model = self._base_models.get(model_name, None)
+        if model is None:
+            raise RuntimeError(
+                f"Model {model_name} was not loaded in the Cruddy registry"
+            )
+        return model
 
     # Returns a dictionary configuration of all relationships identified for a model's Class name
-    def get_relationships_by_name(self, model_name: str) -> dict | None:
-        return self._rels_via_models.get(model_name, None)
+    def get_relationships_by_name(self, model_name: str) -> dict:
+        rels = self._rels_via_models.get(model_name, None)
+        if rels is None:
+            raise RuntimeError(
+                f"Relationships for model {model_name} were not loaded in the Cruddy registry"
+            )
+        return rels
 
     # Returns a fully-wired resource instance tracked by its core model's Class name
-    def get_resource_by_name(self, model_name: str) -> Resource | None:
-        return self._resources_via_models.get(model_name, None)
+    def get_resource_by_name(self, model_name: str) -> Resource:
+        resource = self._resources_via_models.get(model_name, None)
+        if resource is None:
+            raise RuntimeError(
+                f"Resource for {model_name} was not loaded in the Cruddy registry"
+            )
+        return resource
 
     # Returns a fully-configured repository instance tracked by its core model's Class name
-    def get_repository_by_name(self, model_name: str) -> AbstractRepository | None:
+    def get_repository_by_name(self, model_name: str) -> AbstractRepository:
         resource = self.get_resource_by_name(model_name=model_name)
-        if not resource:
-            return None
         return resource.repository
 
     # Returns a FastAPI APIRouter instance tracked by its core model's Class name
-    def get_controller_by_name(self, model_name: str) -> APIRouter | None:
+    def get_controller_by_name(self, model_name: str) -> APIRouter:
         resource = self.get_resource_by_name(model_name=model_name)
-        if not resource:
-            return None
         return resource.controller
 
     # Returns a CruddyController class tracked by its core model's Class name
     def get_controller_extension_by_name(
         self, model_name: str
-    ) -> Type[CruddyController] | None:
+    ) -> Type[CruddyController]:
         resource = self.get_resource_by_name(model_name=model_name)
-        if not resource:
-            return None
+        if resource.controller_extension is None:
+            raise RuntimeError(
+                f"Controller extension class for {model_name} was not loaded in the Cruddy registry (Did you pass one to your resource?)"
+            )
         return resource.controller_extension
 
     # This method needs to build all the lists and dictionaries
