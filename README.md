@@ -594,12 +594,12 @@ async def load_user_into_session(request: Request):
 
 The available registry lookup function signatures are:
 
-- `get_model_by_name(model_name: str) -> CruddyModel | None]`
-- `get_relationships_by_name(model_name: str) -> dict | None`
-- `get_resource_by_name(model_name: str) -> Resource | None`
-- `get_repository_by_name(model_name: str) -> AbstractRepository | None`
-- `get_controller_by_name(model_name: str) -> APIRouter | None`
-- `get_controller_extension_by_name(model_name: str) -> CruddyController | None`
+- `get_model_by_name(model_name: str) -> CruddyModel`
+- `get_relationships_by_name(model_name: str) -> dict`
+- `get_resource_by_name(model_name: str) -> Resource`
+- `get_repository_by_name(model_name: str) -> AbstractRepository`
+- `get_controller_by_name(model_name: str) -> APIRouter`
+- `get_controller_extension_by_name(model_name: str) -> CruddyController`
 
 Make sure that the `model_name` string you pass to the registry EXACTLY mirrors the class name for your base table `CruddyModel`. So for a model with a class of `User` you would pass in `model_name="User"`. Pay attention to the capitalization!
 
