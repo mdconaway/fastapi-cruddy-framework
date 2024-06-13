@@ -1,18 +1,18 @@
-from typing_extensions import Annotated
 from logging import getLogger
 import examples.fastapi_cruddy_sqlite
-from fastapi import APIRouter, WebSocket, Query
+from fastapi import APIRouter, WebSocket
 from fastapi_cruddy_framework import (
     uuid7,
     CreateRouterFromResources,
     CruddyResourceRegistry,
+    dependency_list,
 )
 from examples.fastapi_cruddy_sqlite.controllers.graphql import graphql_controller
 from examples.fastapi_cruddy_sqlite.services.websocket_1 import websocket_manager_1
 from examples.fastapi_cruddy_sqlite.services.websocket_2 import websocket_manager_2
-from examples.fastapi_cruddy_sqlite.utils.session import get_client_identity
 from examples.fastapi_cruddy_sqlite.policies.verify_session import verify_session
 from examples.fastapi_cruddy_sqlite.policies.naive_auth import naive_auth
+from examples.fastapi_cruddy_sqlite.utils.session import get_client_identity
 
 logger = getLogger(__name__)
 
@@ -43,23 +43,8 @@ async def is_healthy() -> bool:
 # websocket manager function will automatically scale horizontally as your servers scale!
 
 
-@router.websocket("/ws1")
-async def websocket_connector1(
-    websocket: WebSocket, auth_token: Annotated[str | None, Query()] = None
-):
-    # If you write flexible policies, you can execute your normal auth chain on sockets too!
-    # BEGIN POLICY CHAIN -------------------------------------------------------------------
-    await verify_session(websocket=websocket)
-    await naive_auth(
-        websocket=websocket,
-        credentials=None,
-        auth_token=(
-            auth_token
-            if auth_token
-            else websocket.headers.get("authorization", "Bearer ").split(" ").pop()
-        ),
-    )
-    # END POLICY CHAIN ---------------------------------------------------------------------
+@router.websocket("/ws1", dependencies=dependency_list(verify_session, naive_auth))
+async def websocket_connector1(websocket: WebSocket):
     # You can generate your own socket ID if you want!
     # The manager will default to a uuid4
     override_socket_id = str(uuid7())
@@ -91,22 +76,8 @@ async def websocket_connector1(
 
 
 # The ws2 endpoint exists to test out the "custom" identity function of the websocket manager
-@router.websocket("/ws2")
-async def websocket_connector2(
-    websocket: WebSocket, auth_token: Annotated[str | None, Query()] = None
-):
-    # BEGIN POLICY CHAIN -------------------------------------------------------------------
-    await verify_session(websocket=websocket)
-    await naive_auth(
-        websocket=websocket,
-        credentials=None,
-        auth_token=(
-            auth_token
-            if auth_token
-            else websocket.headers.get("authorization", "Bearer ").split(" ").pop()
-        ),
-    )
-    # END POLICY CHAIN ---------------------------------------------------------------------
+@router.websocket("/ws2", dependencies=dependency_list(verify_session, naive_auth))
+async def websocket_connector2(websocket: WebSocket):
     # There is still a socket id associated with all sockets, even in custom mode
     override_socket_id = str(uuid7())
     client_id = get_client_identity(websocket)

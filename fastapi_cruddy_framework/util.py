@@ -6,6 +6,7 @@ from json import dumps, loads
 from datetime import date, datetime, timezone, timedelta
 from re import compile, Match
 from fastapi import Request, WebSocket, Depends
+from fastapi.requests import HTTPConnection
 from fastapi.types import UnionType
 from pydantic.errors import PydanticErrorMixin
 from sqlalchemy.orm import class_mapper, object_mapper
@@ -208,14 +209,16 @@ def to_json_object(thing):
 
 
 def get_state(
-    connection: Request | WebSocket,
+    connection: Request | WebSocket | HTTPConnection,
     key: str,
     default: Any | None = None,
 ) -> Any:
     return getattr(connection.state, key, default)
 
 
-def set_state(connection: Request | WebSocket, key: str, value: Any) -> None:
+def set_state(
+    connection: Request | WebSocket | HTTPConnection, key: str, value: Any
+) -> None:
     setattr(connection.state, key, value)
 
 

@@ -1,10 +1,7 @@
-from fastapi import HTTPException, Request, WebSocket
+from fastapi import HTTPException
+from fastapi.requests import HTTPConnection
 
 
-async def verify_session(
-    request: Request = None,  # type: ignore
-    websocket: WebSocket = None,  # type: ignore
-):
-    connection = request if request else websocket
+async def verify_session(connection: HTTPConnection):
     if not isinstance(connection.session, dict):
         raise HTTPException(status_code=400, detail="session does not exist!")

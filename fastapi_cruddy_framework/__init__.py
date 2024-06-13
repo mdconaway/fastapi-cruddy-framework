@@ -88,6 +88,7 @@ from .util import (
     set_state,
     dependency_list,
 )
+from .security import CruddyHTTPBearer
 from .test_helpers import BrowserTestClient
 from async_asgi_testclient import TestClient
 from async_asgi_testclient.websocket import WebSocketSession

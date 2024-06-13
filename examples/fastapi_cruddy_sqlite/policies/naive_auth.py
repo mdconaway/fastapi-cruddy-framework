@@ -1,21 +1,21 @@
 from __future__ import annotations
 from typing_extensions import Annotated
-from fastapi import Security, Request, WebSocket, Query, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi import Security, Query, HTTPException, status
+from fastapi_cruddy_framework import CruddyHTTPBearer
+from fastapi.security import HTTPAuthorizationCredentials
+from fastapi.requests import HTTPConnection
 
 
 HTTP_403_FORBIDDEN = status.HTTP_403_FORBIDDEN
 
 
 async def naive_auth(
-    request: Request = None,  # type: ignore
-    websocket: WebSocket = None,  # type: ignore
+    connection: HTTPConnection,
     credentials: HTTPAuthorizationCredentials | None = Security(
-        HTTPBearer(auto_error=False)
+        CruddyHTTPBearer(auto_error=False)
     ),
     auth_token: Annotated[str | None, Query()] = None,
 ):
-    connection = request if request else websocket
     if connection.session.get("token") is not None:
         return
 

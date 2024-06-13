@@ -182,6 +182,8 @@ CruddyGQLObject
 CruddyGQLArray
 CruddyCreatedUpdatedGQLOverrides
 CruddyGQLOverrides
+# Security Exports
+CruddyHTTPBearer
 ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
