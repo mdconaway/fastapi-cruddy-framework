@@ -1,7 +1,9 @@
 from __future__ import annotations
-from typing import AsyncIterator, Literal
+from typing import Any, AsyncIterator, Literal
+from typing_extensions import Callable, Awaitable
 from contextlib import asynccontextmanager
 from redis.asyncio import Redis, from_url
+from fastapi import Request
 from fakeredis.aioredis import FakeRedis
 from sqlalchemy import text
 from sqlalchemy.pool import StaticPool
@@ -10,14 +12,26 @@ from sqlmodel import text
 from sqlmodel.ext.asyncio.session import AsyncSession
 from .schemas import CruddyModel
 
+AsyncFunctionType = Callable[[Request], Awaitable[Any]]
+
 
 # -------------------------------------------------------------------------------------------
 # BASE ADAPTER
 # -------------------------------------------------------------------------------------------
 class BaseAdapter:
     engine: AsyncEngine
+    session_setup: AsyncFunctionType | None
+    session_teardown: AsyncFunctionType | None
 
-    def __init__(self, echo=True, **kwargs):
+    def __init__(
+        self,
+        echo=True,
+        session_setup: AsyncFunctionType | None = None,
+        session_teardown: AsyncFunctionType | None = None,
+        **kwargs,
+    ):
+        self.session_setup = session_setup
+        self.session_teardown = session_teardown
         self.engine = create_async_engine(
             "sqlite+aiosqlite:///file:temp.db?mode=memory&cache=shared&uri=true",
             echo=echo,
@@ -25,9 +39,9 @@ class BaseAdapter:
             **kwargs,
         )
 
-    async def __call__(self) -> AsyncIterator[AsyncSession]:
+    async def __call__(self, request: Request) -> AsyncIterator[AsyncSession]:
         # Used by FastAPI Depends
-        async with self.getSession() as session:
+        async with self.getSession(request) as session:
             yield session
 
     def asyncSessionGenerator(self):
@@ -52,13 +66,18 @@ class BaseAdapter:
     # the yielded context cedes control of the event loop back to
     # the adapter. If the database explodes, the rollback happens.
     @asynccontextmanager
-    async def getSession(self):
+    async def getSession(self, request: Request | None = None):
         asyncSession = self.asyncSessionGenerator()
         async with asyncSession() as session:
             try:
+                if self.session_setup is not None and request is not None:
+                    await self.session_setup(request)
                 yield session
+                if self.session_teardown is not None and request is not None:
+                    await self.session_teardown(request)
                 await session.commit()
                 await session.close()
+            # If there are errors, we don't need to re-run session_teardown, there is a deeper issue.
             except:
                 try:
                     await session.rollback()
@@ -81,11 +100,19 @@ class BaseAdapter:
 # -------------------------------------------------------------------------------------------
 class MysqlAdapter(BaseAdapter):
     connection_uri: str
-    engine: AsyncEngine
 
     def __init__(
-        self, connection_uri="", pool_size=4, max_overflow=64, echo=True, **kwargs
+        self,
+        connection_uri="",
+        pool_size=4,
+        max_overflow=64,
+        echo=True,
+        session_setup: AsyncFunctionType | None = None,
+        session_teardown: AsyncFunctionType | None = None,
+        **kwargs,
     ):
+        self.session_setup = session_setup
+        self.session_teardown = session_teardown
         self.connection_uri = connection_uri
         self.engine = create_async_engine(
             self.connection_uri,
@@ -101,8 +128,9 @@ class MysqlAdapter(BaseAdapter):
 # POSTGRESQL ADAPTER
 # -------------------------------------------------------------------------------------------
 class PostgresqlAdapter(MysqlAdapter):
-    async def addPostgresqlExtension(self) -> None:
-        query = text("CREATE EXTENSION IF NOT EXISTS pg_trgm")
+    async def addPostgresqlExtension(self, extension_name: str = "pg_trgm") -> None:
+        query = text(f"CREATE EXTENSION IF NOT EXISTS {extension_name}")
+        # Use root user session (no request context)
         async with self.getSession() as session:
             await session.execute(query)
 
@@ -123,8 +151,12 @@ class SqliteAdapter(BaseAdapter):
         db_path="temp.db",
         mode: Literal["memory", "file"] = "memory",
         echo=True,
+        session_setup: AsyncFunctionType | None = None,
+        session_teardown: AsyncFunctionType | None = None,
         **kwargs,
     ):
+        self.session_setup = session_setup
+        self.session_teardown = session_teardown
         if mode == "memory":
             self.connection_uri = f"{self.SQLITE_ASYNC_URL_PREFIX}{self.MEMORY_LOCATION_START}{db_path}{self.MEMORY_LOCATION_END}"
         else:
@@ -139,6 +171,7 @@ class SqliteAdapter(BaseAdapter):
         )
 
     async def enable_foreignkey_constraints(self):
+        # Use root user session (no request context)
         async with self.getSession() as session:
             await session.execute(text("PRAGMA foreign_keys=ON"))
 

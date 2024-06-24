@@ -1,8 +1,10 @@
 import math
-from typing import Any, Callable
+from typing import Any, Callable, TYPE_CHECKING
 from asyncio import TaskGroup
 from logging import getLogger
+from fastapi import Request
 from sqlalchemy import (
+    insert as _insert,
     update as _update,
     delete as _delete,
     or_,
@@ -82,6 +84,9 @@ from .util import (
     parse_and_coerce_to_utc_datetime,
     parse_datetime,
 )
+
+if TYPE_CHECKING:
+    from .resource import Resource
 
 JSON_COLUMNS = (JSON, JSONB)
 # The CAST MAP provides composite keys (lhs comparator|rhs value type) which map to a DB cast function
@@ -189,7 +194,10 @@ class AbstractRepository:
     adapter: BaseAdapter | SqliteAdapter | MysqlAdapter | PostgresqlAdapter
     update_model: Type[CruddyModel]
     create_model: Type[CruddyModel]
+    view_model: Type[CruddyModel]
+    view_keys: list[str]
     model: Type[CruddyModel]
+    use_model_defaults: bool
     id_type: possible_id_types
     primary_key: str | None = None
     identity_function: Callable[..., Any]
@@ -207,15 +215,18 @@ class AbstractRepository:
         "before_set_relations": None,
         "after_set_relations": None,
     }
-
     op_map: dict
+    _resource: "Resource"
 
     def __init__(
         self,
         adapter: BaseAdapter | SqliteAdapter | MysqlAdapter | PostgresqlAdapter,
         update_model: Type[CruddyModel],
         create_model: Type[CruddyModel],
+        view_model: Type[CruddyModel],
         model: Type[CruddyModel],
+        _resource: "Resource",
+        use_model_defaults: bool = True,
         id_type: possible_id_types = int,
         custom_sql_identity_function: Callable | None = None,
         lifecycle_before_create: lifecycle_types = None,
@@ -231,10 +242,15 @@ class AbstractRepository:
         lifecycle_before_set_relations: lifecycle_types = None,
         lifecycle_after_set_relations: lifecycle_types = None,
     ):
+        self.use_model_defaults = use_model_defaults
         self.adapter = adapter
         self.update_model = update_model
         self.create_model = create_model
+        self.view_model = view_model
+        self.view_keys = list(view_model.model_fields.keys())
         self.model = model
+        self._resource = _resource
+
         self.id_type = id_type
         self.op_map = {
             "*and": and_,
@@ -268,56 +284,88 @@ class AbstractRepository:
         # Can't do this until all models are defined, otherwise mappers break
         self.primary_key = get_pk(self.model)
 
-    async def create(self, data: CruddyModel) -> CruddyModel:
+    async def create(self, data: CruddyModel, request: Request | None = None):
         # create user data
-        async with self.adapter.getSession() as session:
-            record = self.model(**data.model_dump())
-            if self.lifecycle["before_create"]:
-                await self.lifecycle["before_create"](record)
-            session.add(record)
-        if self.lifecycle["after_create"]:
-            await self.lifecycle["after_create"](record)
-        return record
+        if self.lifecycle["before_create"]:
+            await self.lifecycle["before_create"](data)
+        values = data.model_dump()
+        if self.use_model_defaults:
+            values = self.model(**values).model_dump()
+        selectables = list(self.view_keys)
+        columns = [getattr(self.model, x) for x in selectables]
+        query = (
+            _insert(self.model)
+            .values(**values)
+            .execution_options(synchronize_session="fetch")
+            .returning(*columns)
+        )
+        async with self.adapter.getSession(request) as session:
+            result = await session.execute(query)
+            await session.flush()
+            inserted_row = result.first()
+            if inserted_row is None:
+                raise ValueError(f"The payload {values} failed to create a new record")
+            created_record = self.model(**inserted_row._mapping)
+        if created_record is not None:
+            if self.lifecycle["after_create"]:
+                await self.lifecycle["after_create"](created_record)
+            return created_record
+        return None
         # return a value?
 
-    async def get_by_id(self, id: possible_id_values, where: Json = None) -> Any | None:
+    async def get_by_id(
+        self, id: possible_id_values, where: Json = None, request: Request | None = None
+    ) -> Any | None:
         # retrieve user data by id
-        async with self.adapter.getSession() as session:
+        async with self.adapter.getSession(request) as session:
             if self.lifecycle["before_get_one"]:
                 await self.lifecycle["before_get_one"](id, where)
-            query = select(self.model).where(
+            selectables = list(self.view_keys)
+            columns = [getattr(self.model, x) for x in selectables]
+            query = select(*columns).where(
                 and_(
                     self.identity_function(id),
                     *self.query_forge(model=self.model, where=where),
                 )
             )
-            result = (await session.execute(query)).scalar_one_or_none()
+            result = (await session.execute(query)).fetchone()
+            if result is not None:
+                result = self.view_model(**result._mapping)
         if self.lifecycle["after_get_one"]:
             await self.lifecycle["after_get_one"](result)
-        return result
+        return result  # type: ignore
 
-    async def update(self, id: possible_id_values, data: CruddyModel):
+    async def update(
+        self, id: possible_id_values, data: CruddyModel, request: Request | None = None
+    ):
         # update user data
         values = data.model_dump()
         if self.lifecycle["before_update"]:
             await self.lifecycle["before_update"](values, id)
+        selectables = list(self.view_keys)
+        columns = [getattr(self.model, x) for x in selectables]
         query = (
             _update(self.model)
             .where(self.identity_function(id))
             .values(**values)
             .execution_options(synchronize_session="fetch")
+            .returning(*columns)
         )
-        async with self.adapter.getSession() as session:
+        async with self.adapter.getSession(request) as session:
             result = await session.execute(query)
-        if result.rowcount == 1:  # type: ignore
-            updated_record = await self.get_by_id(id=id)
+            await session.flush()
+            udpated_row = result.first()
+            if udpated_row is None:
+                raise ValueError(f"The payload {values} failed to update a record")
+            updated_record = self.model(**udpated_row._mapping)
+        if updated_record:  # type: ignore
             if self.lifecycle["after_update"]:
                 await self.lifecycle["after_update"](updated_record)
             return updated_record
         return None
         # return a value?
 
-    async def delete(self, id: possible_id_values):
+    async def delete(self, id: possible_id_values, request: Request | None = None):
         # delete user data by id
         record = await self.get_by_id(id=id)
         if self.lifecycle["before_delete"]:
@@ -327,7 +375,7 @@ class AbstractRepository:
             .where(self.identity_function(id))
             .execution_options(synchronize_session="fetch")
         )
-        async with self.adapter.getSession() as session:
+        async with self.adapter.getSession(request) as session:
             result = await session.execute(query)
 
         if result.rowcount == 1:  # type: ignore
@@ -345,6 +393,7 @@ class AbstractRepository:
         sort: list[str] | None = None,
         where: Json = None,
         # possible lifecycle hooks from foreign resource
+        request: Request | None = None,
         _lifecycle_before: lifecycle_types = None,
         _lifecycle_after: lifecycle_types = None,
         _use_own_hooks: bool = True,
@@ -374,7 +423,7 @@ class AbstractRepository:
         get_columns: list[str] = (
             query_conf["columns"]
             if query_conf["columns"] is not None and query_conf["columns"] != []
-            else list(self.model.model_fields.keys())
+            else list(self.view_keys)
         )
         if self.primary_key not in get_columns:
             get_columns.append(str(self.primary_key))
@@ -413,8 +462,8 @@ class AbstractRepository:
         # total record
 
         async with (
-            self.adapter.getSession() as session1,
-            self.adapter.getSession() as session2,
+            self.adapter.getSession(request) as session1,
+            self.adapter.getSession(request) as session2,
         ):
             async with TaskGroup() as tg:
                 task1 = tg.create_task(session1.execute(count_query))
@@ -445,12 +494,14 @@ class AbstractRepository:
         id: possible_id_values,
         relation: str,
         relation_model: Type[CruddyModel],
+        relation_view: Type[CruddyModel],
         page: int = 1,
         limit: int = 10,
         columns: list[str] | None = None,
         sort: list[str] | None = None,
         where: Json = None,
         # the foreign repository's lifecycle hooks must be injected
+        request: Request | None = None,
         _lifecycle_before: lifecycle_types = None,
         _lifecycle_after: lifecycle_types = None,
     ) -> BulkDTO:
@@ -471,7 +522,7 @@ class AbstractRepository:
         get_columns: list[str] = (
             query_conf["columns"]
             if query_conf["columns"] is not None and query_conf["columns"] != []
-            else list(relation_model.model_fields.keys())
+            else list(relation_view.model_fields.keys())
         )
         if relation_pk not in get_columns:
             get_columns.append(relation_pk)
@@ -516,8 +567,8 @@ class AbstractRepository:
         # total record
 
         async with (
-            self.adapter.getSession() as session1,
-            self.adapter.getSession() as session2,
+            self.adapter.getSession(request) as session1,
+            self.adapter.getSession(request) as session2,
         ):
             async with TaskGroup() as tg:
                 task1 = tg.create_task(session1.execute(count_query))
@@ -548,6 +599,7 @@ class AbstractRepository:
         id: possible_id_values,
         relation: str,
         relations: list[possible_id_values],
+        request: Request | None = None,
     ):
         relation_conf = {"id": id, "relation": relation, "relations": relations}
 
@@ -605,7 +657,7 @@ class AbstractRepository:
             .where(join_origin_col == relation_conf["id"])
             .execution_options(synchronize_session="fetch")
         )
-        async with self.adapter.getSession() as session:
+        async with self.adapter.getSession(request) as session:
             # origin_id = (await session.execute(validate_origin_id)).scalar_one_or_none()
             db_ids = (await session.execute(validate_relation_ids)).fetchall()
             insertable = [
@@ -620,7 +672,7 @@ class AbstractRepository:
             )  # .returning(join_foreign_col) # RETURNING DOESNT WORK ON ALL ADAPTERS
             await session.execute(clear_relations_query)
 
-        async with self.adapter.getSession() as session:
+        async with self.adapter.getSession(request) as session:
             check_ids = [f"{x._mapping[foreign_key]}" for x in db_ids]  # type: ignore
             if len(insertable) > 0:
                 await session.execute(create_relations_query)
@@ -655,6 +707,7 @@ class AbstractRepository:
         id: possible_id_values,
         relation: str,
         relations: list[possible_id_values],
+        request: Request | None = None,
     ) -> int:
         relation_conf = {"id": id, "relation": relation, "relations": relations}
 
@@ -711,13 +764,13 @@ class AbstractRepository:
         )
         count_query = select(func.count(1)).select_from(find_tgt_query)  # type: ignore
         if far_col.nullable:
-            async with self.adapter.getSession() as session:
+            async with self.adapter.getSession(request) as session:
                 await session.execute(clear_query)
         else:
             LOGGER.warn(
                 f"Unable to clear relations for {related_model.name}.{far_col_name}. Column does not allow null values"
             )
-        async with self.adapter.getSession() as session:
+        async with self.adapter.getSession(request) as session:
             await session.execute(
                 alter_query
             )  # .rowcount # also affected by removing returning
@@ -774,7 +827,9 @@ class AbstractRepository:
         where: dict[str, Any] | list[dict[str, Any]],
     ):
         level_criteria = []
-
+        view_keys = self._resource._registry.get_repository_by_name(
+            model.__name__
+        ).view_keys
         if not (isinstance(where, list) or isinstance(where, dict)):
             return []
 
@@ -802,9 +857,9 @@ class AbstractRepository:
                         is_op(*self.query_forge(model=model, where=v))
                     )
             else:
-                if not hasattr(model, key_value):
+                if (key_value not in view_keys) or (not hasattr(model, key_value)):
                     raise ValueError(
-                        f"Model {model.__name__} does not have a key/column of {key_value}"
+                        f"Model {model.__name__} does not have a key/column of {key_value}."
                     )
 
                 base_attribute: Column = getattr(model, key_value)

@@ -485,6 +485,11 @@ custom_sql_identity_function: Callable[..., Any] | None = None,
 # will receive a record's value dictionary, which you can use to build a custom link {id} segment if needed.
 # You can use this to enable things like composite keys, and format {id} as <record value a>.<record value b>.
 custom_link_identity: Callable[..., str] | None = None,
+# 'use_model_defaults' will wrap any record values sent to the `create` action with ANY added defaults from
+# the base `model` for a resource. Setting this value to `false` would only propagate values contained in the
+# actual POST body to the database level. If you use this feature, by setting this flag to `false`, you MUST
+# have all required values generate their own defaults INSIDE the database.
+use_model_defaults: bool = True,
 # The following REPOSITORY lifecycle hooks can each recieve an async function which will be invoked
 # before or after the target lifecycle event. Generally, whatever values are passed to the lifecycle
 # hook are alterable WITHIN the hook so that userspace code can alter the behavior of the lifecycle
@@ -833,21 +838,21 @@ The `AbstractRepository` is a helpful way to interact with the data layer of you
 
 ```python
 # User functions accessible from any resource's 'AbstractRepository'
-async def create(data: CruddyModel)
+async def create(data: CruddyModel, request: Request = None)
 
-async def get_by_id(id: UUID | int | str)
+async def get_by_id(id: UUID | int | str, request: Request = None)
 
-async def update(id: UUID | int | str, data: CruddyModel)
+async def update(id: UUID | int | str, data: CruddyModel, request: Request = None)
 
-async def delete(id: UUID | int | str)
+async def delete(id: UUID | int | str, request: Request = None)
 
-async def get_all(page: int = 1, limit: int = 10, columns: list[str] = None, sort: list[str] = None, where: Json = None)
+async def get_all(page: int = 1, limit: int = 10, columns: list[str] = None, sort: list[str] = None, where: Json = None, request: Request = None)
 
-async def get_all_relations(id: UUID | int | str = ..., relation: str = ..., relation_model: CruddyModel = ..., page: int = 1, limit: int = 10, columns: list[str] = None, sort: list[str] = None, where: Json = None)
+async def get_all_relations(id: UUID | int | str = ..., relation: str = ..., relation_model: CruddyModel = ..., relation_view: CruddyModel = ..., page: int = 1, limit: int = 10, columns: list[str] = None, sort: list[str] = None, where: Json = None, request: Request = None)
 
-async def set_many_many_relations(id: UUID | int | str, relation: str = ..., relations: list[UUID | int | str] = ...)
+async def set_many_many_relations(id: UUID | int | str, relation: str = ..., relations: list[UUID | int | str] = ..., request: Request = None)
 
-async def set_one_many_relations(id: UUID | int | str, relation: str = ..., relations: list[UUID | int | str] = ...)
+async def set_one_many_relations(id: UUID | int | str, relation: str = ..., relations: list[UUID | int | str] = ..., request: Request = None)
 ```
 
 Generally, these functions do about what you would expect them to do. More documentation will be added to describe their function soon. Please read nuances below, however, as it applies to how x-to-Many relationships are managed via the automatic CRUD routes.

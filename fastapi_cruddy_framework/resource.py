@@ -132,6 +132,7 @@ class Resource:
         disable_relationship_getters: list[str] = [],
         disable_nested_objects: bool = False,
         default_limit: int = 10,
+        use_model_defaults: bool = True,
         # Repository lifecycle actions
         lifecycle_before_create: lifecycle_types = None,
         lifecycle_after_create: lifecycle_types = None,
@@ -231,6 +232,9 @@ class Resource:
             update_model=resource_update_model,
             create_model=resource_create_model,
             model=resource_model,
+            view_model=response_schema,
+            _resource=self,
+            use_model_defaults=use_model_defaults,
             id_type=id_type,
             custom_sql_identity_function=custom_sql_identity_function,
             lifecycle_before_create=lifecycle_before_create,

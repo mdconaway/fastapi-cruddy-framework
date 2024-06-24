@@ -126,7 +126,9 @@ class Actions:
                 }
             }
             # Create the core object in the repository
-            result = await repository.create(data=context_data[DATA_KEY])
+            result = await repository.create(
+                data=context_data[DATA_KEY], request=request
+            )
             # Update the operating context
             context_data[DATA_KEY] = result
             # Udate many-to-many and one-to-many relationships
@@ -205,7 +207,7 @@ class Actions:
             }
             # Update the core object in the repository
             result: CruddyModel | None = await repository.update(
-                id=_id, data=context_data[DATA_KEY]
+                id=_id, data=context_data[DATA_KEY], request=request
             )
             # Add error logic?
             if result is None:
@@ -269,7 +271,7 @@ class Actions:
             if self.lifecycle["before_delete"]:
                 await self.lifecycle["before_delete"](request, context_data)
             # Delete the core object in the repository
-            data = await repository.delete(id=context_data[DATA_KEY])
+            data = await repository.delete(id=context_data[DATA_KEY], request=request)
             # Add error logic?
             if data is None:
                 raise HTTPException(
@@ -300,7 +302,7 @@ class Actions:
             if self.lifecycle["before_get_one"]:
                 await self.lifecycle["before_get_one"](request, context_data)
             # Find the core object in the repository
-            data = await repository.get_by_id(**context_data[DATA_KEY])
+            data = await repository.get_by_id(**context_data[DATA_KEY], request=request)
             # Add error logic?
             if data is None:
                 raise HTTPException(
@@ -337,7 +339,9 @@ class Actions:
             if self.lifecycle["before_get_all"]:
                 await self.lifecycle["before_get_all"](request, context_data)
             # Find the core objects in the repository
-            result: BulkDTO = await repository.get_all(**context_data[DATA_KEY])
+            result: BulkDTO = await repository.get_all(
+                **context_data[DATA_KEY], request=request
+            )
             # Update the operating context
             context_data[DATA_KEY] = result.data
             context_data[META_KEY] = {
@@ -496,7 +500,10 @@ class Actions:
             if config.orm_relationship.direction == MANYTOMANY:
                 awaitables.append(
                     repository.set_many_many_relations(
-                        id=id, relation=name, relations=settled_relations
+                        id=id,
+                        relation=name,
+                        relations=settled_relations,
+                        request=request,
                     )
                 )
             elif config.orm_relationship.direction == ONETOMANY:
@@ -506,7 +513,10 @@ class Actions:
                 # (there will be a moment where it could violate the relationship)
                 awaitables.append(
                     repository.set_one_many_relations(
-                        id=id, relation=name, relations=settled_relations
+                        id=id,
+                        relation=name,
+                        relations=settled_relations,
+                        request=request,
                     )
                 )
             if len(field_failures) > 0:
@@ -685,7 +695,9 @@ def _ControllerConfigManyToOne(
         columns: list[str] = Query(None, alias="columns"),
         where: Json = Query(None, alias="where"),
     ):
-        origin_record: CruddyModel | None = await repository.get_by_id(id=id)
+        origin_record: CruddyModel | None = await repository.get_by_id(
+            id=id, request=request
+        )
 
         # Consider raising 404 here and in get by ID
         if origin_record == None:
@@ -755,6 +767,7 @@ def _ControllerConfigManyToOne(
             columns=columns,
             sort=None,
             where=context_data[DATA_KEY]["where"],
+            request=request,
             _use_own_hooks=False,
             _lifecycle_before=_repo_lifecycle_before,
         )
@@ -844,7 +857,9 @@ def _ControllerConfigOneToMany(
         sort: list[str] = Query(None, alias="sort"),
         where: Json = Query(None, alias="where"),
     ):
-        origin_record: CruddyModel | None = await repository.get_by_id(id=id)
+        origin_record: CruddyModel | None = await repository.get_by_id(
+            id=id, request=request
+        )
 
         # Consider raising 404 here and in get by ID
         if origin_record == None:
@@ -908,6 +923,7 @@ def _ControllerConfigOneToMany(
         # Collect the bulk data transfer object from the query
         result: BulkDTO = await config.foreign_resource.repository.get_all(
             **context_data[DATA_KEY],
+            request=request,
             _lifecycle_before=_repo_lifecycle_before,
             _lifecycle_after=config.foreign_resource.repository.lifecycle[
                 "after_get_all"
@@ -949,6 +965,7 @@ def _ControllerConfigManyToMany(
     default_limit: int = 10,
 ):
     far_model: Type[CruddyModel] = config.foreign_resource.repository.model
+    far_view: Type[CruddyModel] = config.foreign_resource.repository.view_model
     resource_model_name = f"{repository.model.__name__}".lower()
     foreign_model_name = pluralizer.plural(
         f"{config.foreign_resource.repository.model.__name__}".lower()  # type: ignore
@@ -979,7 +996,7 @@ def _ControllerConfigManyToMany(
         where: Json = Query(None, alias="where"),
     ):
         # Consider raising 404 here and in get by ID
-        if await repository.get_by_id(id=id) == None:
+        if await repository.get_by_id(id=id, request=request) == None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail=f"Record {id} not found"
             )
@@ -1006,7 +1023,9 @@ def _ControllerConfigManyToMany(
             id=id,
             relation=relationship_prop,
             relation_model=far_model,
+            relation_view=far_view,
             **context_data[DATA_KEY],
+            request=request,
             # the foreign resource must interact with its own lifecycle
             _lifecycle_before=config.foreign_resource.repository.lifecycle[
                 "before_get_all"
