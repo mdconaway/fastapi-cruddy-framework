@@ -1,9 +1,10 @@
 from fastapi import Request
 from fastapi_cruddy_framework import SqliteAdapter
+from sqlmodel.ext.asyncio.session import AsyncSession
 from examples.fastapi_cruddy_sqlite.config import adapters
 
 
-async def session_setup(request: Request):
+async def session_setup(session: AsyncSession, request: Request):
     # Here you can do anything you desire to set roles and session values
     # on the database layer session. This would allow you to propagate
     # user identity information all the way into a DB like postgres
@@ -17,11 +18,13 @@ async def session_setup(request: Request):
     # WILL enforce role-scope via this hook as the HTTP endpoint will always pass
     # the request.
     assert isinstance(request, Request)
+    assert isinstance(session, AsyncSession)
 
 
-async def session_teardown(request: Request):
+async def session_teardown(session: AsyncSession, request: Request):
     # Here you can tear-down and roles / settings you setup on a per-session basis.
     assert isinstance(request, Request)
+    assert isinstance(session, AsyncSession)
 
 
 sqlite = SqliteAdapter(

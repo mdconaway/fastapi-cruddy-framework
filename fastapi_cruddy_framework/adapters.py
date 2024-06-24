@@ -12,7 +12,7 @@ from sqlmodel import text
 from sqlmodel.ext.asyncio.session import AsyncSession
 from .schemas import CruddyModel
 
-AsyncFunctionType = Callable[[Request], Awaitable[Any]]
+AsyncFunctionType = Callable[[AsyncSession, Request], Awaitable[Any]]
 
 
 # -------------------------------------------------------------------------------------------
@@ -71,10 +71,10 @@ class BaseAdapter:
         async with asyncSession() as session:
             try:
                 if self.session_setup is not None and request is not None:
-                    await self.session_setup(request)
+                    await self.session_setup(session, request)
                 yield session
                 if self.session_teardown is not None and request is not None:
-                    await self.session_teardown(request)
+                    await self.session_teardown(session, request)
                 await session.commit()
                 await session.close()
             # If there are errors, we don't need to re-run session_teardown, there is a deeper issue.
