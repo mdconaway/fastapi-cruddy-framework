@@ -1,6 +1,5 @@
 import math
 from typing import Any, Callable, TYPE_CHECKING
-from asyncio import TaskGroup
 from logging import getLogger
 from fastapi import Request
 from sqlalchemy import (
@@ -305,7 +304,7 @@ class AbstractRepository:
             inserted_row = result.first()
             if inserted_row is None:
                 raise ValueError(f"The payload {values} failed to create a new record")
-            created_record = self.model(**inserted_row._mapping)
+        created_record = self.model(**inserted_row._mapping)
         if created_record is not None:
             if self.lifecycle["after_create"]:
                 await self.lifecycle["after_create"](created_record)
@@ -315,19 +314,19 @@ class AbstractRepository:
 
     async def get_by_id(
         self, id: possible_id_values, where: Json = None, request: Request | None = None
-    ) -> Any | None:
+    ):
         # retrieve user data by id
-        async with self.adapter.getSession(request) as session:
-            if self.lifecycle["before_get_one"]:
-                await self.lifecycle["before_get_one"](id, where)
-            selectables = list(self.view_keys)
-            columns = [getattr(self.model, x) for x in selectables]
-            query = select(*columns).where(
-                and_(
-                    self.identity_function(id),
-                    *self.query_forge(model=self.model, where=where),
-                )
+        if self.lifecycle["before_get_one"]:
+            await self.lifecycle["before_get_one"](id, where)
+        selectables = list(self.view_keys)
+        columns = [getattr(self.model, x) for x in selectables]
+        query = select(*columns).where(
+            and_(
+                self.identity_function(id),
+                *self.query_forge(model=self.model, where=where),
             )
+        )
+        async with self.adapter.getSession(request) as session:
             result = (await session.execute(query)).fetchone()
             if result is not None:
                 result = self.view_model(**result._mapping)
@@ -460,19 +459,12 @@ class AbstractRepository:
             query_conf["limit"]
         )
         # total record
-
-        async with (
-            self.adapter.getSession(request) as session1,
-            self.adapter.getSession(request) as session2,
-        ):
-            async with TaskGroup() as tg:
-                task1 = tg.create_task(session1.execute(count_query))
-                task2 = tg.create_task(session2.execute(query))
-            count: Result = task1.result()
-            records: Result = task2.result()
+        async with self.adapter.getSession(request) as session:
+            records: Result = await session.execute(query)
+            await session.flush()
+            count: Result = await session.execute(count_query)
             total_record = count.scalar() or 0
             result = records.fetchall()
-
         # possible pass in outside functions to map/alter data?
         # total page
         total_page = math.ceil(total_record / query_conf["limit"])
@@ -566,15 +558,10 @@ class AbstractRepository:
         )
         # total record
 
-        async with (
-            self.adapter.getSession(request) as session1,
-            self.adapter.getSession(request) as session2,
-        ):
-            async with TaskGroup() as tg:
-                task1 = tg.create_task(session1.execute(count_query))
-                task2 = tg.create_task(session2.execute(query))
-            count: Result = task1.result()
-            records: Result = task2.result()
+        async with self.adapter.getSession(request) as session:
+            records: Result = await session.execute(query)
+            await session.flush()
+            count: Result = await session.execute(count_query)
             total_record = count.scalar() or 0
             result = records.fetchall()
 
