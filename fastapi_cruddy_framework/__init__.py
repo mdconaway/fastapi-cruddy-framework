@@ -88,6 +88,7 @@ from .util import (
     set_state,
     dependency_list,
 )
+from .exceptions import CruddyNoMatchingRowException
 from .security import CruddyHTTPBearer
 from .test_helpers import BrowserTestClient
 from async_asgi_testclient import TestClient

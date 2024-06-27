@@ -2,6 +2,7 @@ import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, status
 from fastapi.responses import JSONResponse
+from fastapi_cruddy_framework import CruddyNoMatchingRowException
 from starlette.middleware.cors import CORSMiddleware
 from sqlalchemy.exc import IntegrityError
 from examples.fastapi_cruddy_sqlite.config import general, http, sessions
@@ -16,6 +17,7 @@ from datetime import timedelta
 
 logger = logging.getLogger(__name__)
 HTTP_400_BAD_REQUEST = status.HTTP_400_BAD_REQUEST
+HTTP_404_NOT_FOUND = status.HTTP_404_NOT_FOUND
 
 
 async def bootstrap(application: FastAPI):
@@ -80,4 +82,12 @@ async def integrity_exception_handler(_, exc: IntegrityError):
     return JSONResponse(
         status_code=HTTP_400_BAD_REQUEST,
         content={"detail": [str(exc.orig)]},
+    )
+
+
+@app.exception_handler(CruddyNoMatchingRowException)
+async def no_row_exception_handler(_, exc: CruddyNoMatchingRowException):
+    return JSONResponse(
+        status_code=HTTP_404_NOT_FOUND,
+        content={"detail": [str(exc)]},
     )

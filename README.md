@@ -139,6 +139,9 @@ ExampleUpdate
 ExampleCreate
 ExampleView
 Example
+# EXCEPTIONS
+# CruddyNoMatchingRowException will be thrown if a database operation that should have succeeded didn't (typically due to row-level DB policies)
+CruddyNoMatchingRowException
 # WEBSOCKET MODULES
 PubSub
 WebsocketConnectionManager

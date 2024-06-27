@@ -74,6 +74,7 @@ from .schemas import (
     BulkDTO,
     CruddyModel,
 )
+from .exceptions import CruddyNoMatchingRowException
 from .adapters import BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter
 from .util import (
     get_pk,
@@ -302,8 +303,10 @@ class AbstractRepository:
             result = await session.execute(query)
             await session.flush()
             inserted_row = result.first()
-            if inserted_row is None:
-                raise ValueError(f"The payload {values} failed to create a new record")
+        if inserted_row is None:
+            raise CruddyNoMatchingRowException(
+                f"The payload {values} failed to create a new record"
+            )
         created_record = self.model(**inserted_row._mapping)
         if created_record is not None:
             if self.lifecycle["after_create"]:
@@ -328,11 +331,13 @@ class AbstractRepository:
         )
         async with self.adapter.getSession(request) as session:
             result = (await session.execute(query)).fetchone()
-            if result is not None:
-                result = self.view_model(**result._mapping)
+
+        if result is None:
+            raise CruddyNoMatchingRowException(f"Unable to find record {id}")
+        result = self.view_model(**result._mapping)
         if self.lifecycle["after_get_one"]:
             await self.lifecycle["after_get_one"](result)
-        return result  # type: ignore
+        return result
 
     async def update(
         self, id: possible_id_values, data: CruddyModel, request: Request | None = None
@@ -354,14 +359,15 @@ class AbstractRepository:
             result = await session.execute(query)
             await session.flush()
             udpated_row = result.first()
-            if udpated_row is None:
-                raise ValueError(f"The payload {values} failed to update a record")
-            updated_record = self.model(**udpated_row._mapping)
-        if updated_record:  # type: ignore
-            if self.lifecycle["after_update"]:
-                await self.lifecycle["after_update"](updated_record)
-            return updated_record
-        return None
+        if udpated_row is None:
+            raise CruddyNoMatchingRowException(
+                f"The payload {values} failed to update a record"
+            )
+        updated_record = self.model(**udpated_row._mapping)
+        if self.lifecycle["after_update"]:
+            await self.lifecycle["after_update"](updated_record)
+        return updated_record
+
         # return a value?
 
     async def delete(self, id: possible_id_values, request: Request | None = None):
@@ -376,12 +382,12 @@ class AbstractRepository:
         )
         async with self.adapter.getSession(request) as session:
             result = await session.execute(query)
+        if result.rowcount < 1:  # type: ignore
+            raise CruddyNoMatchingRowException(f"Failed to delete record {id}")
+        if self.lifecycle["after_delete"]:
+            await self.lifecycle["after_delete"](record)
+        return record
 
-        if result.rowcount == 1:  # type: ignore
-            if self.lifecycle["after_delete"]:
-                await self.lifecycle["after_delete"](record)
-            return record
-        return None
         # return a value?
 
     async def get_all(

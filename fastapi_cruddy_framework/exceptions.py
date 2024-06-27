@@ -1,0 +1,2 @@
+class CruddyNoMatchingRowException(Exception):
+    pass
