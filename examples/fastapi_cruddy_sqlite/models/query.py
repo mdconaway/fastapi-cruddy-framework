@@ -1,6 +1,8 @@
 from strawberry import type as strawberry_type
 from examples.fastapi_cruddy_sqlite.services.graphql_resolver import graphql_resolver
 from examples.fastapi_cruddy_sqlite.models.common.graphql import (
+    COMMENT_LIST_TYPE,
+    COMMENT_CLASS_LOADER,
     GROUP_LIST_TYPE,
     GROUP_CLASS_LOADER,
     POST_LIST_TYPE,
@@ -54,4 +56,9 @@ class Query:
         type_name="reference",
         graphql_type=REFERENCE_LIST_TYPE,
         class_loader=REFERENCE_CLASS_LOADER,
+    )
+    comment = graphql_resolver.generate_resolver(
+        type_name="comment",
+        graphql_type=COMMENT_LIST_TYPE,
+        class_loader=COMMENT_CLASS_LOADER,
     )

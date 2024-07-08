@@ -13,6 +13,7 @@ subtype1_id = None
 subtype2_id = None
 reference1_id = None
 reference2_id = None
+comment_id = None
 
 
 @mark.dependency()
@@ -28,6 +29,7 @@ async def test_setup(authenticated_client: BrowserTestClient):
     global subtype2_id
     global reference1_id
     global reference2_id
+    global comment_id
 
     response = await authenticated_client.post(
         f"/types",
@@ -158,6 +160,21 @@ async def test_setup(authenticated_client: BrowserTestClient):
     assert isinstance(result["post"], dict)
     post_id = result["post"]["id"]
 
+    response = await authenticated_client.post(
+        "/comments",
+        json={
+            "comment": {
+                "created_by_id": user_id,
+                "entity_id": post_id,
+                "text": "My greatest work EVER.",
+            }
+        },
+    )
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert isinstance(result["comment"], dict)
+    comment_id = result["comment"]["id"]
+
 
 @mark.dependency(depends=["test_setup"])
 async def test_graphql_read(authenticated_client: BrowserTestClient):
@@ -172,6 +189,7 @@ async def test_graphql_read(authenticated_client: BrowserTestClient):
     global subtype2_id
     global reference1_id
     global reference2_id
+    global comment_id
 
     response = await authenticated_client.post(
         f"/graphql",
@@ -216,6 +234,9 @@ async def test_graphql_read(authenticated_client: BrowserTestClient):
                         updated_at
                         sections {
                             name
+                        }
+                        comments {
+                            text
                         }
                     }
                     name
@@ -266,7 +287,12 @@ async def test_graphql_read(authenticated_client: BrowserTestClient):
     assert len(result["data"]["sections"][0]["posts"]) == 1
     assert isinstance(result["data"]["sections"][0]["posts"][0]["created_at"], str)
     assert isinstance(result["data"]["sections"][0]["posts"][0]["updated_at"], str)
+    assert isinstance(result["data"]["sections"][0]["posts"][0]["comments"], list)
     assert isinstance(result["data"]["sections"][0]["posts"][0]["sections"], list)
+    assert len(result["data"]["sections"][0]["posts"][0]["comments"]) == 1
+    assert isinstance(
+        result["data"]["sections"][0]["posts"][0]["comments"][0]["text"], str
+    )
     assert len(result["data"]["sections"][0]["posts"][0]["sections"]) == 1
     assert isinstance(
         result["data"]["sections"][0]["posts"][0]["sections"][0]["name"], str
@@ -286,6 +312,7 @@ async def test_cleanup(authenticated_client: BrowserTestClient):
     global subtype2_id
     global reference1_id
     global reference2_id
+    global comment_id
 
     response = await authenticated_client.delete(f"/groups/{elves_group_id}")
     assert response.status_code == status.HTTP_200_OK

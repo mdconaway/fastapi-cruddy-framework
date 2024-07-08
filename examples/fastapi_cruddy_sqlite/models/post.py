@@ -15,6 +15,8 @@ from sqlmodel import Column, ForeignKey, DateTime, Field, JSON, Relationship
 from strawberry.experimental.pydantic import type as strawberry_pydantic_type
 from examples.fastapi_cruddy_sqlite.services.graphql_resolver import graphql_resolver
 from examples.fastapi_cruddy_sqlite.models.common.graphql import (
+    COMMENT_CLASS_LOADER,
+    COMMENT_LIST_TYPE,
     SECTION_LIST_TYPE,
     SECTION_CLASS_LOADER,
     USER_LIST_TYPE,
@@ -192,4 +194,12 @@ class PostQL:
         route_generator=lambda x: f"labels/{getattr(x, 'label_id')}",
         class_loader=LABEL_CLASS_LOADER,
         is_singular=True,
+    )
+    comments = graphql_resolver.generate_resolver(
+        type_name="comment",
+        graphql_type=COMMENT_LIST_TYPE,
+        # You must define your prefererd internal API path to find the relation
+        # Your route generator will be passed an instance of a group record
+        route_generator=lambda x: f"posts/{getattr(x, 'id')}/comments",
+        class_loader=COMMENT_CLASS_LOADER,
     )
