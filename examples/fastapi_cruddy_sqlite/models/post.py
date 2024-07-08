@@ -1,4 +1,4 @@
-from typing import Any, TYPE_CHECKING
+from typing import Any, ForwardRef, TYPE_CHECKING
 from datetime import datetime
 from fastapi_cruddy_framework import (
     UUID,
@@ -143,6 +143,14 @@ class Post(CruddyCreatedUpdatedMixin(), CruddyUUIDModel, PostCreate, table=True)
     user: "User" = Relationship(back_populates="posts")
     section: "Section" = Relationship(back_populates="posts")
     label: "Label" = Relationship(back_populates="posts")
+    comments: list[ForwardRef("Comment")] = Relationship(  # type: ignore
+        sa_relationship_kwargs={
+            "primaryjoin": "Comment.entity_id==Post.id",
+            "foreign_keys": "[Comment.entity_id]",
+            "cascade": "all, delete",
+            "viewonly": True,
+        },
+    )
 
 
 # --------------------------------------------------------------------------------------

@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ForwardRef
 from fastapi_cruddy_framework import (
     CruddyModel,
     CruddyUUIDModel,
@@ -66,6 +66,14 @@ class GroupView(CruddyCreatedUpdatedSignature, CruddyUUIDModel):
 # or other server-internal state or tracking information. Keep your "Base"
 # models separated from all other interactive derivations.
 class Group(CruddyCreatedUpdatedMixin(), CruddyUUIDModel, GroupCreate, table=True):
+    comments: list[ForwardRef("Comment")] = Relationship(  # type: ignore
+        sa_relationship_kwargs={
+            "primaryjoin": "Comment.entity_id==Group.id",
+            "foreign_keys": "[Comment.entity_id]",
+            "cascade": "all, delete",
+            "viewonly": True,
+        },
+    )
     # is the below needed??
     users: list["User"] = Relationship(
         back_populates="groups", link_model=GroupUserLink

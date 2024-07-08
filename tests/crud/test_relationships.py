@@ -116,6 +116,38 @@ async def test_setup(authenticated_client: BrowserTestClient):
     assert isinstance(result["post"], dict)
     post_id = result["post"]["id"]
 
+    # Let's add some comments
+    await authenticated_client.post(
+        "/comments",
+        json={
+            "comment": {
+                "created_by_id": user_id,
+                "entity_id": post_id,
+                "text": "What a great post!",
+            }
+        },
+    )
+    await authenticated_client.post(
+        "/comments",
+        json={
+            "comment": {
+                "created_by_id": alt_user_id,
+                "entity_id": post_id,
+                "text": "You are wrong. I hate this post",
+            }
+        },
+    )
+    await authenticated_client.post(
+        "/comments",
+        json={
+            "comment": {
+                "created_by_id": alt_user_id,
+                "entity_id": group_id,
+                "text": "Is anyone still managing this group?? Let. Me. Leave!",
+            }
+        },
+    )
+
 
 @mark.dependency(depends=["test_setup"])
 async def test_get_groups_through_user(authenticated_client: BrowserTestClient):
@@ -1032,6 +1064,33 @@ async def test_nested_update_multiple_objects(authenticated_client: BrowserTestC
     assert response.status_code == status.HTTP_200_OK
     response = await authenticated_client.delete(f"/sections/{section_id}")
     assert response.status_code == status.HTTP_200_OK
+
+
+@mark.dependency(depends=["test_nested_update_multiple_objects"])
+async def test_custom_foreign_relationships(authenticated_client: BrowserTestClient):
+    global group_id
+    global post_id
+
+    # First verify that a link exists on the resources supporting comments
+    post = (await authenticated_client.get(f"/posts/{post_id}")).json()
+    group = (await authenticated_client.get(f"/groups/{group_id}")).json()
+    post_comments_link = post["post"]["links"].get("comments")
+    group_comments_link = group["group"]["links"].get("comments")
+    assert post_comments_link is not None
+    assert group_comments_link is not None
+
+    # Next fetch the associated comments from each resource and verify they're populated
+    post_comments = (await authenticated_client.get(post_comments_link)).json()
+    group_comments = (await authenticated_client.get(group_comments_link)).json()
+    assert post_comments["meta"]["records"] > 0
+    assert group_comments["meta"]["records"] > 0
+
+    # Finally, double check we're working with Comment records here
+    for comment in post_comments["comments"]:
+        assert comment.get("text") is not None
+
+    for comment in group_comments["comments"]:
+        assert comment.get("text") is not None
 
 
 # The below functions are mainly cleanup based on the create functions above
