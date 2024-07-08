@@ -1,5 +1,8 @@
 from fastapi_cruddy_framework import generate_gql_loader_and_type
 
+COMMENT_CLASS_LOADER, COMMENT_LIST_TYPE = generate_gql_loader_and_type(
+    "CommentQL", "examples.fastapi_cruddy_sqlite.models.comment"
+)
 GROUP_CLASS_LOADER, GROUP_LIST_TYPE = generate_gql_loader_and_type(
     "GroupQL", "examples.fastapi_cruddy_sqlite.models.group"
 )

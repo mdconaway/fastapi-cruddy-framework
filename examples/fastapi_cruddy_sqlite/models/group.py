@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ForwardRef
 from fastapi_cruddy_framework import (
     CruddyModel,
     CruddyUUIDModel,
@@ -12,6 +12,8 @@ from strawberry.experimental.pydantic import type as strawberry_pydantic_type
 from examples.fastapi_cruddy_sqlite.services.graphql_resolver import graphql_resolver
 from examples.fastapi_cruddy_sqlite.models.common.relationships import GroupUserLink
 from examples.fastapi_cruddy_sqlite.models.common.graphql import (
+    COMMENT_CLASS_LOADER,
+    COMMENT_LIST_TYPE,
     USER_LIST_TYPE,
     USER_CLASS_LOADER,
 )
@@ -66,6 +68,14 @@ class GroupView(CruddyCreatedUpdatedSignature, CruddyUUIDModel):
 # or other server-internal state or tracking information. Keep your "Base"
 # models separated from all other interactive derivations.
 class Group(CruddyCreatedUpdatedMixin(), CruddyUUIDModel, GroupCreate, table=True):
+    comments: list[ForwardRef("Comment")] = Relationship(  # type: ignore
+        sa_relationship_kwargs={
+            "primaryjoin": "Comment.entity_id==Group.id",
+            "foreign_keys": "[Comment.entity_id]",
+            "cascade": "all, delete",
+            "viewonly": True,
+        },
+    )
     # is the below needed??
     users: list["User"] = Relationship(
         back_populates="groups", link_model=GroupUserLink
@@ -83,6 +93,15 @@ class GroupQLOverrides(CruddyCreatedUpdatedGQLOverrides, GroupView):
 
 @strawberry_pydantic_type(model=GroupQLOverrides, name="Group", all_fields=True)
 class GroupQL:
+    comments = graphql_resolver.generate_resolver(
+        type_name="comment",
+        graphql_type=COMMENT_LIST_TYPE,
+        # You must define your prefererd internal API path to find the relation
+        # Your route generator will be passed an instance of a group record
+        route_generator=lambda x: f"groups/{getattr(x, 'id')}/comments",
+        class_loader=COMMENT_CLASS_LOADER,
+    )
+
     users = graphql_resolver.generate_resolver(
         type_name="user",
         graphql_type=USER_LIST_TYPE,

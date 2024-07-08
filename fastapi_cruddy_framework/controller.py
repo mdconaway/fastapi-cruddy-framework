@@ -1,5 +1,5 @@
 from logging import getLogger
-from typing import Any, Literal, Sequence, Type, TYPE_CHECKING
+from typing import Any, Literal, Sequence, Type, TYPE_CHECKING, cast
 from asyncio import gather
 from fastapi import (
     FastAPI,
@@ -13,7 +13,7 @@ from fastapi import (
 )
 from .test_helpers import TestClient, BrowserTestClient
 from sqlalchemy import Row
-from sqlalchemy.sql.schema import Column, ForeignKey
+from sqlalchemy.sql.schema import Column
 from sqlalchemy.orm import (
     RelationshipDirection,
     ONETOMANY,
@@ -658,19 +658,13 @@ def _ControllerConfigManyToOne(
     policies_universal: list,
     policies_get_one: list,
 ):
-    col_tuples = []
-    for col in iter(config.orm_relationship.local_columns):
-        far_side: ForeignKey = next(iter(col.foreign_keys))
-        far_col: Column = far_side.column
-        far_col_name = far_col.name
-        near_col_name = col.name
-        col_tuples.append(
-            (
-                near_col_name,
-                far_col_name,
-            )
+    col_tuples = [
+        (near_col.name, far_col.name)
+        for (near_col, far_col) in cast(
+            list[tuple[Column, Column]],
+            getattr(config.orm_relationship, "local_remote_pairs", []),
         )
-
+    ]
     resource_model_name = f"{repository.model.__name__}".lower()
     foreign_model_name = f"{config.foreign_resource.repository.model.__name__}".lower()
 
@@ -815,19 +809,13 @@ def _ControllerConfigOneToMany(
     policies_get_one: list = [],
     default_limit: int = 10,
 ):
-    col_tuples = []
-    for far_col in iter(config.orm_relationship.remote_side):
-        far_side: ForeignKey = next(iter(far_col.foreign_keys))
-        col: Column = far_side.column
-        far_col_name = far_col.name
-        near_col_name = col.name
-        col_tuples.append(
-            (
-                near_col_name,
-                far_col_name,
-            )
+    col_tuples = [
+        (far_col.name, near_col.name)
+        for (far_col, near_col) in cast(
+            list[tuple[Column, Column]],
+            getattr(config.orm_relationship, "local_remote_pairs", []),
         )
-
+    ]
     resource_model_name = f"{repository.model.__name__}".lower()
     foreign_model_name = pluralizer.plural(
         f"{config.foreign_resource.repository.model.__name__}".lower()  # type: ignore
