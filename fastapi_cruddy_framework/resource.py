@@ -279,7 +279,7 @@ class Resource:
 
     def _setup_example_id(self, id: str | UUID | int | bytes):
         example_id = id
-        response_schema: CruddyModel = self._response_schema
+        response_schema: Type[CruddyModel] = self._response_schema
         possible_id = response_schema.model_fields.get(
             self.repository.primary_key or "id", None
         )
@@ -319,7 +319,7 @@ class Resource:
         link_object = {}
         false_create_attrs = {}
         false_update_attrs = {}
-        response_schema: CruddyModel = self._response_schema
+        response_schema: Type[CruddyModel] = self._response_schema
         create_protected_relationships = (
             self._protected_relationships + self._protected_create_relationships
         )
@@ -388,7 +388,7 @@ class Resource:
     # to be modified somehow...
     def generate_internal_schemas(self):
         self.repository.resolve()
-        response_schema: CruddyModel = self._response_schema
+        response_schema: Type[CruddyModel] = self._response_schema
         create_schema = self._create_schema
         update_schema = self._update_schema
         response_meta_schema = self._meta_schema

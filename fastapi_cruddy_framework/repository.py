@@ -1,5 +1,5 @@
 import math
-from typing import Any, Callable, TYPE_CHECKING
+from typing import Any, Type, Callable, TYPE_CHECKING
 from logging import getLogger
 from fastapi import Request
 from sqlalchemy import (
@@ -67,7 +67,6 @@ from sqlalchemy.types import (
 )
 from sqlalchemy.orm import RelationshipProperty, ONETOMANY, MANYTOMANY
 from sqlmodel import cast, inspect
-from typing import Type
 from pydantic_core import PydanticUndefined as Undefined
 from pydantic.types import Json
 from .schemas import (
@@ -284,7 +283,7 @@ class AbstractRepository:
         # Can't do this until all models are defined, otherwise mappers break
         self.primary_key = get_pk(self.model)
 
-    async def create(self, data: CruddyModel, request: Request | None = None):
+    async def create(self, data: CruddyModel, request: Request | None = None) -> Any:
         # create user data
         if self.lifecycle["before_create"]:
             await self.lifecycle["before_create"](data)
@@ -317,7 +316,7 @@ class AbstractRepository:
 
     async def get_by_id(
         self, id: possible_id_values, where: Json = None, request: Request | None = None
-    ):
+    ) -> Any:
         # retrieve user data by id
         if self.lifecycle["before_get_one"]:
             await self.lifecycle["before_get_one"](id, where)
@@ -341,7 +340,7 @@ class AbstractRepository:
 
     async def update(
         self, id: possible_id_values, data: CruddyModel, request: Request | None = None
-    ):
+    ) -> Any:
         # update user data
         values = data.model_dump()
         if self.lifecycle["before_update"]:
@@ -370,7 +369,9 @@ class AbstractRepository:
 
         # return a value?
 
-    async def delete(self, id: possible_id_values, request: Request | None = None):
+    async def delete(
+        self, id: possible_id_values, request: Request | None = None
+    ) -> Any:
         # delete user data by id
         record = await self.get_by_id(id=id)
         if self.lifecycle["before_delete"]:
