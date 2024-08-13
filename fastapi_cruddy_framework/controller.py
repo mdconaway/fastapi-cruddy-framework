@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from logging import getLogger
 from typing import Any, Literal, Sequence, Type, TYPE_CHECKING, cast
 from asyncio import gather
@@ -603,7 +604,7 @@ class Actions:
 # -------------------------------------------------------------------------------------------
 
 
-class CruddyController:
+class CruddyController(ABC):
     actions: Actions
     controller: APIRouter
     repository: "AbstractRepository"
@@ -625,6 +626,7 @@ class CruddyController:
         self.adapter = adapter
         self.setup()
 
+    @abstractmethod
     def setup(self):
         # Override this method in your code!
         # This is the best place to add more methods to the resource controller!

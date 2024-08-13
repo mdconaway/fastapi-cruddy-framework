@@ -382,7 +382,7 @@ class Resource:
         return link_object, view_example_dict, false_create_attrs, false_update_attrs
 
     # The response schema factory
-    # Converting this section a plugin pattern will allow
+    # Converting this section to a plugin pattern will allow
     # other response formats, like JSON API.
     # Alterations will also require ControllerConfigurator
     # to be modified somehow...
