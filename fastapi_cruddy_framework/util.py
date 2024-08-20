@@ -272,4 +272,30 @@ def estimate_simple_example(annotation: Any | None) -> Any | None:
                 return possible_example
     if (possible_example := estimate_example_for_type(annotation)) is not None:
         return possible_example
-    return estimate_example_for_type(origin)
+    return estimate_example_for_type(origin)  # type: ignore
+
+
+def is_uuid_type(annotation: Any | None) -> bool:
+    if annotation is None:
+        return False
+    if not inspect.isclass(annotation):
+        return False
+    if issubclass(annotation, UUID):
+        return True
+    origin = get_origin(annotation)
+    if origin is Union or origin is UnionType:
+        for arg in get_args(annotation):
+            if arg is None:
+                continue
+            if issubclass(arg, UUID):
+                return True
+            if arg is Union or arg is UnionType:
+                if is_uuid_type(arg):
+                    return True
+    return False
+
+
+def coerce_uuid(v: Any):
+    if isinstance(v, list):
+        return [UUID(x) if isinstance(x, str) else x for x in v]
+    return UUID(v) if isinstance(v, str) else v
