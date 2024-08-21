@@ -371,9 +371,11 @@ class Actions:
 
     def convert_to_field_type(self, info: FieldInfo, value: Any):
         if issubclass(UUID, info.annotation):  # type: ignore
-            return UUID(value)
+            return value if isinstance(value, UUID) else UUID(value)
         if issubclass(int, info.annotation):  # type: ignore
             return int(value)
+        if issubclass(str, info.annotation):  # type: ignore
+            return str(value)
         return value
 
     def get_relationships(
@@ -420,7 +422,12 @@ class Actions:
                 if response.status_code == status.HTTP_200_OK:
                     response_json: dict = response.json()
                     obj: dict = response_json.get(payload_key, {})
-                    value = f"{obj.get(pk, '')}"
+                    obj_pk_value = obj.get(pk, None)
+                    value = (
+                        resource.repository.id_type(obj_pk_value)
+                        if type(obj_pk_value) is str
+                        else obj_pk_value
+                    )
                     return (
                         True,
                         value,
@@ -437,7 +444,12 @@ class Actions:
             if response.status_code == status.HTTP_200_OK:
                 response_json: dict = response.json()
                 obj: dict = response_json.get(payload_key, {})
-                value = f"{obj.get(pk, '')}"
+                obj_pk_value = obj.get(pk, None)
+                value = (
+                    resource.repository.id_type(obj_pk_value)
+                    if type(obj_pk_value) is str
+                    else obj_pk_value
+                )
                 return (
                     True,
                     value,
@@ -492,7 +504,7 @@ class Actions:
             if len(inner_awaitables) > 0:
                 results = await gather(*inner_awaitables, return_exceptions=True)
                 for success, value, related_record, err_response in results:
-                    if success == True and isinstance(value, str):
+                    if success == True and not isinstance(value, dict):
                         settled_relations.append(value)
                         inner_modified_records.append(related_record)
                     else:
@@ -566,7 +578,7 @@ class Actions:
                 ) = await self.create_or_update_relation(
                     request=request, resource=foreign_resource, data=new_relation
                 )
-                if success is True and isinstance(value, str):
+                if success is True and not isinstance(value, dict):
                     settled_relation = value
                     modified_records[name] = related_record
                 else:

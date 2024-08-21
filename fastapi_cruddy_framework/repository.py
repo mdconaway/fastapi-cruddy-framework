@@ -65,14 +65,16 @@ from sqlalchemy.types import (
     UnicodeText,
     Uuid,
 )
-from sqlalchemy.orm import RelationshipProperty, ONETOMANY, MANYTOMANY
+from sqlalchemy.orm import (
+    RelationshipProperty,
+    InstrumentedAttribute,
+    ONETOMANY,
+    MANYTOMANY,
+)
 from sqlmodel import cast, inspect
 from pydantic_core import PydanticUndefined as Undefined
 from pydantic.types import Json
-from .schemas import (
-    BulkDTO,
-    CruddyModel,
-)
+from .schemas import BulkDTO, CruddyModel, CruddyGenericModel, UUID as PythonUUID
 from .exceptions import CruddyNoMatchingRowException
 from .adapters import BaseAdapter, SqliteAdapter, MysqlAdapter, PostgresqlAdapter
 from .util import (
@@ -82,6 +84,8 @@ from .util import (
     lifecycle_types,
     parse_and_coerce_to_utc_datetime,
     parse_datetime,
+    is_uuid_type,
+    coerce_uuid,
 )
 
 if TYPE_CHECKING:
@@ -277,7 +281,7 @@ class AbstractRepository:
         )
 
     def _default_identity_function(self, id: possible_id_types):
-        return getattr(self.model, str(self.primary_key)) == id
+        return getattr(self.model, str(self.primary_key)) == (self.id_type(id) if not isinstance(id, self.id_type) else id)  # type: ignore
 
     def resolve(self):
         # Can't do this until all models are defined, otherwise mappers break
@@ -306,7 +310,7 @@ class AbstractRepository:
             raise CruddyNoMatchingRowException(
                 f"The payload {values} failed to create a new record"
             )
-        created_record = self.model(**inserted_row._mapping)
+        created_record = self.view_model(**inserted_row._mapping)
         if created_record is not None:
             if self.lifecycle["after_create"]:
                 await self.lifecycle["after_create"](created_record)
@@ -362,7 +366,7 @@ class AbstractRepository:
             raise CruddyNoMatchingRowException(
                 f"The payload {values} failed to update a record"
             )
-        updated_record = self.model(**udpated_row._mapping)
+        updated_record = self.view_model(**udpated_row._mapping)
         if self.lifecycle["after_update"]:
             await self.lifecycle["after_update"](updated_record)
         return updated_record
@@ -657,7 +661,7 @@ class AbstractRepository:
             insertable = [
                 {
                     join_table_origin_attr: relation_conf["id"],
-                    join_table_foreign_attr: f"{x._mapping[foreign_key]}",  # type: ignore
+                    join_table_foreign_attr: x._mapping[str(foreign_key)],
                 }
                 for x in db_ids
             ]
@@ -667,7 +671,7 @@ class AbstractRepository:
             await session.execute(clear_relations_query)
 
         async with self.adapter.getSession(request) as session:
-            check_ids = [f"{x._mapping[foreign_key]}" for x in db_ids]  # type: ignore
+            check_ids = [x._mapping[str(foreign_key)] for x in db_ids]
             if len(insertable) > 0:
                 await session.execute(create_relations_query)
                 find_tgt_query = select(join_table).where(
@@ -857,7 +861,7 @@ class AbstractRepository:
                     )
 
                 base_attribute: Column = getattr(model, key_value)
-                model_attribute: Column | Cast | Any
+                model_attribute: Column | Cast | Any | InstrumentedAttribute
 
                 if is_colon and not is_dot:
                     cast_to = colon_parts[1]
@@ -871,16 +875,26 @@ class AbstractRepository:
                         model_attribute = cast_column(base_attribute, cast_to)
                 else:
                     model_attribute = base_attribute
-
+                type_name_uppercased = str(model_attribute.type).upper()
+                is_python_uuid = False
+                if isinstance(model_attribute, InstrumentedAttribute) and issubclass(
+                    model_attribute.parent.class_, (CruddyModel, CruddyGenericModel)
+                ):
+                    model_class = model_attribute.parent.class_
+                    field_def = model_class.model_fields.get(k, None)
+                    if field_def is not None:
+                        is_python_uuid = is_uuid_type(field_def.annotation)
                 if not isinstance(v, dict):
-                    # Add type coerce fn?
                     has_like_attr = hasattr(model_attribute, "like")
                     unsupported_likes = (
-                        str(model_attribute.type).upper() in UNSUPPORTED_LIKE_COLUMNS
+                        type_name_uppercased in UNSUPPORTED_LIKE_COLUMNS
+                        or is_python_uuid
                     )
                     maybe_supports_like = (
                         (not unsupported_likes) and has_like_attr and isinstance(v, str)
                     )
+                    if is_python_uuid:
+                        v = coerce_uuid(v)
                     level_criteria.append(
                         model_attribute.like(v)
                         if maybe_supports_like
@@ -950,8 +964,11 @@ class AbstractRepository:
                     v2 = v[k2]
                     if isinstance(v2, dict) and "*datetime" in v2:
                         v2 = parse_and_coerce_to_utc_datetime(v2["*datetime"])  # type: ignore
-                    if isinstance(v2, dict) and "*datetime_naive" in v2:
+                    elif isinstance(v2, dict) and "*datetime_naive" in v2:
                         v2 = parse_datetime(v2["*datetime_naive"])  # type: ignore
+                    elif is_python_uuid:
+                        v2 = coerce_uuid(v2)
+                        LOGGER.warning("CONVERTED VALUE TO UUID")
                     if (
                         isinstance(k2, str)
                         and not isinstance(v2, dict)
