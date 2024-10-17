@@ -5,7 +5,6 @@ from contextlib import asynccontextmanager
 from redis.asyncio import Redis, from_url
 from fastapi import Request
 from fakeredis.aioredis import FakeRedis
-from sqlalchemy import text
 from sqlalchemy.pool import StaticPool
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine, async_sessionmaker
 from sqlmodel import text
