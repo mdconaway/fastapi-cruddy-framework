@@ -52,7 +52,12 @@ from .schemas import (
 )
 from .pubsub import PubSub
 from .websocket_manager import WebsocketConnectionManager
-from .controller import Actions, CruddyController, ControllerConfigurator
+from .controller import (
+    Actions,
+    CruddyController,
+    ControllerConfigurator,
+    OPENAPI_WHERE_OVERRIDE,
+)
 from .repository import AbstractRepository
 from .adapters import (
     BaseAdapter,

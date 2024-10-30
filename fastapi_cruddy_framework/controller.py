@@ -50,6 +50,25 @@ META_NUM_RELATION_MODIFIED_KEY = "total_modified"
 META_RELATED_RECORDS_KEY = "records"
 META_FAILED_RECORDS_KEY = "invalid"
 META_VALIDATION_MESSAGES_KEY = "messages"
+OPENAPI_WHERE_OVERRIDE = {
+    "parameters": [
+        {
+            "name": "where",
+            "in": "query",
+            "description": "Filter Query (JSON Object or Array of Objects)",
+            "required": False,
+            "schema": {
+                "type": "string",
+                "title": "Where",
+                "contentSchema": {
+                    "title": "Where",
+                    "type": "object",
+                    "additionalProperties": {"type": "string"},
+                },
+            },
+        }
+    ]
+}
 # -------------------------------------------------------------------------------------------
 # ACTION MAP (FOR REUSE IN CLIENT CODE)
 # -------------------------------------------------------------------------------------------
@@ -98,7 +117,7 @@ class Actions:
         self.repository = repository
         self.disable_nested_objects = disable_nested_objects
 
-        async def create(request: Request, data: create_model):
+        async def create(request: Request, data: create_model):  # type: ignore
             the_thing_with_rels: CruddyGenericModel = getattr(data, single_name)
             context_data = {DATA_KEY: the_thing_with_rels, META_KEY: None}
             # If there is a user space lifecycle hook, run it (allows context mutations)
@@ -175,7 +194,7 @@ class Actions:
             return single_schema(**context_data)
 
         async def update(
-            request: Request, id: id_type = Path(..., alias="id"), *, data: update_model
+            request: Request, id: id_type = Path(..., alias="id"), *, data: update_model  # type: ignore
         ):
             the_thing_with_rels: CruddyGenericModel = getattr(data, single_name)
             context_data = {DATA_KEY: the_thing_with_rels, META_KEY: {META_ID_KEY: id}}
@@ -290,7 +309,7 @@ class Actions:
         async def get_by_id(
             request: Request,
             id: id_type = Path(..., alias="id"),
-            where: Json = Query(None, alias="where"),
+            where: Json = Query(None, alias="where", include_in_schema=False),
         ):
             context_data = {
                 DATA_KEY: {
@@ -324,7 +343,7 @@ class Actions:
             limit: int = self.default_limit,
             columns: list[str] = Query(None, alias="columns"),
             sort: list[str] = Query(None, alias="sort"),
-            where: Json = Query(None, alias="where"),
+            where: Json = Query(None, alias="where", include_in_schema=False),
         ):
             context_data = {
                 DATA_KEY: {
@@ -696,12 +715,13 @@ def _ControllerConfigManyToOne(
             policies_get_one,
             config.foreign_resource.policies["get_one"],
         ),
+        openapi_extra=OPENAPI_WHERE_OVERRIDE,
     )
     async def get_many_to_one(
         request: Request,
         id: id_type = Path(..., alias="id"),
         columns: list[str] = Query(None, alias="columns"),
-        where: Json = Query(None, alias="where"),
+        where: Json = Query(None, alias="where", include_in_schema=False),
     ):
         origin_record: CruddyModel | None = await repository.get_by_id(
             id=id, request=request
@@ -849,6 +869,7 @@ def _ControllerConfigOneToMany(
             policies_get_one,
             config.foreign_resource.policies["get_many"],
         ),
+        openapi_extra=OPENAPI_WHERE_OVERRIDE,
     )
     async def get_one_to_many(
         request: Request,
@@ -857,7 +878,7 @@ def _ControllerConfigOneToMany(
         limit: int = default_limit,
         columns: list[str] = Query(None, alias="columns"),
         sort: list[str] = Query(None, alias="sort"),
-        where: Json = Query(None, alias="where"),
+        where: Json = Query(None, alias="where", include_in_schema=False),
     ):
         origin_record: CruddyModel | None = await repository.get_by_id(
             id=id, request=request
@@ -987,6 +1008,7 @@ def _ControllerConfigManyToMany(
             policies_get_one,
             config.foreign_resource.policies["get_many"],
         ),
+        openapi_extra=OPENAPI_WHERE_OVERRIDE,
     )
     async def get_many_to_many(
         request: Request,
@@ -995,7 +1017,7 @@ def _ControllerConfigManyToMany(
         limit: int = default_limit,
         columns: list[str] = Query(None, alias="columns"),
         sort: list[str] = Query(None, alias="sort"),
-        where: Json = Query(None, alias="where"),
+        where: Json = Query(None, alias="where", include_in_schema=False),
     ):
         # Consider raising 404 here and in get by ID
         if await repository.get_by_id(id=id, request=request) == None:
@@ -1123,6 +1145,7 @@ def ControllerConfigurator(
             response_model=single_schema,
             response_model_exclude_none=True,
             dependencies=assemble_policies(policies_universal, policies_get_one),
+            openapi_extra=OPENAPI_WHERE_OVERRIDE,
         )(actions.get_by_id)
 
     if not disable_get_many:
@@ -1132,6 +1155,7 @@ def ControllerConfigurator(
             response_model=many_schema,
             response_model_exclude_none=True,
             dependencies=assemble_policies(policies_universal, policies_get_many),
+            openapi_extra=OPENAPI_WHERE_OVERRIDE,
         )(actions.get_all)
 
     # Add relationship link endpoints starting here...

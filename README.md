@@ -118,6 +118,7 @@ LEAVE_SOCKET_BY_ID
 LEAVE_SOCKET_BY_CLIENT
 CLIENT_MESSAGE_EVENT
 DISCONNECT_EVENT
+OPENAPI_WHERE_OVERRIDE
 # TYPES / MODELS / SCHEMAS
 T
 UUID
@@ -624,20 +625,22 @@ The `Actions` class contains all the business logic for the <i>base</i> CRUD act
 Available actions:
 
 ```python
-async def create(data: create_model)
+async def create(request: Request, data: create_model)
 
-async def update(id: id_type = Path(..., alias="id"), *, data: update_model)
+async def update(request: Request, id: id_type = Path(..., alias="id"), *, data: update_model)
 
 async def delete(
-    id: id_type = Path(..., alias="id"),
+    request: Request, id: id_type = Path(..., alias="id")
 )
 
 async def get_by_id(
+    request: Request,
     id: id_type = Path(..., alias="id"),
     where: Json = Query(None, alias="where"),
 )
 
 async def get_all(
+    request: Request,
     page: int = 1,
     limit: int = 10,
     columns: list[str] = Query(None, alias="columns"),
