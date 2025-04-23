@@ -40,7 +40,7 @@ python = ">=3.10,<4.0"
 fastapi = {extras = ["all"], version = ">=0.100.0"}
 SQLAlchemy-Utils = "^0.41.2"
 SQLAlchemy = { extras = ["asyncio"], version = ">=2.0.0" }
-sqlmodel = "^0.0.22"
+sqlmodel = "^0.0.24"
 inflect = "^7.0.0"
 async-asgi-testclient = "^1.4.11"
 validator-collection = "^1.5.0"
