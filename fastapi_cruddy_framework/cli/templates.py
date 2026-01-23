@@ -400,7 +400,7 @@ packages = [{include = "{{PROJECT_NAME_LOWER}}"}]
 [tool.poetry.dependencies]
 python = "^3.10"
 fastapi = {extras = ["all"], version = "^0.115.13"}
-fastapi-cruddy-framework = "^1.10.0"
+fastapi-cruddy-framework = "^1.11.1"
 uvicorn = {extras = ["standard"], version = "^0.32.0"}
 pydantic-settings = "^2.0.0"
 aiosqlite = "^0.20.0"
@@ -587,7 +587,7 @@ packages = [{include = "{{PROJECT_NAME_LOWER}}"}]
 [tool.poetry.dependencies]
 python = "^3.10"
 fastapi = {extras = ["all"], version = "^0.115.13"}
-fastapi-cruddy-framework = "^1.10.0"
+fastapi-cruddy-framework = "^1.11.1"
 uvicorn = {extras = ["standard"], version = "^0.32.0"}
 pydantic-settings = "^2.0.0"
 asyncpg = "^0.30.0"
@@ -708,7 +708,7 @@ packages = [{include = "{{PROJECT_NAME_LOWER}}"}]
 [tool.poetry.dependencies]
 python = "^3.10"
 fastapi = {extras = ["all"], version = "^0.115.13"}
-fastapi-cruddy-framework = "^1.10.0"
+fastapi-cruddy-framework = "^1.11.1"
 uvicorn = {extras = ["standard"], version = "^0.32.0"}
 pydantic-settings = "^2.0.0"
 PyMySQL = "^1.0.0"
@@ -1135,7 +1135,7 @@ packages = [{include = "{{PROJECT_NAME_LOWER}}"}]
 [tool.poetry.dependencies]
 python = "^3.10"
 fastapi = {extras = ["all"], version = "^0.115.13"}
-fastapi-cruddy-framework = "^1.10.0"
+fastapi-cruddy-framework = "^1.11.1"
 uvicorn = {extras = ["standard"], version = "^0.32.0"}
 pydantic-settings = "^2.0.0"
 aiosqlite = "^0.20.0"
@@ -1311,7 +1311,7 @@ packages = [{include = "{{PROJECT_NAME_LOWER}}"}]
 [tool.poetry.dependencies]
 python = "^3.10"
 fastapi = {extras = ["all"], version = "^0.115.13"}
-fastapi-cruddy-framework = "^1.10.0"
+fastapi-cruddy-framework = "^1.11.1"
 uvicorn = {extras = ["standard"], version = "^0.32.0"}
 pydantic-settings = "^2.0.0"
 asyncpg = "^0.30.0"
@@ -1361,7 +1361,7 @@ packages = [{include = "{{PROJECT_NAME_LOWER}}"}]
 [tool.poetry.dependencies]
 python = "^3.10"
 fastapi = {extras = ["all"], version = "^0.115.13"}
-fastapi-cruddy-framework = "^1.10.0"
+fastapi-cruddy-framework = "^1.11.1"
 uvicorn = {extras = ["standard"], version = "^0.32.0"}
 pydantic-settings = "^2.0.0"
 PyMySQL = "^1.0.0"

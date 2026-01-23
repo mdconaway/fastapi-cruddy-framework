@@ -83,6 +83,9 @@ def generate_resource(
     if relationships is None:
         relationships = []
 
+    # Ensure proper capitalization for class names
+    capitalized_name = _capitalize_class_name(resource_name)
+
     # Get the project module path
     project_module_path = _get_project_module_path()
     if not project_module_path:
@@ -104,7 +107,7 @@ def generate_resource(
     id_import_line = f", {id_import}" if id_import else ""
 
     context = {
-        "resource_name": resource_name,
+        "resource_name": capitalized_name,
         "resource_name_lower": resource_name.lower(),
         "resource_name_upper": resource_name.upper(),
         "id_type": id_import,
@@ -124,6 +127,9 @@ def generate_model(
     """Generate a model file."""
     if fields is None:
         fields = []
+
+    # Ensure proper capitalization for class names
+    model_name = _capitalize_class_name(model_name)
 
     # Get the project module path
     project_module_path = _get_project_module_path()
@@ -168,6 +174,9 @@ def generate_model(
 
 def generate_controller(controller_name: str) -> None:
     """Generate a controller file."""
+    # Ensure proper capitalization for class names
+    controller_name = _capitalize_class_name(controller_name)
+
     # Get the project module path
     project_module_path = _get_project_module_path()
     if not project_module_path:
@@ -234,6 +243,14 @@ def _get_base_model_class(id_type: str) -> str:
         return "CruddyStringIDModel"
     else:  # int
         return "CruddyIntIDModel"
+
+
+def _capitalize_class_name(name: str) -> str:
+    """Ensure class names are properly capitalized according to Python conventions."""
+    # Convert to title case (first letter of each word capitalized)
+    # Then remove spaces/underscores to create PascalCase
+    words = name.replace("_", " ").replace("-", " ").split()
+    return "".join(word.capitalize() for word in words)
 
 
 def _generate_field_definition(field_name: str, field_type: str) -> str:
