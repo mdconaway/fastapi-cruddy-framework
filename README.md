@@ -27,6 +27,35 @@ Come for the GraphQL and websocket managers, stay for the CRUD!
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
+<!-- CLI TOOLS -->
+
+## 🚀 CLI Tools
+
+**NEW:** FastAPI Cruddy Framework now includes a powerful CLI tool to help developers scaffold new projects and generate CRUD resources with a single command!
+
+```bash
+# Create a new project
+cruddy init my_blog --database postgresql
+
+# Generate a complete CRUD resource
+cruddy generate resource User --fields "name:str,email:str,age:int"
+
+# Generate individual components
+cruddy generate model Product --fields "name:str,price:float"
+cruddy generate controller CustomEndpoints
+```
+
+### Key Features:
+- **Project Scaffolding**: Create complete FastAPI Cruddy projects with proper directory structure
+- **Resource Generation**: Generate models, controllers, and resource definitions automatically
+- **Database Support**: Templates for SQLite, PostgreSQL, and MySQL
+- **Modern Tooling**: Poetry-based projects with development dependencies pre-configured
+- **Field Types**: Support for strings, integers, floats, booleans, datetimes, UUIDs, and more
+
+📖 **[Complete CLI Documentation](CLI.md)**
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 <!-- FRONT END PACKAGES -->
 
 ## Front-end Libraries

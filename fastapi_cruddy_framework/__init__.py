@@ -3,6 +3,17 @@
 # Love,
 # A Sails / Ember lover.
 # -----------------------------------------------------------------
+
+import warnings
+
+# Suppress Pydantic warnings about Strawberry GraphQL types
+warnings.filterwarnings(
+    "ignore",
+    message=".*is not a Python type.*Pydantic will allow any object with no validation.*",
+    category=UserWarning,
+    module="pydantic.*",
+)
+
 from validator_collection import (
     checkers as field_checkers,
     validators as field_validators,
