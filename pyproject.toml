@@ -50,6 +50,8 @@ fakeredis = ">=2.21.3"
 async-timeout = ">=4.0.0,<5.0.0"
 pymitter = ">=0.5.0"
 strawberry-graphql = {extras = ["fastapi"], version = ">=0.223.0"}
+click = "^8.1.0"
+pydantic-settings = ">=2.0.0"
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.3.0"
@@ -64,6 +66,7 @@ coverage = "^7.4.4"
 
 [tool.poetry.scripts]
 start_sqlite = "examples.fastapi_cruddy_sqlite.bootloader:start"
+cruddy = "fastapi_cruddy_framework.cli.main:main"
 
 [build-system]
 requires = ["poetry-core"]
