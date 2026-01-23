@@ -12,8 +12,8 @@ from fastapi_cruddy_framework import (
     CruddyModel,
     {base_class},
     CruddyCreatedUpdatedMixin,
-    Field,
 )
+from sqlmodel import Field
 
 
 class {model_name}Update(CruddyModel):
