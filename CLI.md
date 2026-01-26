@@ -154,9 +154,9 @@ class UserCreate(UserUpdate):
 
 class UserView(CruddyCreatedUpdatedSignature, CruddyIntIDModel):
     """View model for User - defines fields returned in API responses."""
-    name: str
-    email: str
-    age: int
+    name: str | None = None
+    email: str | None = None
+    age: int | None = None
 
 
 class User(CruddyCreatedUpdatedMixin(), CruddyIntIDModel, UserCreate, table=True):
