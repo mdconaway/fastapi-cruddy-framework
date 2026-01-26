@@ -131,14 +131,13 @@ my_project/
 """
 User model for FastAPI Cruddy Framework
 """
-from typing import Any
-from datetime import datetime
 from fastapi_cruddy_framework import (
     CruddyModel,
     CruddyIntIDModel,
     CruddyCreatedUpdatedMixin,
-    Field,
+    CruddyCreatedUpdatedSignature,
 )
+from sqlmodel import Field
 
 
 class UserUpdate(CruddyModel):
@@ -153,14 +152,14 @@ class UserCreate(UserUpdate):
     pass
 
 
-class UserView(CruddyIntIDModel):
+class UserView(CruddyCreatedUpdatedSignature, CruddyIntIDModel):
     """View model for User - defines fields returned in API responses."""
     name: str
     email: str
     age: int
 
 
-class User(CruddyCreatedUpdatedMixin(), UserCreate, table=True):
+class User(CruddyCreatedUpdatedMixin(), CruddyIntIDModel, UserCreate, table=True):
     """Base User model with database table definition."""
     pass
 ```
@@ -172,14 +171,14 @@ class User(CruddyCreatedUpdatedMixin(), UserCreate, table=True):
 User resource for FastAPI Cruddy Framework
 """
 from fastapi_cruddy_framework import Resource
-from ..adapters import adapter
-from ..models.user import (
+from my_project.adapters.application import adapter
+from my_project.models.user import (
     User,
     UserCreate,
     UserUpdate,
     UserView,
 )
-from ..controllers.user import UserController
+from my_project.controllers.user import UserController
 
 
 resource = Resource(
