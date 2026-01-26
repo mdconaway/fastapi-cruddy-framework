@@ -5,13 +5,12 @@ Templates for FastAPI Cruddy Framework CLI
 # Model template
 MODEL_TEMPLATE = '''"""
 {model_name} model for FastAPI Cruddy Framework
-"""
-from typing import Any{id_type_import}
-from datetime import datetime
+"""{any_import}
 from fastapi_cruddy_framework import (
     CruddyModel,
     {base_class},
     CruddyCreatedUpdatedMixin,
+    CruddyCreatedUpdatedSignature,
 )
 from sqlmodel import Field
 
@@ -26,12 +25,12 @@ class {model_name}Create({model_name}Update):
     pass
 
 
-class {model_name}View({base_class}):
+class {model_name}View(CruddyCreatedUpdatedSignature, {base_class}):
     """View model for {model_name} - defines fields returned in API responses."""
 {fields}
 
 
-class {model_name}(CruddyCreatedUpdatedMixin(), {model_name}Create, table=True):
+class {model_name}(CruddyCreatedUpdatedMixin(), {base_class}, {model_name}Create, table=True):
     """Base {model_name} model with database table definition."""
     pass
 '''
@@ -41,14 +40,14 @@ RESOURCE_TEMPLATE = '''"""
 {resource_name} resource for FastAPI Cruddy Framework
 """
 from fastapi_cruddy_framework import Resource{id_type_import_line}
-from ..adapters import adapter  # Import your configured adapter
-from ..models.{resource_name_lower} import (
+from {project_name_lower}.adapters.application import adapter  # Import your configured adapter
+from {project_name_lower}.models.{resource_name_lower} import (
     {resource_name},
     {resource_name}Create,
     {resource_name}Update,
     {resource_name}View,
 )
-from ..controllers.{resource_name_lower} import {resource_name}Controller
+from {project_name_lower}.controllers.{resource_name_lower} import {resource_name}Controller
 
 
 resource = Resource(
@@ -69,8 +68,7 @@ resource = Resource(
 CONTROLLER_TEMPLATE = '''"""
 {controller_name} controller extensions for FastAPI Cruddy Framework
 """
-from fastapi_cruddy_framework import CruddyController
-from fastapi import Depends
+from fastapi_cruddy_framework import CruddyController, dependency_list
 
 
 class {controller_name}Controller(CruddyController):
@@ -120,9 +118,11 @@ from starlette.middleware.cors import CORSMiddleware
 from sqlalchemy.exc import IntegrityError
 from starlette_session import SessionMiddleware
 from datetime import timedelta
-from .adapters import adapter
-from .config import general, http, sessions
-from .router import application as application_router
+from {{PROJECT_NAME_LOWER}}.adapters.application import adapter
+from {{PROJECT_NAME_LOWER}}.config.general import general
+from {{PROJECT_NAME_LOWER}}.config.http import http
+from {{PROJECT_NAME_LOWER}}.config.sessions import sessions
+from {{PROJECT_NAME_LOWER}}.router.application import router as application_router
 
 logger = logging.getLogger(__name__)
 HTTP_400_BAD_REQUEST = status.HTTP_400_BAD_REQUEST
@@ -136,7 +136,7 @@ async def bootstrap(application: FastAPI):
     # the application_router in the bootstrapper. Fortunately, routers can be added lazily, which
     # forces fastapi to re-index the routes and update the openapi.json.
     await adapter.destroy_then_create_all_tables_unsafe()
-    application.include_router(application_router.router)
+    application.include_router(application_router)
     logger.info(f"{general.PROJECT_NAME}, {general.API_VERSION}: Bootstrap complete")
 
 
@@ -234,7 +234,7 @@ async def health_check() -> bool:
 #     return {"message": "Custom endpoint"}
 ''',
     "bootloader.py": """import uvicorn
-from {{PROJECT_NAME_LOWER}}.config import http
+from {{PROJECT_NAME_LOWER}}.config.http import http
 
 
 def start():
@@ -248,9 +248,6 @@ def start():
     "adapters/__init__.py": '''"""
 Database adapters for {{PROJECT_NAME}}
 """
-from .application import adapter
-
-__all__ = ["adapter"]
 ''',
     "adapters/application.py": '''"""
 Application database adapter for {{PROJECT_NAME}}
@@ -311,11 +308,6 @@ adapter = SqliteAdapter(
     "config/__init__.py": '''"""
 Configuration settings for {{PROJECT_NAME}}
 """
-from .general import general
-from .http import http
-from .sessions import sessions
-
-__all__ = ["general", "http", "sessions"]
 ''',
     "config/_base.py": """import os
 from pydantic_settings import BaseSettings
@@ -504,9 +496,6 @@ MINIMAL_POSTGRESQL_TEMPLATE = {
     "adapters/__init__.py": '''"""
 Database adapters for {{PROJECT_NAME}}
 """
-from .application import adapter
-
-__all__ = ["adapter"]
 ''',
     "adapters/application.py": '''"""
 Application database adapter for {{PROJECT_NAME}}
@@ -625,9 +614,6 @@ MINIMAL_MYSQL_TEMPLATE = {
     "adapters/__init__.py": '''"""
 Database adapters for {{PROJECT_NAME}}
 """
-from .application import adapter
-
-__all__ = ["adapter"]
 ''',
     "adapters/application.py": '''"""
 Application database adapter for {{PROJECT_NAME}}
@@ -756,11 +742,13 @@ from starlette.middleware.cors import CORSMiddleware
 from sqlalchemy.exc import IntegrityError
 from starlette_session import SessionMiddleware
 from datetime import timedelta
-from .adapters import adapter
-from .config import general, http, sessions
-from .router import application as application_router
-from .services.websocket_manager import websocket_manager
-from .middleware.request_logger import RequestLogger
+from {{PROJECT_NAME_LOWER}}.adapters.application import adapter
+from {{PROJECT_NAME_LOWER}}.config.general import general
+from {{PROJECT_NAME_LOWER}}.config.http import http
+from {{PROJECT_NAME_LOWER}}.config.sessions import sessions
+from {{PROJECT_NAME_LOWER}}.router.application import router as application_router
+from {{PROJECT_NAME_LOWER}}.services.websocket_manager import websocket_manager
+from {{PROJECT_NAME_LOWER}}.middleware.request_logger import RequestLogger
 
 logger = logging.getLogger(__name__)
 HTTP_400_BAD_REQUEST = status.HTTP_400_BAD_REQUEST
@@ -778,7 +766,7 @@ async def bootstrap(application: FastAPI):
     # Start websocket manager
     await websocket_manager.startup()
 
-    application.include_router(application_router.router)
+    application.include_router(application_router)
     logger.info(f"{general.PROJECT_NAME}, {general.API_VERSION}: Bootstrap complete")
 
 
@@ -858,9 +846,9 @@ from fastapi_cruddy_framework import (
     uuid7,
     dependency_list
 )
-from ..policies.verify_session import verify_session
-from ..policies.naive_auth import naive_auth
-from ..services.websocket_manager import websocket_manager
+from {{PROJECT_NAME_LOWER}}.policies.verify_session import verify_session
+from {{PROJECT_NAME_LOWER}}.policies.naive_auth import naive_auth
+from {{PROJECT_NAME_LOWER}}.services.websocket_manager import websocket_manager
 import {{PROJECT_NAME_LOWER}}
 
 logger = getLogger(__name__)
@@ -980,7 +968,7 @@ from fastapi_cruddy_framework import (
     CLIENT_MESSAGE_EVENT,
     get_state,
 )
-from ..schemas.client_message import ClientMessage, ClientControlWithTarget
+from {{PROJECT_NAME_LOWER}}.schemas.client_message import ClientMessage, ClientControlWithTarget
 
 logger = getLogger(__name__)
 

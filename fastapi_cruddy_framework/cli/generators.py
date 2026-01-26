@@ -110,6 +110,7 @@ def generate_resource(
         "resource_name": capitalized_name,
         "resource_name_lower": resource_name.lower(),
         "resource_name_upper": resource_name.upper(),
+        "project_name_lower": _get_project_name_lower(),
         "id_type": id_import,
         "id_type_name": _get_id_type_name(id_type),
         "id_type_import_line": id_import_line,
@@ -152,18 +153,19 @@ def generate_model(
         else "    pass  # Add your fields here"
     )
 
-    # Build import line for ID type
-    id_import = _get_id_type_import(id_type)
-    id_type_import_line = f", {id_import}" if id_import else ""
+    # Check if Any import is needed based on field types
+    needs_any_import = any(
+        field_type.lower() in ["json", "any"] for _, field_type in fields
+    )
+    any_import = "\nfrom typing import Any" if needs_any_import else ""
 
     context = {
         "model_name": model_name,
         "model_name_lower": model_name.lower(),
         "model_name_upper": model_name.upper(),
-        "id_type_import": id_type_import_line,
-        "id_type_name": _get_id_type_name(id_type),
         "base_class": _get_base_model_class(id_type),
         "fields": fields_content,
+        "any_import": any_import,
     }
 
     content = MODEL_TEMPLATE.format(**context)
@@ -213,6 +215,15 @@ def _get_project_module_path() -> Path | None:
             ):
                 return nested_path
     return None
+
+
+def _get_project_name_lower() -> str:
+    """Get the lowercase project name from the current directory structure."""
+    project_module_path = _get_project_module_path()
+    if project_module_path:
+        return project_module_path.name
+    # Fallback to current directory name if can't find project module
+    return Path(".").resolve().name.lower()
 
 
 def _get_id_type_import(id_type: str) -> str:

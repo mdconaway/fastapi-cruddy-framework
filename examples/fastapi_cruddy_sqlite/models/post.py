@@ -163,7 +163,7 @@ class Post(CruddyCreatedUpdatedMixin(), CruddyUUIDModel, PostCreate, table=True)
 class PostQLOverrides(CruddyCreatedUpdatedGQLOverrides, PostView):
     model_config = ConfigDict(arbitrary_types_allowed=True)  # type: ignore
     event_date: str | None = None
-    tags: CruddyGQLObject | None = None
+    tags: CruddyGQLObject | None = None  # type: ignore
 
 
 @strawberry_pydantic_type(model=PostQLOverrides, name="Post", all_fields=True)
