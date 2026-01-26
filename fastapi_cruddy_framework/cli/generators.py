@@ -141,15 +141,31 @@ def generate_model(
 
     model_path = project_module_path / "models" / f"{model_name.lower()}.py"
 
-    # Generate field definitions
+    # Generate field definitions for update/create models
     field_defs = []
     for field_name, field_type in fields:
-        field_def = _generate_field_definition(field_name, field_type)
+        field_def = _generate_field_definition(
+            field_name, field_type, for_view_model=False
+        )
         field_defs.append(field_def)
 
     fields_content = (
         "    " + "\n    ".join(field_defs)
         if field_defs
+        else "    pass  # Add your fields here"
+    )
+
+    # Generate field definitions for view model (all optional for columns parameter support)
+    view_field_defs = []
+    for field_name, field_type in fields:
+        view_field_def = _generate_field_definition(
+            field_name, field_type, for_view_model=True
+        )
+        view_field_defs.append(view_field_def)
+
+    view_fields_content = (
+        "    " + "\n    ".join(view_field_defs)
+        if view_field_defs
         else "    pass  # Add your fields here"
     )
 
@@ -165,6 +181,7 @@ def generate_model(
         "model_name_upper": model_name.upper(),
         "base_class": _get_base_model_class(id_type),
         "fields": fields_content,
+        "view_fields": view_fields_content,
         "any_import": any_import,
     }
 
@@ -264,7 +281,9 @@ def _capitalize_class_name(name: str) -> str:
     return "".join(word.capitalize() for word in words)
 
 
-def _generate_field_definition(field_name: str, field_type: str) -> str:
+def _generate_field_definition(
+    field_name: str, field_type: str, for_view_model: bool = False
+) -> str:
     """Generate a field definition line."""
     type_mapping = {
         "str": "str",
@@ -284,8 +303,12 @@ def _generate_field_definition(field_name: str, field_type: str) -> str:
 
     python_type = type_mapping.get(field_type.lower(), "str")
 
-    # Add optional type annotation for most fields
-    if field_type.lower() not in ["int", "str", "float", "bool"]:
+    # For view models, all fields should be optional to support "columns" parameter
+    if for_view_model:
+        python_type = f"{python_type} | None"
+        default = " = None"
+    # For other models, add optional type annotation for non-basic fields
+    elif field_type.lower() not in ["int", "str", "float", "bool"]:
         python_type = f"{python_type} | None"
         default = " = None"
     else:

@@ -27,7 +27,7 @@ class {model_name}Create({model_name}Update):
 
 class {model_name}View(CruddyCreatedUpdatedSignature, {base_class}):
     """View model for {model_name} - defines fields returned in API responses."""
-{fields}
+{view_fields}
 
 
 class {model_name}(CruddyCreatedUpdatedMixin(), {base_class}, {model_name}Create, table=True):
