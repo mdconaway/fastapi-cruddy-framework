@@ -270,7 +270,7 @@ The CLI supports three database adapters:
 
 ### PostgreSQL
 - Production-ready relational database
-- Requires PostgreSQL server and `psycopg2-binary`
+- Requires PostgreSQL server and `asyncpg`
 - Advanced features like full-text search
 
 ### MySQL
