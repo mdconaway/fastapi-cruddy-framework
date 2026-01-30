@@ -390,19 +390,20 @@ readme = "README.md"
 packages = [{include = "{{PROJECT_NAME_LOWER}}"}]
 
 [tool.poetry.dependencies]
-python = "^3.10"
-fastapi = {extras = ["all"], version = "^0.115.13"}
-fastapi-cruddy-framework = "^1.11.1"
-uvicorn = {extras = ["standard"], version = "^0.32.0"}
+python = ">=3.10,<4.0"
+fastapi = {extras = ["all"], version = "^0.128.0"}
+fastapi-cruddy-framework = "^1.12.1"
+uvicorn = {extras = ["standard"], version = "^0.40.0"}
 pydantic-settings = "^2.0.0"
-aiosqlite = "^0.20.0"
+aiosqlite = "^0.21.0"
 starlette-session = "^0.4.3"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.0.0"
-pytest-asyncio = "^0.23.0"
-black = "^24.0.0"
-ruff = "^0.1.0"
+pytest = "^9.0.2"
+pytest-dependency = "^0.6.0"
+black = "^26.1.0"
+pylint = "^4.0.4"
+coverage = "^7.13.2"
 
 [tool.poetry.scripts]
 start = "{{PROJECT_NAME_LOWER}}.bootloader:start"
@@ -574,19 +575,20 @@ readme = "README.md"
 packages = [{include = "{{PROJECT_NAME_LOWER}}"}]
 
 [tool.poetry.dependencies]
-python = "^3.10"
-fastapi = {extras = ["all"], version = "^0.115.13"}
-fastapi-cruddy-framework = "^1.11.1"
-uvicorn = {extras = ["standard"], version = "^0.32.0"}
+python = ">=3.10,<4.0"
+fastapi = {extras = ["all"], version = "^0.128.0"}
+fastapi-cruddy-framework = "^1.12.1"
+uvicorn = {extras = ["standard"], version = "^0.40.0"}
 pydantic-settings = "^2.0.0"
 asyncpg = "^0.30.0"
 starlette-session = "^0.4.3"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.0.0"
-pytest-asyncio = "^0.23.0"
-black = "^24.0.0"
-ruff = "^0.1.0"
+pytest = "^9.0.2"
+pytest-dependency = "^0.6.0"
+black = "^26.1.0"
+pylint = "^4.0.4"
+coverage = "^7.13.2"
 
 [tool.poetry.scripts]
 start = "{{PROJECT_NAME_LOWER}}.bootloader:start"
@@ -692,19 +694,20 @@ readme = "README.md"
 packages = [{include = "{{PROJECT_NAME_LOWER}}"}]
 
 [tool.poetry.dependencies]
-python = "^3.10"
-fastapi = {extras = ["all"], version = "^0.115.13"}
-fastapi-cruddy-framework = "^1.11.1"
-uvicorn = {extras = ["standard"], version = "^0.32.0"}
+python = ">=3.10,<4.0"
+fastapi = {extras = ["all"], version = "^0.128.0"}
+fastapi-cruddy-framework = "^1.12.1"
+uvicorn = {extras = ["standard"], version = "^0.40.0"}
 pydantic-settings = "^2.0.0"
-PyMySQL = "^1.0.0"
+PyMySQL = "^1.1.2"
 starlette-session = "^0.4.3"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.0.0"
-pytest-asyncio = "^0.23.0"
-black = "^24.0.0"
-ruff = "^0.1.0"
+pytest = "^9.0.2"
+pytest-dependency = "^0.6.0"
+black = "^26.1.0"
+pylint = "^4.0.4"
+coverage = "^7.13.2"
 
 [tool.poetry.scripts]
 start = "{{PROJECT_NAME_LOWER}}.bootloader:start"
@@ -1121,22 +1124,20 @@ readme = "README.md"
 packages = [{include = "{{PROJECT_NAME_LOWER}}"}]
 
 [tool.poetry.dependencies]
-python = "^3.10"
-fastapi = {extras = ["all"], version = "^0.115.13"}
-fastapi-cruddy-framework = "^1.11.1"
-uvicorn = {extras = ["standard"], version = "^0.32.0"}
+python = ">=3.10,<4.0"
+fastapi = {extras = ["all"], version = "^0.128.0"}
+fastapi-cruddy-framework = "^1.12.1"
+uvicorn = {extras = ["standard"], version = "^0.40.0"}
 pydantic-settings = "^2.0.0"
-aiosqlite = "^0.20.0"
+aiosqlite = "^0.21.0"
 starlette-session = "^0.4.3"
-redis = "^5.2.0"
-strawberry-graphql = "^0.266.0"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.0.0"
-pytest-asyncio = "^0.23.0"
-black = "^24.0.0"
-ruff = "^0.1.0"
-fakeredis = "^2.28.0"
+pytest = "^9.0.2"
+pytest-dependency = "^0.6.0"
+black = "^26.1.0"
+pylint = "^4.0.4"
+coverage = "^7.13.2"
 
 [tool.poetry.scripts]
 start = "{{PROJECT_NAME_LOWER}}.bootloader:start"
@@ -1297,22 +1298,20 @@ readme = "README.md"
 packages = [{include = "{{PROJECT_NAME_LOWER}}"}]
 
 [tool.poetry.dependencies]
-python = "^3.10"
-fastapi = {extras = ["all"], version = "^0.115.13"}
-fastapi-cruddy-framework = "^1.11.1"
-uvicorn = {extras = ["standard"], version = "^0.32.0"}
+python = ">=3.10,<4.0"
+fastapi = {extras = ["all"], version = "^0.128.0"}
+fastapi-cruddy-framework = "^1.12.1"
+uvicorn = {extras = ["standard"], version = "^0.40.0"}
 pydantic-settings = "^2.0.0"
 asyncpg = "^0.30.0"
 starlette-session = "^0.4.3"
-redis = "^5.2.0"
-strawberry-graphql = "^0.266.0"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.0.0"
-pytest-asyncio = "^0.23.0"
-black = "^24.0.0"
-ruff = "^0.1.0"
-fakeredis = "^2.28.0"
+pytest = "^9.0.2"
+pytest-dependency = "^0.6.0"
+black = "^26.1.0"
+pylint = "^4.0.4"
+coverage = "^7.13.2"
 
 [tool.poetry.scripts]
 start = "{{PROJECT_NAME_LOWER}}.bootloader:start"
@@ -1347,22 +1346,20 @@ readme = "README.md"
 packages = [{include = "{{PROJECT_NAME_LOWER}}"}]
 
 [tool.poetry.dependencies]
-python = "^3.10"
-fastapi = {extras = ["all"], version = "^0.115.13"}
-fastapi-cruddy-framework = "^1.11.1"
-uvicorn = {extras = ["standard"], version = "^0.32.0"}
+python = ">=3.10,<4.0"
+fastapi = {extras = ["all"], version = "^0.128.0"}
+fastapi-cruddy-framework = "^1.12.1"
+uvicorn = {extras = ["standard"], version = "^0.40.0"}
 pydantic-settings = "^2.0.0"
-PyMySQL = "^1.0.0"
+PyMySQL = "^1.1.2"
 starlette-session = "^0.4.3"
-redis = "^5.2.0"
-strawberry-graphql = "^0.266.0"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.0.0"
-pytest-asyncio = "^0.23.0"
-black = "^24.0.0"
-ruff = "^0.1.0"
-fakeredis = "^2.28.0"
+pytest = "^9.0.2"
+pytest-dependency = "^0.6.0"
+black = "^26.1.0"
+pylint = "^4.0.4"
+coverage = "^7.13.2"
 
 [tool.poetry.scripts]
 start = "{{PROJECT_NAME_LOWER}}.bootloader:start"
