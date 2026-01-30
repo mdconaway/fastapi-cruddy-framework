@@ -193,8 +193,7 @@ async def test_graphql_read(authenticated_client: BrowserTestClient):
 
     response = await authenticated_client.post(
         f"/graphql",
-        json={
-            "query": """query TestQuery {
+        json={"query": """query TestQuery {
                 types (sort: "id asc") {
                     id
                     links
@@ -250,8 +249,7 @@ async def test_graphql_read(authenticated_client: BrowserTestClient):
                     last_name
                 }
             }
-            """
-        },
+            """},
     )
     assert response.status_code == status.HTTP_200_OK
     result = response.json()

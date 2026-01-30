@@ -14,7 +14,6 @@ from examples.fastapi_cruddy_sqlite.services.websocket_2 import websocket_manage
 from starlette_session import SessionMiddleware
 from datetime import timedelta
 
-
 logger = logging.getLogger(__name__)
 HTTP_400_BAD_REQUEST = status.HTTP_400_BAD_REQUEST
 HTTP_404_NOT_FOUND = status.HTTP_404_NOT_FOUND

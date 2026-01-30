@@ -22,7 +22,6 @@ from .schemas import UUID
 from .test_helpers import BrowserTestClient, TestClient
 from .util import dependency_list, filter_headers
 
-
 logger = getLogger(__name__)
 GQL_WHERE_REPLACEMENT_CHARACTER = "__"
 HTTP_200_OK = status.HTTP_200_OK

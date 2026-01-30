@@ -5,7 +5,6 @@ from fastapi_cruddy_framework import CruddyHTTPBearer
 from fastapi.security import HTTPAuthorizationCredentials
 from fastapi.requests import HTTPConnection
 
-
 HTTP_403_FORBIDDEN = status.HTTP_403_FORBIDDEN
 
 

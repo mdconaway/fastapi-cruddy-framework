@@ -14,7 +14,6 @@ from examples.fastapi_cruddy_sqlite.policies.hash_user_password import (
 )
 from examples.fastapi_cruddy_sqlite.config.general import general
 
-
 resource = Resource(
     adapter=sqlite,
     id_type=UUID,

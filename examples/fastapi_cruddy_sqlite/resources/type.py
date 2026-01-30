@@ -9,7 +9,6 @@ from examples.fastapi_cruddy_sqlite.models.type import (
 from examples.fastapi_cruddy_sqlite.policies.verify_session import verify_session
 from examples.fastapi_cruddy_sqlite.config.general import general
 
-
 resource = Resource(
     adapter=sqlite,
     id_type=str,

@@ -12,7 +12,6 @@ from pydantic.errors import PydanticErrorMixin
 from sqlalchemy.orm import class_mapper, object_mapper
 from .schemas import UUID, uuid7
 
-
 possible_id_types = Type[UUID] | Type[int] | Type[str]
 possible_id_values = UUID | int | str
 lifecycle_types = Callable[..., Coroutine[Any, Any, Any]] | None
