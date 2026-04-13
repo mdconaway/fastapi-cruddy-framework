@@ -598,7 +598,7 @@ class Actions:
                     request=request, resource=foreign_resource, data=new_relation
                 )
                 if success is True and not isinstance(value, dict):
-                    settled_relation = value
+                    settled_relation = value  # type: ignore
                     modified_records[name] = related_record
                 else:
                     field_failures.append(value)
