@@ -302,7 +302,7 @@ class Resource:
                 ):
                     example_id = possible_id.default
                 elif possible_id.default_factory is not None:
-                    temp_example = possible_id.default_factory()
+                    temp_example = possible_id.default_factory()  # type: ignore
                     if not isinstance(temp_example, PydanticUndefinedType):
                         example_id = temp_example
                 possible_id.json_schema_extra.update(
@@ -340,7 +340,7 @@ class Resource:
             ):
                 default_example = v.default
             elif v.default_factory is not None:
-                default_example = v.default_factory()
+                default_example = v.default_factory()  # type: ignore
                 if isinstance(default_example, PydanticUndefinedType):
                     default_example = None
             if default_example is None:
@@ -633,8 +633,10 @@ class Resource:
             # id = thing_to_convert[self.repository.primary_key]
             return {
                 resource_model_name: single_schema_linked(
-                    **thing_to_convert,
-                    links=self._link_builder(fields=thing_to_convert),  # id=id,
+                    **thing_to_convert,  # type: ignore
+                    links=self._link_builder(
+                        fields=thing_to_convert
+                    ),  # id=id, # type: ignore
                 ),
                 "meta": meta,
                 "data": None,
