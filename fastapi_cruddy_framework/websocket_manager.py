@@ -4,12 +4,16 @@ from collections.abc import Callable
 from contextlib import asynccontextmanager
 from logging import getLogger
 from uuid import uuid4
-from asyncio import gather
+from asyncio import CancelledError, Lock, Task, create_task, gather, shield
+from contextvars import ContextVar
 from json import dumps
+from math import isfinite
+from async_timeout import timeout
 from pymitter import EventEmitter
 from fastapi import WebSocket, WebSocketDisconnect
 from .adapters import RedisAdapter
 from .pubsub import PubSub
+from ._websocket_connection import _Connection
 from .schemas import (
     SocketMessage,
     SocketRoomConfiguration,
@@ -30,6 +34,9 @@ from .schemas import (
 from .util import to_json_object, get_state, set_state
 
 logger = getLogger(__name__)
+_callback_manager: ContextVar[WebsocketConnectionManager | None] = ContextVar(
+    "cruddy_websocket_callback_manager", default=None
+)
 
 
 class WebsocketConnectionManager:
@@ -57,7 +64,28 @@ class WebsocketConnectionManager:
         socket_id_attr: str = "socket_id",
         custom_client_identifier: Callable | None = None,
         room_configuration_object_key: str = "rooms",
+        *,
+        queue_capacity: int = 1024,
+        send_timeout: float = 5.0,
+        close_timeout: float = 1.0,
     ):
+        if (
+            isinstance(queue_capacity, bool)
+            or not isinstance(queue_capacity, int)
+            or queue_capacity <= 0
+        ):
+            raise ValueError("queue_capacity must be a positive integer")
+        for name, value in (
+            ("send_timeout", send_timeout),
+            ("close_timeout", close_timeout),
+        ):
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not isfinite(value)
+                or value <= 0
+            ):
+                raise ValueError(f"{name} must be a finite positive number")
         self.accept_new = True
         self.emitter = EventEmitter()
         self.active_connections: list[WebSocket] = []
@@ -66,6 +94,16 @@ class WebsocketConnectionManager:
         self.room_configuration_object_key = room_configuration_object_key
         self.socket_id_attr = socket_id_attr
         self.connected_state_attr = connected_state_attr
+        self.queue_capacity = queue_capacity
+        self.send_timeout = send_timeout
+        self.close_timeout = close_timeout
+        self._connections: dict[WebSocket, _Connection] = {}
+        self._closing_connections: dict[WebSocket, _Connection] = {}
+        self._cleanup_tasks: set[Task] = set()
+        self._startup_lock = Lock()
+        self._started = False
+        self._disposed = False
+        self._dispose_task: Task | None = None
         if pubsub_instance is None:
             if redis_adapter is None:
                 redis_adapter = RedisAdapter(
@@ -79,13 +117,21 @@ class WebsocketConnectionManager:
             )
         else:
             self.pubsub_instance = pubsub_instance
-        self.pubsub_instance.on(CONTROL_EVENT, self._handle_control_plane)
-        self.pubsub_instance.on(BROADCAST_EVENT, self._transmit)
-        self.pubsub_instance.on(ROOM_EVENT, self._route_to_room)
-        if custom_client_identifier is not None:
-            self.pubsub_instance.on(CLIENT_EVENT, self._route_to_client_id)
-        else:
-            self.pubsub_instance.on(CLIENT_EVENT, self._route_to_socket_id)
+        self._pubsub_handlers = (
+            (CONTROL_EVENT, self._handle_control_plane),
+            (BROADCAST_EVENT, self._transmit),
+            (ROOM_EVENT, self._route_to_room),
+            (
+                CLIENT_EVENT,
+                (
+                    self._route_to_client_id
+                    if custom_client_identifier is not None
+                    else self._route_to_socket_id
+                ),
+            ),
+        )
+        for event, handler in self._pubsub_handlers:
+            self.pubsub_instance.on(event, handler)
 
     def on(self, *args, **kwargs):
         return self.emitter.on(*args, **kwargs)
@@ -97,14 +143,46 @@ class WebsocketConnectionManager:
         return await self.emitter.emit_async(*args, **kwargs)
 
     async def startup(self):
-        if self.accept_new:
+        async with self._startup_lock:
+            if not self.accept_new or self._started:
+                return
             await self.pubsub_instance.startup()
+            self._started = True
 
     async def dispose(self):
         self.accept_new = False
-        await self.pubsub_instance.dispose()
-        await self._kill_sockets(sockets=self.active_connections)
-        self.active_connections = []
+        if self._disposed:
+            return
+        if self._dispose_task is None:
+            self._dispose_task = create_task(self._dispose())
+            self._dispose_task.add_done_callback(self._disposal_finished)
+        if _callback_manager.get() is self:
+            # Cleanup collects callbacks, so a callback cannot await full disposal.
+            return
+        await shield(self._dispose_task)
+
+    def _disposal_finished(self, task: Task):
+        self._dispose_task = None
+        if not task.cancelled():
+            task.exception()
+
+    async def _dispose(self):
+        try:
+            for event, handler in self._pubsub_handlers:
+                self.pubsub_instance.off(event, handler)
+            self._pubsub_handlers = ()
+            for connection in tuple(self._connections.values()):
+                self._request_close(connection)
+            try:
+                await self.pubsub_instance.dispose()
+            finally:
+                while self._cleanup_tasks:
+                    await gather(*tuple(self._cleanup_tasks), return_exceptions=True)
+        finally:
+            self.active_connections.clear()
+            self._connections.clear()
+            self._closing_connections.clear()
+            self._disposed = True
 
     @asynccontextmanager
     async def connect(
@@ -125,33 +203,93 @@ class WebsocketConnectionManager:
             self.room_configuration_object_key,
             SocketRoomConfiguration(room_list=set()),
         )
-        set_state(websocket, self.connected_state_attr, True)
-        await websocket.accept()
-        self.active_connections.append(websocket)
-        yield socket_id
+        set_state(websocket, self.connected_state_attr, False)
+        connection = _Connection(
+            websocket,
+            self.queue_capacity,
+            self.send_timeout,
+            self._request_close,
+            disconnect_message_type,
+            disconnect_message_data,
+        )
         try:
-            while get_state(websocket, self.connected_state_attr, default=False):
+            await websocket.accept()
+        except (Exception, CancelledError):
+            # ASGI may have accepted the transport before this await is cancelled.
+            self._request_close(connection, notify=False)
+            await shield(connection.cleanup_task)
+            raise
+        if not self.accept_new:
+            self._request_close(connection, notify=False)
+            await shield(connection.cleanup_task)
+            raise RuntimeError("The websocket manager is shutting down")
+        self._connections[websocket] = connection
+        connection.writer_task = create_task(connection.write())
+        set_state(websocket, self.connected_state_attr, True)
+        self.active_connections.append(websocket)
+        try:
+            yield socket_id
+            if not connection.closing:
+                connection.receive_task = create_task(self._receive(connection))
+                try:
+                    await shield(connection.receive_task)
+                except CancelledError:
+                    if not connection.closing:
+                        raise
+        finally:
+            self._request_close(connection)
+            # The cleanup task never awaits this endpoint/context-manager task.
+            if connection.cleanup_task is not None:
+                await shield(connection.cleanup_task)
+
+    async def _receive(self, connection: _Connection):
+        websocket = connection.websocket
+        token = _callback_manager.set(self)
+        try:
+            while not connection.closing and get_state(
+                websocket, self.connected_state_attr, default=False
+            ):
                 data = await websocket.receive_json()
                 if isinstance(data, dict):
                     await self.emit(CLIENT_MESSAGE_EVENT, websocket, data)
         except WebSocketDisconnect as e:
-            await self._unlink_socket(websocket)
-            logger.info("Websocket client %s disconnected %s", socket_id, str(e))
-            await self._eval_disconnect_settings(
-                disconnect_message_type, disconnect_message_data
-            )
-            return
-        except Exception:
+            logger.info("Websocket client disconnected %s", str(e))
+            self._request_close(connection, close_transport=False)
+        except Exception:  # pylint: disable=broad-exception-caught
             logger.info(
-                "Killing websocket client %s for sending malformed JSON or generally misbehaving",
-                socket_id,
+                "Killing websocket client for sending malformed JSON or generally misbehaving"
             )
-        await self._unlink_socket(websocket)
-        logger.info("Websocket client %s force closed", socket_id)
-        await websocket.close()
-        await self._eval_disconnect_settings(
-            disconnect_message_type, disconnect_message_data
+        finally:
+            self._request_close(connection)
+            _callback_manager.reset(token)
+
+    async def send_json_to_socket(self, websocket: WebSocket, data: Any):
+        """Send raw JSON through this socket's FIFO and await its local completion."""
+        connection = self._connections.get(websocket)
+        if connection is None:
+            raise RuntimeError("Websocket is not connected to this manager")
+        # Match WebSocket.send_json's default text encoding, without an envelope.
+        await connection.send_local(
+            dumps(data, separators=(",", ":"), ensure_ascii=False)
         )
+
+    async def close_socket(
+        self, websocket: WebSocket, code: int = 1000, reason: str | None = None
+    ):
+        """Await transport closure independently of receiving/disconnect callbacks."""
+        connection = self._connections.get(websocket) or self._closing_connections.get(
+            websocket
+        )
+        if connection is not None:
+            self._request_close(connection, code=code, reason=reason)
+            connection.close_waiters += 1
+            connection.close_waiters_done.clear()
+            try:
+                await shield(connection.transport_closed)
+            finally:
+                connection.close_waiters -= 1
+                if connection.close_waiters == 0:
+                    connection.close_waiters_done.set()
 
     async def broadcast(  # pylint: disable=redefined-builtin
         self,
@@ -348,8 +486,99 @@ class WebsocketConnectionManager:
             )
 
     async def _unlink_socket(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
-        await self.emit(DISCONNECT_EVENT, websocket)
+        connection = self._connections.get(websocket)
+        if connection is not None:
+            self._request_close(connection)
+
+    def _request_close(
+        self,
+        connection: _Connection,
+        *,
+        code: int = 1000,
+        reason: str | None = None,
+        close_transport: bool = True,
+        notify: bool = True,
+    ):
+        """Unlink synchronously; transport and application callbacks run separately."""
+        if connection.closing:
+            return
+        connection.closing = True
+        connection.close_code = code
+        connection.close_reason = reason
+        connection.close_transport = close_transport
+        websocket = connection.websocket
+        self._connections.pop(websocket, None)
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+        set_state(websocket, self.connected_state_attr, False)
+        connection.discard_pending()
+        self._closing_connections[websocket] = connection
+        if notify:
+            connection.notification_task = create_task(
+                self._notify_disconnect(connection)
+            )
+        connection.cleanup_task = create_task(self._finish_connection(connection))
+        self._cleanup_tasks.add(connection.cleanup_task)
+        connection.cleanup_task.add_done_callback(self._cleanup_finished)
+
+    def _cleanup_finished(self, task: Task):
+        self._cleanup_tasks.discard(task)
+        if not task.cancelled():
+            error = task.exception()
+            if error is not None:
+                logger.warning("Websocket cleanup failed: %s", str(error))
+
+    async def _notify_disconnect(self, connection: _Connection):
+        token = _callback_manager.set(self)
+        try:
+            try:
+                await self.emit(DISCONNECT_EVENT, connection.websocket)
+            except Exception as error:  # pylint: disable=broad-exception-caught
+                logger.warning("Websocket disconnect callback failed: %s", str(error))
+            try:
+                await self._eval_disconnect_settings(
+                    connection.disconnect_message_type,
+                    connection.disconnect_message_data,
+                )
+            except Exception as error:  # pylint: disable=broad-exception-caught
+                logger.warning("Websocket disconnect broadcast failed: %s", str(error))
+        finally:
+            connection.disconnect_message_type = None
+            connection.disconnect_message_data = None
+            _callback_manager.reset(token)
+
+    async def _finish_connection(self, connection: _Connection):
+        try:
+            if connection.writer_task is not None:
+                connection.writer_task.cancel()
+                await gather(connection.writer_task, return_exceptions=True)
+            try:
+                if connection.close_transport:
+                    async with timeout(self.close_timeout):
+                        await connection.websocket.close(
+                            code=connection.close_code, reason=connection.close_reason
+                        )
+            except Exception as error:  # pylint: disable=broad-exception-caught
+                logger.info("Websocket transport close failed: %s", str(error))
+            finally:
+                if not connection.transport_closed.done():
+                    connection.transport_closed.set_result(None)
+            # A close helper inside a handler must finish before we cancel the
+            # surrounding receiving operation. Coordinate explicitly rather
+            # than relying on a particular number of event-loop checkpoints.
+            await connection.close_waiters_done.wait()
+            if connection.receive_task is not None:
+                connection.receive_task.cancel()
+                await gather(connection.receive_task, return_exceptions=True)
+            if connection.notification_task is not None:
+                await connection.notification_task
+        finally:
+            connection.discard_pending()
+            connection.writer_task = None
+            connection.receive_task = None
+            connection.notification_task = None
+            connection.cleanup_task = None
+            self._closing_connections.pop(connection.websocket, None)
 
     def _exec_custom_getter(self, socket: WebSocket):
         if self.custom_client_identifier is not None:
@@ -393,9 +622,10 @@ class WebsocketConnectionManager:
         return await self.emit(CONTROL_EVENT, message)
 
     async def _kill_sockets(self, sockets: list[WebSocket]):
-        for socket in sockets:
-            set_state(socket, self.connected_state_attr, False)
-            await socket.close()
+        for socket in tuple(sockets):
+            connection = self._connections.get(socket)
+            if connection is not None:
+                self._request_close(connection)
 
     def _join_sockets(self, sockets: list[WebSocket], room_id: str):
         for socket in sockets:
@@ -408,8 +638,10 @@ class WebsocketConnectionManager:
             room_config.room_list.remove(room_id)
 
     async def _send_to_sockets(self, sockets: list[WebSocket], message: str):
-        awaitables = [connection.send_text(message) for connection in sockets]
-        await gather(*awaitables, return_exceptions=True)
+        for socket in tuple(sockets):
+            connection = self._connections.get(socket)
+            if connection is not None:
+                connection.enqueue(message)
 
     async def _transmit(self, message: SocketMessage):
         await self._send_to_sockets(
@@ -419,7 +651,7 @@ class WebsocketConnectionManager:
                 None,
                 message.sender,
                 message.type,
-                to_json_object(message.data),
+                self.custom_json_serializer(message.data),
             ),
         )
 
@@ -434,7 +666,7 @@ class WebsocketConnectionManager:
                 message.target,
                 message.sender,
                 message.type,
-                to_json_object(message.data),
+                self.custom_json_serializer(message.data),
             ),
         )
 
@@ -449,7 +681,7 @@ class WebsocketConnectionManager:
                 message.target,
                 message.sender,
                 message.type,
-                to_json_object(message.data),
+                self.custom_json_serializer(message.data),
             ),
         )
 
@@ -464,6 +696,6 @@ class WebsocketConnectionManager:
                 message.target,
                 message.sender,
                 message.type,
-                to_json_object(message.data),
+                self.custom_json_serializer(message.data),
             ),
         )

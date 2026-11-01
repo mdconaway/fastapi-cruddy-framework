@@ -13,6 +13,20 @@
 
 ## Migration Guide
 
+### 1.13.0 websocket transport upgrade
+
+Existing manager methods, websocket envelopes, dynamic client identifiers, room state, and exported test-client interfaces are retained. The constructor adds keyword-only `queue_capacity=1024`, `send_timeout=5.0`, and `close_timeout=1.0` options. The artificial 10 ms broker delay is removed; each socket now has an independent writer and bounded queue.
+
+Delivery to a slow socket no longer delays other sockets. Overflow or transport failure closes that socket and discards its pending output. Applications should reconnect and reload their current state after disconnection, rather than assume every missed update is replayed. Queue capacity is a message count, not a hard memory-byte cap.
+
+Move raw application replies that need ordering with managed traffic to `await manager.send_json_to_socket(websocket, data)`. This preserves their raw JSON shape and waits for local ASGI-send completion. Move application-initiated closure to `await manager.close_socket(websocket, code=1000, reason=None)`. The original socket and its raw methods remain available. Managed FIFO order is queue-admission order: a direct local reply can arrive before an earlier publication still waiting in the broker. No total ordering across these entry points is promised.
+
+Canceling a local reply before sending prevents later transmission. Canceling it after sending starts closes only that connection. Existing application timeouts can remain in place. The close helper completes transport teardown before waiting for receive/disconnect callbacks, so those callbacks can safely use it.
+
+`custom_json_serializer` is now honored for routed message data; previously it was stored but unused. Applications passing a custom hook should verify its intended output. Startup now waits for a confirmed subscription, and disposal collects connection tasks and detaches borrowed PubSub listeners. Application callbacks retain their awaited semantics and must be cooperative. A disposal request made from a manager callback starts cleanup; external lifespan cleanup can await full completion.
+
+No batching, coalescing, application acknowledgements, replay, or wire-format migration is introduced. Swarmly and Fleet Direct should adopt the released framework separately; their dependencies are not changed by this framework upgrade.
+
 ### `fastapi-cruddy-framework` 0.x.x -&gt; 1.x.x
 
 #### Dependency Guides:

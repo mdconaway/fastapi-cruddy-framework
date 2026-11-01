@@ -1,4 +1,4 @@
-from pytest import mark
+from pytest import mark, raises
 from fastapi_cruddy_framework import WebSocketSession, CONTROL_EVENT
 from logging import getLogger
 
@@ -21,11 +21,9 @@ async def test_kill_socket_id(authenticated_websocket_by_id: WebSocketSession):
             "target": socket_id,
         }
     )
-    try:
+    with raises(Exception) as closed:
         await authenticated_websocket_by_id.receive_json()
-    except Exception as e:
-        assert isinstance(e, Exception)
-        assert e.args[0]["type"] == "websocket.close"
+    assert closed.value.args[0]["type"] == "websocket.close"
 
 
 @mark.dependency()
@@ -44,11 +42,9 @@ async def test_kill_client_id(authenticated_websocket_by_client: WebSocketSessio
             "target": client_id,
         }
     )
-    try:
+    with raises(Exception) as closed:
         await authenticated_websocket_by_client.receive_json()
-    except Exception as e:
-        assert isinstance(e, Exception)
-        assert e.args[0]["type"] == "websocket.close"
+    assert closed.value.args[0]["type"] == "websocket.close"
 
 
 @mark.dependency()
@@ -61,11 +57,9 @@ async def test_kill_room_socket_id(authenticated_websocket_by_id: WebSocketSessi
     await authenticated_websocket_by_id.send_json(
         data={"route": CONTROL_EVENT, "type": "client_kill_room", "target": room_name}
     )
-    try:
+    with raises(Exception) as closed:
         await authenticated_websocket_by_id.receive_json()
-    except Exception as e:
-        assert isinstance(e, Exception)
-        assert e.args[0]["type"] == "websocket.close"
+    assert closed.value.args[0]["type"] == "websocket.close"
 
 
 @mark.dependency()
@@ -78,8 +72,6 @@ async def test_kill_room_client_id(authenticated_websocket_by_client: WebSocketS
     await authenticated_websocket_by_client.send_json(
         data={"route": CONTROL_EVENT, "type": "client_kill_room", "target": room_name}
     )
-    try:
+    with raises(Exception) as closed:
         await authenticated_websocket_by_client.receive_json()
-    except Exception as e:
-        assert isinstance(e, Exception)
-        assert e.args[0]["type"] == "websocket.close"
+    assert closed.value.args[0]["type"] == "websocket.close"

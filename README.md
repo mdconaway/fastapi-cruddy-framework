@@ -912,11 +912,49 @@ Generally, these functions do about what you would expect them to do. More docum
 
 `fastapi-cruddy-framework` includes a relatively full-featured `WebsocketConnectionManager` that offers many of the same features as other great websocket libraries, such as [socket.io](https://socket.io/). The easiest way to see the full capabilities of the websocket manager is to look at the example server used to test this library! For instance, [here](examples/fastapi_cruddy_sqlite/services/websocket_1.py) and [here](examples/fastapi_cruddy_sqlite/services/websocket_2.py) you can see how to instantiate a `WebsocketConnectionManager`. You can then bind an instance of a `WebsocketConnectionManager` to your `ApplicationRoute`, as seen [here](examples/fastapi_cruddy_sqlite/router/application.py), using the async context manager's `.connect()` function to initiate a bidirectional websocket context that supports broadcasts, rooms, direct socket-to-socket messages, kill commands, a custom socket identity hook (to identify or kill many sockets owned by the same user), and a horizontally scaling control plane where you can even plugin your own custom commands! Note that you need to `.startup()` and `.dispose()` of a `WebsocketConnectionManager` in your application's `lifespan` hook, as seen [here](examples/fastapi_cruddy_sqlite/main.py).
 
+Beginning with 1.13.0, each managed socket has one outgoing writer and its own bounded FIFO. Broadcasts, room messages, direct messages, and local managed replies share that FIFO. Routing enqueues without waiting for a recipient's network connection. A stalled client therefore cannot hold up healthy clients. Incoming handlers run sequentially for each socket and independently across sockets. Application callbacks must still cooperate with the asyncio event loop; blocking Python code can block the process.
 
-The `WebsocketConnectionManager` will receive more thorough documentation in the future when it becomes more stable, but it is fully tested in it's current state and is very reliable!
+The optional keyword-only constructor settings are:
 
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `queue_capacity` | `1024` | Maximum pending messages for each socket, excluding its current send. |
+| `send_timeout` | `5.0` seconds | Deadline for each managed transport send. Local replies include their queue wait in this deadline. |
+| `close_timeout` | `1.0` second | Deadline for transport closure. |
 
-Note that currently the `WebsocketConnectionManager` requires `redis` to function. In the future, other broker types may be added as well! The pub/sub aspect is delegated to a separate class under the hood.
+Pass these options by keyword when creating a manager:
+
+```python
+from fastapi_cruddy_framework import WebsocketConnectionManager
+
+manager = WebsocketConnectionManager(
+    redis_mode="redis",
+    redis_host="redis",
+    redis_channel="websockets",
+    queue_capacity=1024,
+    send_timeout=5.0,
+    close_timeout=1.0,
+)
+```
+
+This example uses the 1.13.0 defaults. Adjust the limits for your application's payloads and expected bursts; use `redis_mode="memory"` for a process-local broker without a Redis server. Start and dispose the manager in your application's lifespan hook as shown in the linked examples.
+
+Capacity must be a positive integer; timeouts must be finite positive numbers. A full queue closes only its affected connection with code `1013`, rather than silently dropping updates. A transport failure or deadline also terminates that connection. Its pending output is discarded. Clients should reconnect and obtain their application's current snapshot; Cruddy does not replay missed messages. Capacity counts messages, so it does not impose an absolute byte limit on arbitrary application payloads or ASGI/network buffers.
+
+Two local helpers support replies and closure without a broker round trip:
+
+```python
+await manager.send_json_to_socket(websocket, {"status": "ready"})
+await manager.close_socket(websocket, code=1000, reason="Finished")
+```
+
+`send_json_to_socket` sends the supplied JSON directly, without a Cruddy envelope, and awaits completion of its ASGI send. It does not wait for a browser acknowledgement. Canceling a queued local reply prevents its later delivery; canceling an in-flight reply terminates that socket because transmission may have begun. `close_socket` awaits bounded transport teardown, independently of disconnect hooks. Both helpers are safe inside the manager's receive and disconnect callbacks.
+
+FIFO order is admission order at each socket. Existing `broadcast`, `direct_message`, and `room_message` methods await broker publication, so a local helper can enqueue before a publication still waiting in the broker. Room changes affect subsequent broker messages, not output already selected. Raw methods remain available on the original FastAPI `WebSocket`, but raw writes do not share the manager's ordering guarantee. Use the local helper when mixing replies with managed traffic. The configured `custom_json_serializer` normalizes the data portion once for each routed message; the existing envelope fields remain unchanged.
+
+`startup()` waits for confirmed broker subscription. `dispose()` stops admission, detaches the manager's broker listeners, closes sockets, and collects owned work. Await it from the application's lifespan cleanup. Calling it inside a manager callback requests cleanup without waiting on that same callback; an external call can await full disposal. Keep disconnect hooks cooperative and finite. Stopping a manager does not close the adapter's shared Redis client.
+
+The default `redis_mode="redis"` supports communication across application processes through Redis. `redis_mode="memory"` uses a process-local FakeRedis backend and needs no Redis server. Memory mode is not a cross-process broker, and its subscriber backlog can grow if sustained publication exceeds reader capacity. Per-socket limits do not bound that broker backlog. See [the 1.13.0 migration notes](migrating_versions.md#1130-websocket-transport-upgrade) for adoption details.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
